@@ -372,28 +372,42 @@ def get_standardized_weather_desc(symbol):
     if symbol == "clearsky":
         return "Sunny"
     elif symbol == "fair":
-        return "Mostly Sunny"
+        return "M.Sunny"
     elif symbol == "partlycloudy":
         return "P.Cloudy"
     elif symbol == "cloudy":
         return "Cloudy"
     elif "lightrain" in symbol:
-        return "Light Rain"
+        return "L.Rain"
     elif "heavyrain" in symbol:
-        return "Heavy Rain"
+        return "H.Rain"
     elif "rain" in symbol:
         return "Rain"
     elif "lightsnow" in symbol:
-        return "Light Snow"
+        return "L.Snow"
     elif "snow" in symbol:
         return "Snow"
     elif "fog" in symbol:
         return "Foggy"
     elif "thunder" in symbol:
-        return "Thunderstorm"
+        return "Thunder"
     else:
         # Fallback: Capitalize and replace underscores
         return symbol.replace("_", " ").capitalize()
+
+# Centralized function to get rating based on score - ensures consistency across all modes
+def get_rating_info(score):
+    """Return standardized rating description and color based on score"""
+    if score >= 6:
+        return "Excellent", Fore.LIGHTGREEN_EX
+    elif score >= 3:
+        return "Good", Fore.GREEN
+    elif score >= 0:
+        return "Fair", Fore.YELLOW
+    elif score >= -3:
+        return "Poor", Fore.LIGHTRED_EX
+    else:
+        return "Avoid", Fore.RED
 
 def display_forecast(forecast_data, location_name, compare_mode=False):
     """Display weather forecast for a location"""
@@ -414,22 +428,8 @@ def display_forecast(forecast_data, location_name, compare_mode=False):
         scores = day_scores[date]
         date_str = date.strftime("%a, %d %b")
 
-        # Determine rating description and color
-        if scores["avg_score"] >= 6:
-            rating = "Excellent"
-            color = Fore.LIGHTGREEN_EX
-        elif scores["avg_score"] >= 3:
-            rating = "Good"
-            color = Fore.GREEN
-        elif scores["avg_score"] >= 0:
-            rating = "Fair"
-            color = Fore.YELLOW
-        elif scores["avg_score"] >= -3:
-            rating = "Poor"
-            color = Fore.LIGHTRED_EX
-        else:
-            rating = "Avoid"
-            color = Fore.RED
+        # Use centralized rating function
+        rating, color = get_rating_info(scores["avg_score"])
 
         # Determine overall weather description - standardized naming
         precip_warning = ""
@@ -463,7 +463,7 @@ def display_forecast(forecast_data, location_name, compare_mode=False):
         daylight_hours = sorted([h for h in daily_forecasts[date] if 8 <= h["hour"] <= 20],
                                key=lambda x: x["hour"])
 
-        # Score each hour for outdoor activity
+        # Score each hour for outdoor activity - using the same method as in recommend function
         for hour in daylight_hours:
             hour["total_score"] = sum(score for score_name, score in hour.items()
                                    if score_name.endswith("_score") and isinstance(score, (int, float)))
@@ -534,29 +534,15 @@ def compare_locations(location_data, date_filter=None):
     max_location_length = max(len(data["location"]) for data in date_data) if date_data else 15
     location_width = max(max_location_length + 2, 17)  # Minimum 17 chars
 
-    # Print table header with proper spacing - removed Rain column
-    print(f"\n{'Location':<{location_width}} {'Rating':<10} {'Temp':<15} {'Weather':<13} {'Score':<6}")
+    # Print table header with proper spacing
+    print(f"\n{'Location':<{location_width}} {'Rating':<10} {'Temp':<15} {'Weather':<13} {'Score':>6}")
     print(f"{'-'*location_width} {'-'*10} {'-'*15} {'-'*13} {'-'*6}")
 
     for data in date_data:
         location = data["location"]
 
-        # Determine rating description and color
-        if data["avg_score"] >= 6:
-            rating = "Excellent"
-            color = Fore.LIGHTGREEN_EX
-        elif data["avg_score"] >= 3:
-            rating = "Good"
-            color = Fore.GREEN
-        elif data["avg_score"] >= 0:
-            rating = "Fair"
-            color = Fore.YELLOW
-        elif data["avg_score"] >= -3:
-            rating = "Poor"
-            color = Fore.LIGHTRED_EX
-        else:
-            rating = "Avoid"
-            color = Fore.RED
+        # Use centralized rating function
+        rating, color = get_rating_info(data["avg_score"])
 
         # Weather description - consistently use standardized naming
         if data["sunny_hours"] > data["partly_cloudy_hours"] and data["sunny_hours"] > data["rainy_hours"]:
@@ -798,85 +784,79 @@ def recommend_best_times(location_data):
     return all_periods
 
 def display_best_times_recommendation(location_data):
-    """Display a simple recommendation for when to go out this week"""
-    all_periods = recommend_best_times(location_data)
+  """Display a simple recommendation for when to go out this week"""
+  all_periods = recommend_best_times(location_data)
 
-    if not all_periods:
-        print(f"\n{Fore.YELLOW}No ideal outdoor times found for this week.{Style.RESET_ALL}")
-        print("Try checking individual locations for more details.")
-        return
+  if not all_periods:
+      print(f"\n{Fore.YELLOW}No ideal outdoor times found for this week.{Style.RESET_ALL}")
+      print("Try checking individual locations for more details.")
+      return
 
-    print(f"\n{Fore.CYAN}BEST TIMES TO GO OUT IN THE NEXT 7 DAYS:{Style.RESET_ALL}")
+  print(f"\n{Fore.CYAN}BEST TIMES TO GO OUT IN THE NEXT 7 DAYS:{Style.RESET_ALL}")
 
-    # Group periods by date
-    days = defaultdict(list)
-    for period in all_periods:
-        days[period["date"]].append(period)
+  # Group periods by date
+  days = defaultdict(list)
+  for period in all_periods:
+      days[period["date"]].append(period)
 
-    # Extract more options per day, including those with lower scores
-    filtered_periods = []
-    for date, periods in sorted(days.items()):
-        # Sort all periods by score
-        periods.sort(key=lambda x: x["score"], reverse=True)
+  # Extract more options per day, including those with lower scores
+  filtered_periods = []
+  for date, periods in sorted(days.items()):
+      periods.sort(key=lambda x: x["score"], reverse=True)
+      for p in periods[:5]:
+          filtered_periods.append(p)
 
-        # Take up to 5 periods for each day to show more options
-        for p in periods[:5]:
-            filtered_periods.append(p)
+  # Find the longest location name for proper alignment
+  max_location_length = max(len(period["location"]) for period in filtered_periods) if filtered_periods else 15
+  location_width = max(max_location_length + 2, 17)  # Minimum 17 chars
+  weather_width = 20  # Updated field width for consistent weather + temp alignment
 
-    # Find the longest location name for proper alignment
-    max_location_length = max(len(period["location"]) for period in filtered_periods) if filtered_periods else 15
-    location_width = max(max_location_length + 2, 17)  # Minimum 17 chars
+  # Print a header row for better readability
+  print(f"{'#':<3} {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<{location_width}} {'Weather':<{weather_width}} {'Score':>6}")
+  print(f"{'-'*3} {'-'*16} {'-'*15} {'-'*10} {'-'*location_width} {'-'*weather_width} {'-'*6}")
 
-    # Print a header row for better readability
-    print(f"{'#':<3} {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<{location_width}} {'Weather':<20} {'Score':>6}")
-    print(f"{'-'*3} {'-'*16} {'-'*15} {'-'*10} {'-'*location_width} {'-'*20} {'-'*6}")
+  current_date = None
 
-    # Format and display the filtered results
-    current_date = None
+  for i, period in enumerate(filtered_periods, 1):
+      if current_date and current_date != period["date"]:
+          print()
+      current_date = period["date"]
 
-    for i, period in enumerate(filtered_periods, 1):
-        # Add extra line between days
-        if current_date and current_date != period["date"]:
-            print()
-        current_date = period["date"]
+      date_str = period["date"].strftime("%d %b")
+      day_name = period["day_name"][:3]
+      day_date = f"{day_name}, {date_str}"
 
-        date_str = period["date"].strftime("%d %b")
-        day_name = period["day_name"][:3]  # First three chars of day name
-        day_date = f"{day_name}, {date_str}"
+      start_str = period["start_time"].strftime("%H:%M")
+      end_str = period["end_time"].strftime("%H:%M")
+      time_range = f"{start_str}-{end_str}"
 
-        start_str = period["start_time"].strftime("%H:%M")
-        end_str = period["end_time"].strftime("%H:%M")
-        time_range = f"{start_str}-{end_str}"
+      rating, color = get_rating_info(period["score"])
+      duration_str = f"{period['duration']} hours"
 
-        # Determine color based on score
-        if period["score"] >= 25:
-            color = Fore.LIGHTGREEN_EX
-        elif period["score"] >= 15:
-            color = Fore.GREEN
-        elif period["score"] >= 5:
-            color = Fore.GREEN
-        elif period["score"] >= 0:
-            color = Fore.YELLOW
-        else:
-            color = Fore.YELLOW
+      weather_desc = get_standardized_weather_desc(period["dominant_symbol"])
 
-        duration_str = f"{period['duration']} hours"
+      weather_desc = get_standardized_weather_desc(period["dominant_symbol"])[:12]  # Limit length
+      weather_desc = f"{weather_desc:<12}"  # Left-align in 12 chars
 
-        # Use standardized weather description function
-        weather_desc = get_standardized_weather_desc(period["dominant_symbol"])
+      temp_desc = ""
+      if period["avg_temp"] is not None:
+          temp_desc = f"{period['avg_temp']:>5.1f}°C"  # Right-align temp in 6 chars total
 
-        # Add temperature if available
-        temp_desc = ""
-        if period["avg_temp"] is not None:
-            temp_desc = f", {period['avg_temp']:.1f}°C"
+      weather_with_temp = f"{weather_desc} {temp_desc}"  # Combined: total ~19 chars
 
-        weather_with_temp = f"{weather_desc}{temp_desc}"
 
-        # Show the score to understand the ranking
-        score_str = f"{period['score']:.1f}"
+      score_str = f"{period['score']:.1f}"
 
-        # Create a properly aligned recommendation
-        print(f"{i:<3} {color}{day_date:<16}{Style.RESET_ALL} {time_range:<15} {duration_str:<10} {Fore.CYAN}{period['location']:<{location_width}}{Style.RESET_ALL} {weather_with_temp:<20} {score_str:>6}")
+      # Aligned print statement
+      print(
+          f"{i:<3} "
+          f"{color}{day_date:<16}{Style.RESET_ALL} "
+          f"{time_range:<15} "
+          f"{duration_str:<10} "
+          f"{Fore.CYAN}{period['location']:<{location_width}}{Style.RESET_ALL} "
+          f"{weather_with_temp:<{weather_width}} "
+          f"{score_str:>6}"
+      )
 
 def main():
     """Main function to process command-line arguments and display weather forecasts"""
