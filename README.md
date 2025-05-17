@@ -24,6 +24,12 @@ The app helps you determine the best days and time ranges for outdoor activities
 - Highlights periods to avoid when applicable
 - Focuses on daylight hours (8:00-20:00) for optimal activity scheduling
 
+### Direct Recommendations
+- Get straightforward recommendations for when to go out this week
+- Shows the top 5 best time periods across all locations
+- Ranks time blocks by weather quality score
+- Provides simple, actionable advice without needing to analyze the details yourself
+
 ## Setup and Installation
 
 1. Clone the repository:
@@ -84,6 +90,13 @@ Compare all locations for a specific date:
 python main.py --compare --date 2024-07-15
 # or shorter form
 python main.py -c -d 2024-07-15
+```
+
+Get direct recommendations for when to go out this week:
+```bash
+python main.py --recommend
+# or shorter form
+python main.py -r
 ```
 
 List all available locations:
