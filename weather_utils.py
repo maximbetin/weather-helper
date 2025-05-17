@@ -11,7 +11,7 @@ def temp_score(temp):
     Returns:
         int: Score between -10 and 10, where higher is better
     """
-    if temp is None or not isinstance(temp, (int, float)):
+    if not isinstance(temp, (int, float)):
         return 0
 
     # Optimal temperature range around 18-24°C
@@ -37,7 +37,7 @@ def wind_score(wind_speed):
     Returns:
         int: Score between -10 and 0, where 0 is no wind (best)
     """
-    if wind_speed is None or not isinstance(wind_speed, (int, float)):
+    if not isinstance(wind_speed, (int, float)):
         return 0
 
     if wind_speed < 2:
@@ -60,7 +60,7 @@ def cloud_score(cloud_coverage):
     Returns:
         int: Score between -5 and 5, where higher is better (clearer)
     """
-    if cloud_coverage is None or not isinstance(cloud_coverage, (int, float)):
+    if not isinstance(cloud_coverage, (int, float)):
         return 0
 
     # Lower cloud coverage is better for most outdoor activities
@@ -84,7 +84,7 @@ def uv_score(uv_index):
     Returns:
         int: Score between -5 and 5, where moderate UV (3-5) is best
     """
-    if uv_index is None or not isinstance(uv_index, (int, float)):
+    if not isinstance(uv_index, (int, float)):
         return 0
 
     # Moderate UV (3-5) is generally pleasant without excessive sun exposure risk
@@ -108,7 +108,7 @@ def precip_probability_score(probability):
     Returns:
         int: Score between -10 and 0, where 0 is no chance of rain (best)
     """
-    if probability is None or not isinstance(probability, (int, float)):
+    if not isinstance(probability, (int, float)):
         return 0
 
     # Lower probability is better for outdoor activities
@@ -142,6 +142,12 @@ def get_standardized_weather_desc(symbol):
         "partlycloudy": "P.Cloudy",
         "cloudy": "Cloudy",
         "fog": "Foggy",
+        "lightrain": "L.Rain",
+        "heavyrain": "H.Rain",
+        "rain": "Rain",
+        "lightsnow": "L.Snow",
+        "snow": "Snow",
+        "thunder": "Thunder"
     }
 
     # Return mapped value if exists
@@ -184,16 +190,10 @@ def find_weather_blocks(hours):
     # Sort hours by time
     sorted_hours = sorted(hours, key=lambda x: x["hour"])
 
-    # Weather classification function
-    def classify_weather(symbol):
-        if symbol in ["clearsky", "fair"]:
-            return "sunny"
-        elif "rain" in symbol or "snow" in symbol or "sleet" in symbol:
-            return "rainy"
-        else:
-            return "cloudy"
-
     blocks = []
+    if not sorted_hours:
+        return blocks
+
     current_block = [sorted_hours[0]]
     current_type = classify_weather(sorted_hours[0]["symbol"])
 
@@ -213,3 +213,22 @@ def find_weather_blocks(hours):
     blocks.append((current_block, current_type))
 
     return blocks
+
+def classify_weather(symbol):
+    """Classify weather symbol into broader categories.
+
+    Args:
+        symbol: Weather symbol code from API
+
+    Returns:
+        str: Weather classification ('sunny', 'rainy', or 'cloudy')
+    """
+    if not symbol or not isinstance(symbol, str):
+        return "cloudy"  # Default to cloudy as a fallback
+
+    if symbol in ["clearsky", "fair"]:
+        return "sunny"
+    elif "rain" in symbol or "snow" in symbol or "sleet" in symbol:
+        return "rainy"
+    else:
+        return "cloudy"

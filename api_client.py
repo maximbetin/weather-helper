@@ -5,11 +5,12 @@ from colorama import Fore, Style
 from config import API_URL, USER_AGENT
 
 
-def fetch_weather_data(location):
+def fetch_weather_data(location, timeout=10):
     """Fetch weather data for a specific location.
 
     Args:
         location: Dictionary containing lat/lon coordinates and name
+        timeout: Request timeout in seconds (default: 10)
 
     Returns:
         JSON response from API or None if request failed
@@ -27,9 +28,18 @@ def fetch_weather_data(location):
 
     # Fetch data with error handling
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()  # Raise an exception for HTTP errors
         return response.json()
+    except requests.exceptions.Timeout:
+        print(f"{Fore.RED}Error: Request timed out for {location_name}{Style.RESET_ALL}")
+        return None
+    except requests.exceptions.ConnectionError:
+        print(f"{Fore.RED}Error: Connection failed for {location_name}{Style.RESET_ALL}")
+        return None
+    except requests.exceptions.HTTPError as e:
+        print(f"{Fore.RED}Error: HTTP error for {location_name}: {e}{Style.RESET_ALL}")
+        return None
     except requests.exceptions.RequestException as e:
         print(f"{Fore.RED}Error fetching weather data for {location_name}: {e}{Style.RESET_ALL}")
         return None

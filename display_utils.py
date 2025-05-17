@@ -3,6 +3,7 @@
 from colorama import Fore, Style
 from datetime import datetime
 import pytz
+from collections import Counter
 
 from config import LOCATIONS, TIMEZONE, DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR
 from weather_utils import get_standardized_weather_desc, find_weather_blocks
@@ -60,6 +61,7 @@ def display_forecast(forecast_data, location_name, compare_mode=False):
         compare_mode: Whether to show abbreviated output for comparison view
     """
     if not forecast_data:
+        print(f"{Fore.RED}No forecast data available for {location_name}{Style.RESET_ALL}")
         return
 
     daily_forecasts = forecast_data["daily_forecasts"]
@@ -81,9 +83,7 @@ def display_forecast(forecast_data, location_name, compare_mode=False):
         weather_desc = get_weather_description(scores)
 
         # Format temperature range
-        temp_str = "N/A"
-        if scores["min_temp"] is not None and scores["max_temp"] is not None:
-            temp_str = f"{scores['min_temp']:>4.1f}°C - {scores['max_temp']:>4.1f}°C"
+        temp_str = format_temperature_range(scores["min_temp"], scores["max_temp"])
 
         # Print the day summary
         print(f"{date_str} {color}[{rating}]{Style.RESET_ALL} {temp_str} - {weather_desc}")
@@ -94,6 +94,20 @@ def display_forecast(forecast_data, location_name, compare_mode=False):
 
         # Show best and worst time blocks
         display_day_blocks(daily_forecasts[date], scores["avg_score"])
+
+def format_temperature_range(min_temp, max_temp):
+    """Format temperature range string.
+
+    Args:
+        min_temp: Minimum temperature value
+        max_temp: Maximum temperature value
+
+    Returns:
+        str: Formatted temperature range string
+    """
+    if min_temp is not None and max_temp is not None:
+        return f"{min_temp:>4.1f}°C - {max_temp:>4.1f}°C"
+    return "N/A"
 
 def display_day_blocks(hours, day_avg_score):
     """Display best and worst time blocks for a day.
@@ -129,14 +143,16 @@ def display_day_blocks(hours, day_avg_score):
         block, weather_type = best_block
         start_time = block[0]["time"].strftime("%H:%M")
         end_time = block[-1]["time"].strftime("%H:%M")
-        print(f"  Best: {Fore.GREEN}{start_time}-{end_time}{Style.RESET_ALL}")
+        full_time = f"{start_time} - {end_time}"
+        print(f"   Best: {Fore.GREEN}{full_time:<4}{Style.RESET_ALL}")
 
     # Display worst time only if it's a good day with a specific bad period
     if worst_block and day_avg_score >= 0:
         block, weather_type = worst_block
         start_time = block[0]["time"].strftime("%H:%M")
         end_time = block[-1]["time"].strftime("%H:%M")
-        print(f"  Avoid: {Fore.RED}{start_time}-{end_time}{Style.RESET_ALL}")
+        full_time = f"{start_time} - {end_time}"
+        print(f"  Avoid: {Fore.RED}{full_time:<4}{Style.RESET_ALL}")
 
 def find_day_blocks(weather_blocks):
     """Find the best and worst blocks for a day.
@@ -229,9 +245,7 @@ def display_comparison_table(date_data):
         weather = get_weather_description(data)
 
         # Temperature range
-        temp = "N/A"
-        if data["min_temp"] is not None and data["max_temp"] is not None:
-            temp = f"{data['min_temp']:.1f}°C - {data['max_temp']:.1f}°C"
+        temp = format_temperature_range(data["min_temp"], data["max_temp"])
 
         # Format score
         score_str = f"{data['avg_score']:.1f}"
@@ -268,37 +282,44 @@ def display_best_times_recommendation(location_data):
     top_recommendations = all_periods[:5]
 
     for period in top_recommendations:
-        hours = period["hours"]
-        if len(hours) < 2:
-            continue
-
-        day_name = period["day_name"]
-        date = period["date"].strftime("%d %b")
-        location = period["location"]
-        start_time = hours[0]["time"].strftime("%H:%M")
-        end_time = hours[-1]["time"].strftime("%H:%M")
-        duration = len(hours)
-
-        # Get average temperature
-        temps = [h["temp"] for h in hours if isinstance(h["temp"], (int, float))]
-        temp_str = f"{sum(temps)/len(temps):.1f}°C" if temps else "N/A"
-
-        # Get rating and color for score
-        rating, color = get_rating_info(period["avg_score"])
-
-        # Print recommendation
+        display_recommendation_period(period)
         days_shown.add(period["date"])
-        print(f"\n{day_name}, {date} at {Fore.CYAN}{location}{Style.RESET_ALL}")
-        print(f"  {Fore.GREEN}{start_time}-{end_time}{Style.RESET_ALL} ({duration}h) {color}[{rating}]{Style.RESET_ALL} {temp_str}")
-
-        # Get the dominant weather symbol
-        symbols = [h["symbol"] for h in hours if isinstance(h["symbol"], str)]
-        if symbols:
-            from collections import Counter
-            most_common = Counter(symbols).most_common(1)[0][0]
-            print(f"  Weather: {get_standardized_weather_desc(most_common)}")
 
     # Show if there are more options not displayed
     remaining = len(all_periods) - len(top_recommendations)
     if remaining > 0:
         print(f"\n{Fore.YELLOW}Plus {remaining} more options. Check specific locations for details.{Style.RESET_ALL}")
+
+def display_recommendation_period(period):
+    """Display a single recommendation period.
+
+    Args:
+        period: Dictionary containing recommendation period data
+    """
+    hours = period["hours"]
+    if len(hours) < 2:
+        return
+
+    day_name = period["day_name"]
+    date = period["date"].strftime("%d %b")
+    location = period["location"]
+    start_time = hours[0]["time"].strftime("%H:%M")
+    end_time = hours[-1]["time"].strftime("%H:%M")
+    duration = len(hours)
+
+    # Get average temperature
+    temps = [h["temp"] for h in hours if isinstance(h["temp"], (int, float))]
+    temp_str = f"{sum(temps)/len(temps):.1f}°C" if temps else "N/A"
+
+    # Get rating and color for score
+    rating, color = get_rating_info(period["avg_score"])
+
+    # Print recommendation
+    print(f"\n{day_name}, {date} at {Fore.CYAN}{location}{Style.RESET_ALL}")
+    print(f"  {Fore.GREEN}{start_time}-{end_time}{Style.RESET_ALL} ({duration}h) {color}[{rating}]{Style.RESET_ALL} {temp_str}")
+
+    # Get the dominant weather symbol
+    symbols = [h["symbol"] for h in hours if isinstance(h["symbol"], str)]
+    if symbols:
+        most_common = Counter(symbols).most_common(1)[0][0]
+        print(f"  Weather: {get_standardized_weather_desc(most_common)}")
