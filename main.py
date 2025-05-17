@@ -6,8 +6,7 @@ for outdoor activities in Asturias, Spain.
 import argparse
 import time
 from datetime import datetime
-import pytz
-from colorama import init
+from colorama import init, Fore, Style
 
 # Import from our modules
 from config import LOCATIONS, TIMEZONE
@@ -20,6 +19,7 @@ from display_utils import (
 
 # Initialize colorama for colored terminal output
 init()
+
 
 def main():
     """Main function to process command-line arguments and display weather forecasts."""
@@ -55,7 +55,6 @@ def main():
         try:
             comparison_date = datetime.strptime(args.date, "%Y-%m-%d").date()
         except ValueError:
-            from colorama import Fore, Style
             print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
             return
 
@@ -72,6 +71,11 @@ def main():
     if not args.no_clear:
         print("\033[2J\033[H")  # ANSI escape sequence to clear screen
 
+    fetch_and_display_weather(selected_locations, args, comparison_date)
+
+
+def fetch_and_display_weather(selected_locations, args, comparison_date=None):
+    """Fetch weather data and display according to specified options."""
     # Fetch and process data for all selected locations
     location_data = {}
     for loc_key, location in selected_locations.items():
@@ -84,18 +88,13 @@ def main():
 
     print()  # Add a blank line for better readability
 
-    # Display recommendations if requested
+    # Handle display based on selected options
     if args.recommend:
         display_best_times_recommendation(location_data)
         return
 
-    # Display mode depends on arguments
     if args.compare:
-        if comparison_date:
-            compare_locations(location_data, comparison_date)
-        else:
-            # Compare for today
-            compare_locations(location_data)
+        compare_locations(location_data, comparison_date or datetime.now().date())
 
         # Show location summaries for each city in comparison mode
         for loc_key, forecast in location_data.items():
@@ -104,6 +103,7 @@ def main():
         # Display each location's forecast in detail
         for loc_key, forecast in location_data.items():
             display_forecast(forecast, LOCATIONS[loc_key]["name"])
+
 
 if __name__ == "__main__":
     main()
