@@ -1,8 +1,6 @@
 """Configuration constants for the Daily Helper application."""
 
-# --------------------------
-# LOCATION SETTINGS
-# --------------------------
+# Define locations in Asturias
 LOCATIONS = {
     "gijon": {"name": "Gijón", "lat": 43.5322, "lon": -5.6611},
     "llanes": {"name": "Llanes", "lat": 43.4200, "lon": -4.7550},
@@ -17,63 +15,57 @@ LOCATIONS = {
     "oviedo": {"name": "Oviedo", "lat": 43.3619, "lon": -5.8494}
 }
 
-# --------------------------
-# TIME SETTINGS
-# --------------------------
-TIMEZONE = "Europe/Madrid"
-DAYLIGHT_START_HOUR = 8  # When to start considering daylight hours
-DAYLIGHT_END_HOUR = 20   # When to stop considering daylight hours
-FORECAST_DAYS = 7        # Number of days to forecast
+# Weather rating system - positive scores for good outdoor conditions
+WEATHER_SCORES = {
+    # Sunny/clear conditions (highest scores)
+    "clearsky": 10,
+    "fair": 8,
 
-# --------------------------
-# API SETTINGS
-# --------------------------
+    # Partly cloudy conditions (medium scores)
+    "partlycloudy": 6,
+
+    # Cloudy but no precipitation (lower scores)
+    "cloudy": 3,
+
+    # Light precipitation (negative scores)
+    "lightrain": -2,
+    "lightrainshowers": -2,
+    "lightsleet": -3,
+    "lightsleetshowers": -3,
+    "lightsnow": -3,
+    "lightsnowshowers": -3,
+
+    # Moderate precipitation (more negative)
+    "rain": -5,
+    "rainshowers": -5,
+    "sleet": -6,
+    "sleetshowers": -6,
+    "snow": -6,
+    "snowshowers": -6,
+
+    # Heavy precipitation (most negative)
+    "heavyrain": -10,
+    "heavyrainshowers": -10,
+    "heavysleet": -10,
+    "heavysleetshowers": -10,
+    "heavysnow": -10,
+    "heavysnowshowers": -10,
+
+    # Fog/poor visibility
+    "fog": -4,
+
+    # Thunderstorms (most negative)
+    "thunderstorm": -15
+}
+
+# API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 USER_AGENT = "DailyHelper/1.0"
 
-# --------------------------
-# WEATHER SCORING SYSTEM
-# --------------------------
-# Positive scores indicate good conditions for outdoor activities
-# Negative scores indicate poor conditions
-WEATHER_SCORES = {
-    # Clear conditions (highest scores)
-    "clearsky": 10,      # Clear sky, no clouds
-    "fair": 8,           # Fair weather, minimal clouds
+# Time zone
+TIMEZONE = "Europe/Madrid"
 
-    # Partly cloudy conditions (medium scores)
-    "partlycloudy": 6,   # Partly cloudy
-
-    # Cloudy but no precipitation (lower scores)
-    "cloudy": 3,         # Mostly cloudy
-
-    # Light precipitation (negative scores)
-    "lightrain": -2,     # Light rain
-    "lightrainshowers": -2,  # Light rain showers
-    "lightsleet": -3,    # Light sleet
-    "lightsleetshowers": -3, # Light sleet showers
-    "lightsnow": -3,     # Light snow
-    "lightsnowshowers": -3,  # Light snow showers
-
-    # Moderate precipitation (more negative)
-    "rain": -5,          # Moderate rain
-    "rainshowers": -5,   # Moderate rain showers
-    "sleet": -6,         # Moderate sleet
-    "sleetshowers": -6,  # Moderate sleet showers
-    "snow": -6,          # Moderate snow
-    "snowshowers": -6,   # Moderate snow showers
-
-    # Heavy precipitation (most negative)
-    "heavyrain": -10,    # Heavy rain
-    "heavyrainshowers": -10, # Heavy rain showers
-    "heavysleet": -10,   # Heavy sleet
-    "heavysleetshowers": -10, # Heavy sleet showers
-    "heavysnow": -10,    # Heavy snow
-    "heavysnowshowers": -10, # Heavy snow showers
-
-    # Poor visibility
-    "fog": -4,           # Foggy conditions
-
-    # Severe weather (most negative)
-    "thunderstorm": -15  # Thunderstorms
-}
+# Weather display settings
+DAYLIGHT_START_HOUR = 8
+DAYLIGHT_END_HOUR = 20
+FORECAST_DAYS = 7

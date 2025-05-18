@@ -6,7 +6,8 @@ for outdoor activities in Asturias, Spain.
 import argparse
 import time
 from datetime import datetime
-from colorama import init, Fore, Style
+import pytz
+from colorama import init
 
 # Import from our modules
 from config import LOCATIONS, TIMEZONE
@@ -20,33 +21,8 @@ from display_utils import (
 # Initialize colorama for colored terminal output
 init()
 
-
 def main():
     """Main function to process command-line arguments and display weather forecasts."""
-    args = parse_arguments()
-
-    # Just list locations and exit
-    if args.list:
-        list_locations()
-        return
-
-    # Parse comparison date if provided
-    comparison_date = parse_date_argument(args.date)
-    if args.date and not comparison_date:
-        return
-
-    # Determine which locations to use
-    selected_locations = select_locations(args)
-
-    # Clear screen unless disabled
-    if not args.no_clear:
-        print("\033[2J\033[H")  # ANSI escape sequence to clear screen
-
-    fetch_and_display_weather(selected_locations, args, comparison_date)
-
-
-def parse_arguments():
-    """Parse and return command line arguments."""
     parser = argparse.ArgumentParser(description="Weather forecast for outdoor activities in Asturias")
 
     location_group = parser.add_mutually_exclusive_group()
@@ -66,82 +42,37 @@ def parse_arguments():
     parser.add_argument("--recommend", "-r", action="store_true",
                        help="Show direct recommendations for when to go out this week")
 
-    return parser.parse_args()
+    args = parser.parse_args()
 
+    # Just list locations and exit
+    if args.list:
+        list_locations()
+        return
 
-def parse_date_argument(date_str):
-    """Parse date string into a date object.
+    # Parse comparison date if provided
+    comparison_date = None
+    if args.date:
+        try:
+            comparison_date = datetime.strptime(args.date, "%Y-%m-%d").date()
+        except ValueError:
+            from colorama import Fore, Style
+            print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
+            return
 
-    Args:
-        date_str: Date string in YYYY-MM-DD format
-
-    Returns:
-        datetime.date object or None if parsing failed
-    """
-    if not date_str:
-        return None
-
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
-        return None
-
-
-def select_locations(args):
-    """Determine which locations to use based on command line arguments.
-
-    Args:
-        args: Parsed command line arguments
-
-    Returns:
-        dict: Selected locations
-    """
+    # Default to Oviedo if no location specified
+    selected_locations = {}
     if args.location:
-        return {args.location: LOCATIONS[args.location]}
+        selected_locations[args.location] = LOCATIONS[args.location]
     elif args.all or args.compare or args.recommend:
-        return LOCATIONS
+        selected_locations = LOCATIONS
     else:
-        return {"oviedo": LOCATIONS["oviedo"]}  # Default to Oviedo
+        selected_locations["oviedo"] = LOCATIONS["oviedo"]
 
+    # Clear screen unless disabled
+    if not args.no_clear:
+        print("\033[2J\033[H")  # ANSI escape sequence to clear screen
 
-def fetch_and_display_weather(selected_locations, args, comparison_date=None):
-    """Fetch weather data and display according to specified options."""
     # Fetch and process data for all selected locations
-    location_data = fetch_location_data(selected_locations)
-
-    if not location_data:
-        print(f"\n{Fore.RED}Failed to fetch weather data for any location.{Style.RESET_ALL}")
-        return
-
-    print()  # Add a blank line for better readability
-
-    # Handle display based on selected options
-    if args.recommend:
-        display_best_times_recommendation(location_data)
-        return
-
-    if args.compare:
-        compare_locations(location_data, comparison_date or datetime.now().date())
-
-        # Show location summaries for each city in comparison mode
-        for loc_key, forecast in location_data.items():
-            display_forecast(forecast, LOCATIONS[loc_key]["name"], compare_mode=True)
-    else:
-        # Display each location's forecast in detail
-        for loc_key, forecast in location_data.items():
-            display_forecast(forecast, LOCATIONS[loc_key]["name"])
-
-
-def fetch_location_data(selected_locations):
-    """Fetch and process weather data for selected locations.
-
-    Args:
-        selected_locations: Dictionary of locations to fetch data for
-
-    Returns:
-        dict: Processed forecast data by location
-    """
     location_data = {}
     for loc_key, location in selected_locations.items():
         print(f"Fetching data for {location['name']}...")
@@ -151,8 +82,28 @@ def fetch_location_data(selected_locations):
             # Add a small delay between API calls to avoid rate limiting
             time.sleep(0.5)
 
-    return location_data
+    print()  # Add a blank line for better readability
 
+    # Display recommendations if requested
+    if args.recommend:
+        display_best_times_recommendation(location_data)
+        return
+
+    # Display mode depends on arguments
+    if args.compare:
+        if comparison_date:
+            compare_locations(location_data, comparison_date)
+        else:
+            # Compare for today
+            compare_locations(location_data)
+
+        # Show location summaries for each city in comparison mode
+        for loc_key, forecast in location_data.items():
+            display_forecast(forecast, LOCATIONS[loc_key]["name"], compare_mode=True)
+    else:
+        # Display each location's forecast in detail
+        for loc_key, forecast in location_data.items():
+            display_forecast(forecast, LOCATIONS[loc_key]["name"])
 
 if __name__ == "__main__":
     main()
