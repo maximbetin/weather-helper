@@ -1,107 +1,109 @@
-import requests
-import json
-from datetime import datetime, timedelta
+"""
+Daily Helper: Weather forecasting tool that helps find the best times and locations
+for outdoor activities in Asturias, Spain.
+"""
 
-from config import HEADERS, LOCATIONS, API_URL
+import argparse
+import time
+from datetime import datetime
+import pytz
+from colorama import init
 
-def get_hourly_forecast(municipality_code):
-    if not municipality_code:
-        return None
+# Import from our modules
+from config import LOCATIONS, TIMEZONE
+from api_client import fetch_weather_data
+from forecast_analysis import process_forecast, recommend_best_times
+from display_utils import (
+    display_forecast, compare_locations, list_locations,
+    display_best_times_recommendation
+)
 
-    url_forecast_api = f"{API_URL}/api/prediccion/especifica/municipio/horaria/{municipality_code}"
-    response = requests.get(url_forecast_api, headers=HEADERS, verify=True)
-    response.raise_for_status()
+# Initialize colorama for colored terminal output
+init()
 
-    # The first response from AEMET gives a URL to the actual data
-    data_info = response.json()
+def main():
+    """Main function to process command-line arguments and display weather forecasts."""
+    parser = argparse.ArgumentParser(description="Weather forecast for outdoor activities in Asturias")
 
-    if data_info.get("estado") == 200 and "datos" in data_info:
-        data_url = data_info["datos"]
+    location_group = parser.add_mutually_exclusive_group()
+    location_group.add_argument("--location", "-l", choices=LOCATIONS.keys(),
+                               help="Specific location to check")
+    location_group.add_argument("--all", "-a", action="store_true",
+                               help="Show all locations")
+    location_group.add_argument("--compare", "-c", action="store_true",
+                               help="Compare all locations for best weather")
+    location_group.add_argument("--list", action="store_true",
+                               help="List all available locations")
 
-        # Make a new request to the data URL
-        data_response = requests.get(data_url, headers=HEADERS, verify=True)
-        data_response.raise_for_status()
-        forecast_data = data_response.json()
-        return forecast_data
+    parser.add_argument("--date", "-d", type=str,
+                       help="Date to compare locations (format: YYYY-MM-DD)")
+    parser.add_argument("--no-clear", action="store_true",
+                       help="Don't clear the screen before displaying results")
+    parser.add_argument("--recommend", "-r", action="store_true",
+                       help="Show direct recommendations for when to go out this week")
 
-def display_hourly_forecast(forecast_data):
-    """
-    Displays the hourly forecast information in a readable format.
-    """
-    if not forecast_data or not isinstance(forecast_data, list) or not forecast_data:
-        print("No forecast data to display or data is in unexpected format.")
+    args = parser.parse_args()
+
+    # Just list locations and exit
+    if args.list:
+        list_locations()
         return
 
-    # The forecast_data is usually a list with one main dictionary
-    # that contains the predictions.
-    if not isinstance(forecast_data[0], dict) or "prediccion" not in forecast_data[0]:
-        print("Forecast data format is not as expected (missing 'prediccion' key).")
-        print(f"Received data: {forecast_data[0]}")
+    # Parse comparison date if provided
+    comparison_date = None
+    if args.date:
+        try:
+            comparison_date = datetime.strptime(args.date, "%Y-%m-%d").date()
+        except ValueError:
+            from colorama import Fore, Style
+            print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
+            return
+
+    # Default to Oviedo if no location specified
+    selected_locations = {}
+    if args.location:
+        selected_locations[args.location] = LOCATIONS[args.location]
+    elif args.all or args.compare or args.recommend:
+        selected_locations = LOCATIONS
+    else:
+        selected_locations["oviedo"] = LOCATIONS["oviedo"]
+
+    # Clear screen unless disabled
+    if not args.no_clear:
+        print("\033[2J\033[H")  # ANSI escape sequence to clear screen
+
+    # Fetch and process data for all selected locations
+    location_data = {}
+    for loc_key, location in selected_locations.items():
+        print(f"Fetching data for {location['name']}...")
+        data = fetch_weather_data(location)
+        if data:
+            location_data[loc_key] = process_forecast(data, location['name'])
+            # Add a small delay between API calls to avoid rate limiting
+            time.sleep(0.5)
+
+    print()  # Add a blank line for better readability
+
+    # Display recommendations if requested
+    if args.recommend:
+        display_best_times_recommendation(location_data)
         return
 
-    prediction_details = forecast_data[0]["prediccion"]
-    days = prediction_details.get("dia", [])
+    # Display mode depends on arguments
+    if args.compare:
+        if comparison_date:
+            compare_locations(location_data, comparison_date)
+        else:
+            # Compare for today
+            compare_locations(location_data)
 
-    print(f"\n--- Hourly Weather Forecast for {forecast_data[0].get('nombre', 'N/A')} ---")
-
-    today = datetime.now().date()
-
-    for day_data in days:
-        date_str = day_data.get("fecha", "").split("T")[0]
-        current_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-
-        # Only process up to 7 days from today
-        if (current_date - today).days >= 7:
-            break
-
-        print(f"\nDate: {date_str}")
-
-        # Hourly data is in 'estadoCielo', 'precipitacion', 'temperatura', etc.
-        # These are lists where each item corresponds to an hour.
-
-        # We need to find the length of one of these hourly lists to know how many hours are predicted
-        # It seems 'temperatura' is a reliable one to check for its presence and length.
-        if not day_data.get("temperatura"):
-            print("  No temperature data for this day.")
-            continue
-
-        num_hours_predicted = len(day_data["temperatura"])
-
-        for hour_index in range(num_hours_predicted):
-            hour_str = f"{hour_index:02d}:00" # Format hour as HH:00
-
-            temp_data = day_data.get("temperatura", [])
-            temp = temp_data[hour_index].get("value", "N/A") if hour_index < len(temp_data) else "N/A"
-
-            sky_state_data = day_data.get("estadoCielo", [])
-            sky_description = sky_state_data[hour_index].get("descripcion", "N/A") if hour_index < len(sky_state_data) else "N/A"
-
-            precip_data = day_data.get("precipitacion", [])
-            precipitation_mm = precip_data[hour_index].get("value", "N/A") if hour_index < len(precip_data) else "N/A"
-
-            wind_data = day_data.get("vientoAndRachaMax", [])
-            wind_speed = "N/A"
-            wind_direction = "N/A"
-            if hour_index < len(wind_data) and isinstance(wind_data[hour_index], dict) and 'velocidad' in wind_data[hour_index]:
-                 # vientoAndRachaMax can contain multiple 'velocidad' entries for different periods within the hour.
-                 # We'll take the first one for simplicity.
-                wind_speed_values = wind_data[hour_index].get("velocidad", [])
-                wind_speed = wind_speed_values[0] if wind_speed_values else "N/A"
-                wind_direction = wind_data[hour_index].get("direccion", ["N/A"])[0]
-
-
-            humidity_data = day_data.get("humedadRelativa", [])
-            humidity = humidity_data[hour_index].get("value", "N/A") if hour_index < len(humidity_data) else "N/A"
-
-            print(f"  {hour_str}: Temp: {temp}°C, Sky: {sky_description}, Precip: {precipitation_mm}mm, Wind: {wind_speed} km/h ({wind_direction}), Humidity: {humidity}%")
+        # Show location summaries for each city in comparison mode
+        for loc_key, forecast in location_data.items():
+            display_forecast(forecast, LOCATIONS[loc_key]["name"], compare_mode=True)
+    else:
+        # Display each location's forecast in detail
+        for loc_key, forecast in location_data.items():
+            display_forecast(forecast, LOCATIONS[loc_key]["name"])
 
 if __name__ == "__main__":
-
-    try:
-      for location, code in LOCATIONS.items():
-          print(f"Fetching forecast for {code}...")
-          hourly_data = get_hourly_forecast(code)
-          if hourly_data:
-              display_hourly_forecast(hourly_data)
-    except Exception as e:
-        print(f"Error: {e}")
+    main()
