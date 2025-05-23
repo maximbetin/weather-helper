@@ -15,16 +15,16 @@ from collections import defaultdict, Counter
 # Define locations in Asturias
 LOCATIONS = {
     "gijon": {"name": "Gijón", "lat": 43.5322, "lon": -5.6611},
+    "oviedo": {"name": "Oviedo", "lat": 43.3619, "lon": -5.8494},
     "llanes": {"name": "Llanes", "lat": 43.4200, "lon": -4.7550},
-    "ribadesella": {"name": "Ribadesella", "lat": 43.4675, "lon": -5.0553},
-    "tapia": {"name": "Tapia de Casariego", "lat": 43.5700, "lon": -6.9436},
     "aviles": {"name": "Avilés", "lat": 43.5547, "lon": -5.9248},
-    "cangas_de_onis": {"name": "Cangas de Onís", "lat": 43.3507, "lon": -5.1356},
-    "lagos_covadonga": {"name": "Lagos de Covadonga", "lat": 43.2728, "lon": -4.9906},
     "somiedo": {"name": "Somiedo", "lat": 43.0981, "lon": -6.2550},
     "teverga": {"name": "Teverga", "lat": 43.1578, "lon": -6.0867},
     "taramundi": {"name": "Taramundi", "lat": 43.3583, "lon": -7.1083},
-    "oviedo": {"name": "Oviedo", "lat": 43.3619, "lon": -5.8494}
+    "ribadesella": {"name": "Ribadesella", "lat": 43.4675, "lon": -5.0553},
+    "tapia": {"name": "Tapia de Casariego", "lat": 43.5700, "lon": -6.9436},
+    "cangas_de_onis": {"name": "Cangas de Onís", "lat": 43.3507, "lon": -5.1356},
+    "lagos_covadonga": {"name": "Lagos de Covadonga", "lat": 43.2728, "lon": -4.9906},
 }
 
 # Weather rating system - positive scores for good outdoor conditions
@@ -72,7 +72,6 @@ WEATHER_SCORES = {
 
 # API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
-USER_AGENT = "DailyHelper/1.0"
 
 # Time zone
 TIMEZONE = "Europe/Madrid"
@@ -96,7 +95,7 @@ def fetch_weather_data(location):
 
     # Request headers - required by Met.no API
     headers = {
-        "User-Agent": USER_AGENT
+        "User-Agent": "DailyHelper/1.0"
     }
 
     # Construct API URL
