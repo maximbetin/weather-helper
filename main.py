@@ -83,20 +83,13 @@ FORECAST_DAYS = 7
 
 
 def fetch_weather_data(location):
-  """Fetch weather data for a specific location.
-
-  Args:
-      location: Dictionary containing lat/lon coordinates
-
-  Returns:
-      JSON response from API or None if request failed
-  """
+  """Fetch weather data for a specific location."""
   lat = location["lat"]
   lon = location["lon"]
 
   # Request headers - required by Met.no API
   headers = {
-      "User-Agent": "DailyHelper/1.0"
+    "User-Agent": "DailyHelper/1.0"
   }
 
   # Construct API URL
@@ -115,8 +108,6 @@ def fetch_weather_data(location):
     return None
 
 # Weather utility functions
-
-
 def temp_score(temp):
   """Rate temperature for outdoor comfort on a scale of -10 to 10."""
   if temp is None or not isinstance(temp, (int, float)):
@@ -215,28 +206,28 @@ def get_standardized_weather_desc(symbol):
 
   # Prioritize specific, common symbols
   symbol_map = {
-      "clearsky": "Sunny",
-      "fair": "M.Sunny",
-      "partlycloudy": "P.Cloudy",
-      "cloudy": "Cloudy",
-      "lightrain": "L.Rain",
-      "lightrainshowers": "L.Rain Shwrs",
-      "rain": "Rain",
-      "rainshowers": "Rain Shwrs",
-      "heavyrain": "H.Rain",
-      "heavyrainshowers": "H.Rain Shwrs",
-      "lightsnow": "L.Snow",
-      "lightsnowshowers": "L.Snow Shwrs",
-      "snow": "Snow",
-      "snowshowers": "Snow Shwrs",
-      "heavysnow": "H.Snow",
-      "heavysnowshowers": "H.Snow Shwrs",
-      "fog": "Foggy",
-      "sleet": "Sleet",
-      "lightsleet": "L.Sleet",
-      "heavysleet": "H.Sleet",
-      "thunder": "Thunder",  # Catches variants like lightrainandthunder
-      "thunderstorm": "Thunderstorm"
+    "clearsky": "Sunny",
+    "fair": "M.Sunny",
+    "partlycloudy": "P.Cloudy",
+    "cloudy": "Cloudy",
+    "lightrain": "L.Rain",
+    "lightrainshowers": "L.Rain Shwrs",
+    "rain": "Rain",
+    "rainshowers": "Rain Shwrs",
+    "heavyrain": "H.Rain",
+    "heavyrainshowers": "H.Rain Shwrs",
+    "lightsnow": "L.Snow",
+    "lightsnowshowers": "L.Snow Shwrs",
+    "snow": "Snow",
+    "snowshowers": "Snow Shwrs",
+    "heavysnow": "H.Snow",
+    "heavysnowshowers": "H.Snow Shwrs",
+    "fog": "Foggy",
+    "sleet": "Sleet",
+    "lightsleet": "L.Sleet",
+    "heavysleet": "H.Sleet",
+    "thunder": "Thunder",  # Catches variants like lightrainandthunder
+    "thunderstorm": "Thunderstorm"
   }
 
   # Check for direct matches first
@@ -308,8 +299,6 @@ def _get_dominant_symbol(symbols):
   return Counter(valid_symbols).most_common(1)[0][0]
 
 # Forecast analysis functions
-
-
 def process_forecast(forecast_data, location_name):
   """Process weather forecast data into daily summaries."""
   if not forecast_data:
@@ -433,9 +422,12 @@ def process_forecast(forecast_data, location_name):
     num_hours = len(daylight_hours)
     total_available_factors = 3  # Weather, temp and wind always available
 
-    if any(isinstance(h["cloud_score"], (int, float)) for h in daylight_hours): total_available_factors += 1
-    if any(isinstance(h["uv_score"], (int, float)) for h in daylight_hours): total_available_factors += 1
-    if any(isinstance(h["precip_prob_score"], (int, float)) for h in daylight_hours): total_available_factors += 1
+    if any(isinstance(h["cloud_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
+    if any(isinstance(h["uv_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
+    if any(isinstance(h["precip_prob_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
 
     # Get min/max temps
     temps = [h["temp"] for h in daylight_hours if isinstance(h["temp"], (int, float))]
