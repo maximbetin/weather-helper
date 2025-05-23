@@ -107,8 +107,6 @@ def fetch_weather_data(location):
         print(f"{Fore.RED}Error parsing JSON response for {location['name']}: {e}{Style.RESET_ALL}")
         return None
 
-# Weather utility functions
-
 
 def temp_score(temp):
     """Rate temperature for outdoor comfort on a scale of -10 to 10."""
@@ -299,8 +297,6 @@ def _get_dominant_symbol(symbols):
     if not valid_symbols:
         return "N/A"
     return Counter(valid_symbols).most_common(1)[0][0]
-
-# Forecast analysis functions
 
 
 def process_forecast(forecast_data, location_name):
@@ -640,8 +636,6 @@ def recommend_best_times(location_data):
     # Sort all collected periods (either strict or lenient) by date and then by score
     all_periods.sort(key=lambda x: (x["date"], -x["score"]))
     return all_periods
-
-# Display utility functions
 
 
 def get_rating_info(score):
