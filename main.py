@@ -168,21 +168,21 @@ def get_weather_score(
 def get_score_category(score: int) -> str:
     """Convert numerical score to a human-readable category."""
     if score >= 12:
-        return f"{Fore.GREEN}Excellent{Style.RESET_ALL}"
+        return f"{Fore.GREEN}[Excellent]{Style.RESET_ALL}"
     elif score >= 8:
-        return f"{Fore.GREEN}Very Good{Style.RESET_ALL}"
+        return f"{Fore.GREEN}[Very Good]{Style.RESET_ALL}"
     elif score >= 5:
-        return f"{Fore.GREEN}Good{Style.RESET_ALL}"
+        return f"{Fore.GREEN}[Good]{Style.RESET_ALL}"
     elif score >= 2:
-        return f"{Fore.YELLOW}Fair{Style.RESET_ALL}"
+        return f"{Fore.YELLOW}[Fair]{Style.RESET_ALL}"
     elif score >= 0:
-        return f"{Fore.YELLOW}Okay{Style.RESET_ALL}"
+        return f"{Fore.YELLOW}[Okay]{Style.RESET_ALL}"
     elif score >= -3:
-        return f"{Fore.RED}Poor{Style.RESET_ALL}"
+        return f"{Fore.RED}[Poor]{Style.RESET_ALL}"
     elif score >= -7:
-        return f"{Fore.RED}Bad{Style.RESET_ALL}"
+        return f"{Fore.RED}[Bad]{Style.RESET_ALL}"
     else:
-        return f"{Fore.RED}Very Bad{Style.RESET_ALL}"
+        return f"{Fore.RED}[Very Bad]{Style.RESET_ALL}"
 
 
 def get_standardized_weather_desc(symbol: str | None) -> str:
@@ -196,6 +196,56 @@ def get_standardized_weather_desc(symbol: str | None) -> str:
     else:
         # Fallback: Capitalize and replace underscores for any other unmapped symbols
         return symbol.replace("_", " ").capitalize()
+
+
+def display_best_times_for_activities(weather_data: dict[str, Any] | None, location_name: str) -> None:
+    """Displays the best times for outdoor activities based on a weather score threshold."""
+    if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
+        print(f"{Fore.YELLOW}No timeseries data to analyze for {location_name}.{Style.RESET_ALL}")
+        return
+
+    print(f"\n{Fore.CYAN}Best Times for Outdoor Activities in {location_name} (Score >= 5):{Style.RESET_ALL}")
+
+    timeseries = weather_data['properties']['timeseries']
+    madrid_tz = pytz.timezone(TIMEZONE)
+    current_display_day: str | None = None
+    found_good_time = False
+
+    for _, entry in enumerate(timeseries):
+        time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
+        local_time = time_utc.astimezone(madrid_tz)
+
+        instant_details = entry['data'].get('instant', {}).get('details', {})
+        next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
+        next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
+        symbol_code_1h = next_1h_summary.get('symbol_code')
+
+        if not symbol_code_1h:
+            continue
+
+        temp = instant_details.get('air_temperature')
+        wind_speed_instant = instant_details.get('wind_speed')
+        precip_amount_1h = next_1h_details.get('precipitation_amount')
+
+        score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
+
+        if score >= 5:
+            found_good_time = True
+            base_symbol = symbol_code_1h.split('_')[0]
+            weather_display = f"{get_standardized_weather_desc(base_symbol)}"
+            score_category = get_score_category(score)
+
+            day_name_full = local_time.strftime('%A, %Y-%m-%d')
+            if day_name_full != current_display_day:
+                print(f"\n{Fore.MAGENTA}{day_name_full}{Style.RESET_ALL}")
+                current_display_day = day_name_full
+
+            temp_display = f"{temp}°C" if temp is not None else "N/A"
+            print(f"{Fore.CYAN}{local_time.strftime('%H:%M')}{Style.RESET_ALL}: "
+                  f"{score_category} ({temp_display}, {weather_display})")
+
+    if not found_good_time:
+        print(f"{Fore.YELLOW}No times with a score of 'Good' or better found for {location_name}.{Style.RESET_ALL}")
 
 
 def display_timeseries_data(weather_data: dict[str, Any] | None, location_name: str) -> None:
@@ -241,10 +291,8 @@ def display_timeseries_data(weather_data: dict[str, Any] | None, location_name: 
 
         temp_display = f"{temp}°C" if temp is not None else "N/A"
 
-        print(
-            f"{Fore.CYAN}{local_time.strftime('%H:%M')}{Style.RESET_ALL}: "
-            f"{score_category} ({temp_display}, {weather_display})"
-        )
+        print(f"{Fore.CYAN}{local_time.strftime('%H:%M')}{Style.RESET_ALL}: "
+              f"{score_category} ({temp_display}, {weather_display})")
 
 
 def main() -> None:
@@ -253,7 +301,8 @@ def main() -> None:
     for location_name, location_info in LOCATIONS.items():
         location_name = str(location_info['display_name'])
         weather_data = fetch_weather_data(location_info)
-        display_timeseries_data(weather_data, location_name)
+        # display_timeseries_data(weather_data, location_name)  # Keep or remove as needed
+        display_best_times_for_activities(weather_data, location_name)
 
 
 if __name__ == "__main__":
