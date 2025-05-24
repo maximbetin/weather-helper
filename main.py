@@ -2,28 +2,37 @@
 Daily Helper: Weather forecasting tool that helps find the best times and locations
 for outdoor activities in Asturias, Spain.
 """
+
 import argparse
+import time
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Any
 
 import pytz
 import requests
 from colorama import Fore, Style, init
 
-LOCATIONS: dict[str, dict[str, str | float]] = {
-    "oviedo": {"display_name": "Oviedo", "lat": 43.3619, "lon": -5.8494},
-    "llanes": {"display_name": "Llanes", "lat": 43.4200, "lon": -4.7550},
-    "aviles": {"display_name": "Avilés", "lat": 43.5547, "lon": -5.9248},
-    "somiedo": {"display_name": "Somiedo", "lat": 43.0981, "lon": -6.2550},
-    "teverga": {"display_name": "Teverga", "lat": 43.1578, "lon": -6.0867},
-    "taramundi": {"display_name": "Taramundi", "lat": 43.3583, "lon": -7.1083},
-    "ribadesella": {"display_name": "Ribadesella", "lat": 43.4675, "lon": -5.0553},
-    "tapia": {"display_name": "Tapia de Casariego", "lat": 43.5700, "lon": -6.9436},
-    "cangas_de_onis": {"display_name": "Cangas de Onís", "lat": 43.3507, "lon": -5.1356},
-    "lagos_covadonga": {"display_name": "Lagos de Covadonga", "lat": 43.2728, "lon": -4.9906},
+# Initialize colorama for colored terminal output
+init()
+
+# Configuration constants
+# Define locations in Asturias
+LOCATIONS = {
+    "gijon": {"name": "Gijón", "lat": 43.5322, "lon": -5.6611},
+    "oviedo": {"name": "Oviedo", "lat": 43.3619, "lon": -5.8494},
+    "llanes": {"name": "Llanes", "lat": 43.4200, "lon": -4.7550},
+    "aviles": {"name": "Avilés", "lat": 43.5547, "lon": -5.9248},
+    "somiedo": {"name": "Somiedo", "lat": 43.0981, "lon": -6.2550},
+    "teverga": {"name": "Teverga", "lat": 43.1578, "lon": -6.0867},
+    "taramundi": {"name": "Taramundi", "lat": 43.3583, "lon": -7.1083},
+    "ribadesella": {"name": "Ribadesella", "lat": 43.4675, "lon": -5.0553},
+    "tapia": {"name": "Tapia de Casariego", "lat": 43.5700, "lon": -6.9436},
+    "cangas_de_onis": {"name": "Cangas de Onís", "lat": 43.3507, "lon": -5.1356},
+    "lagos_covadonga": {"name": "Lagos de Covadonga", "lat": 43.2728, "lon": -4.9906},
 }
 
-WEATHER_SCORES: dict[str, int] = {
+# Weather rating system - positive scores for good outdoor conditions
+WEATHER_SCORES = {
     "clearsky": 10,
     "fair": 8,
     "partlycloudy": 6,
@@ -47,885 +56,900 @@ WEATHER_SCORES: dict[str, int] = {
     "heavysnow": -10,
     "heavysnowshowers": -10,
     "fog": -4,
-    "thunderstorm": -15,
+    "thunderstorm": -15
 }
 
-SYMBOL_MAP: dict[str, str] = {
-    "rain": "Rain",
-    "snow": "Snow",
-    "fog": "Foggy",
-    "sleet": "Sleet",
+# API settings
+API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
+USER_AGENT = "DailyHelper/1.0"
+
+# Time zone
+TIMEZONE = "Europe/Madrid"
+
+# Weather display settings
+DAYLIGHT_START_HOUR = 8
+DAYLIGHT_END_HOUR = 20
+FORECAST_DAYS = 7
+
+# Weather description mapping
+WEATHER_DESC_MAP = {
     "cloudy": "Cloudy",
     "clearsky": "Sunny",
-    "thunderstorm": "Thunderstorm",
     "fair": "Mostly Sunny",
-    "lightrain": "Light Rain",
-    "heavyrain": "Heavy Rain",
-    "lightsnow": "Light Snow",
-    "heavysnow": "Heavy Snow",
-    "lightsleet": "Light Sleet",
-    "heavysleet": "Heavy Sleet",
-    "rainshowers": "Rain Showers",
-    "snowshowers": "Snow Showers",
     "partlycloudy": "Partly Cloudy",
-    "lightrainshowers": "Light Rain Showers",
-    "heavyrainshowers": "Heavy Rain Showers",
-    "lightsnowshowers": "Light Snow Showers",
-    "heavysnowshowers": "Heavy Snow Showers",
-    "lightsleetshowers": "Light Sleet Showers",
-    "sleetshowers": "Sleet Showers",
-    "heavysleetshowers": "Heavy Sleet Showers",
 }
 
-RAIN_SYMBOLS: list[str] = [
-    "lightrain", "lightrainshowers", "rain", "rainshowers", "heavyrain", "heavyrainshowers"
-]
 
-HEADERS: dict[str, str] = {"User-Agent": "DailyHelper/1.0"}
-API_URL: str = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
-TIMEZONE: str = "Europe/Madrid"
-
-init()  # Initialize colorama for colored terminal output
-
-# Color helpers (move above display_best_times_table)
-
-
-def color_rating(rating):
-  if rating == 'Good':
-    return f"{Fore.GREEN}{rating}{Style.RESET_ALL}"
-  elif rating == 'Fair':
-    return f"{Fore.YELLOW}{rating}{Style.RESET_ALL}"
-  else:
-    return f"{Fore.RED}{rating}{Style.RESET_ALL}"
-
-
-def color_temp(temp):
-  if temp is None:
-    return "N/A"
-  if temp < 15:
-    return f"{Fore.CYAN}{temp:.1f}°C{Style.RESET_ALL}"
-  elif temp <= 22:
-    return f"{Fore.YELLOW}{temp:.1f}°C{Style.RESET_ALL}"
-  else:
-    return f"{Fore.RED}{temp:.1f}°C{Style.RESET_ALL}"
+def get_standardized_weather_desc(symbol):
+  """Return standardized weather description from symbol code."""
+  if not symbol or not isinstance(symbol, str):
+    return "Unknown"
+  if symbol in WEATHER_DESC_MAP:
+    return WEATHER_DESC_MAP[symbol]
+  if "lightrain" in symbol:
+    return "Light Rain"
+  if "heavyrain" in symbol:
+    return "Heavy Rain"
+  if "rain" in symbol:
+    return "Rain"
+  if "lightsnow" in symbol:
+    return "Light Snow"
+  if "snow" in symbol:
+    return "Snow"
+  if "fog" in symbol:
+    return "Foggy"
+  if "thunder" in symbol:
+    return "Thunder"
+  return symbol.replace("_", " ").capitalize()
 
 
-def color_weather(weather, symbol):
-  symbol = symbol.lower() if symbol else ''
-  if any(x in symbol for x in ['rain', 'fog', 'sleet', 'snow']):
-    return f"{Fore.BLUE}{weather}{Style.RESET_ALL}"
-  elif 'cloud' in symbol:
-    return f"{Fore.YELLOW}{weather}{Style.RESET_ALL}"
-  elif 'clear' in symbol or 'sun' in weather.lower() or 'fair' in symbol:
-    return f"{Fore.GREEN}{weather}{Style.RESET_ALL}"
-  else:
-    return f"{Fore.WHITE}{weather}{Style.RESET_ALL}"
+def fetch_weather_data(location):
+  """Fetch weather data for a specific location.
 
+  Args:
+      location: Dictionary containing lat/lon coordinates
 
-def fetch_weather_data(location: dict[str, str | float]) -> dict[str, Any] | None:
-  """Fetch weather data for a specific location."""
+  Returns:
+      JSON response from API or None if request failed
+  """
   lat = location["lat"]
   lon = location["lon"]
+
+  # Request headers - required by Met.no API
+  headers = {
+      "User-Agent": USER_AGENT
+  }
 
   # Construct API URL
   url = f"{API_URL}?lat={lat}&lon={lon}"
 
   # Fetch data with error handling
   try:
-    response = requests.get(url, headers=HEADERS)
-    response.raise_for_status()
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
   except requests.exceptions.RequestException as e:
-    print(f"{Fore.RED}Error fetching weather data for {location['display_name']}: {e}{Style.RESET_ALL}")
+    print(f"{Fore.RED}Error fetching weather data for {location['name']}: {e}{Style.RESET_ALL}")
     return None
   except ValueError as e:
-    print(f"{Fore.RED}Error parsing JSON response for {location['display_name']}: {e}{Style.RESET_ALL}")
+    print(f"{Fore.RED}Error parsing JSON response for {location['name']}: {e}{Style.RESET_ALL}")
     return None
 
 
-def get_weather_score(
-    symbol_code: str | None,
-    temperature: float | None = None,
-    wind_speed: float | None = None,
-    precipitation_amount: float | None = None,
-) -> int:
-  """Return weather score based on symbol, temperature, wind speed, and precipitation."""
-  base_score: int
-  if not symbol_code or not isinstance(symbol_code, str):
-    base_score = 0  # Default score for unknown or invalid symbol
+def temp_score(temp):
+  """Rate temperature for outdoor comfort on a scale of -10 to 10."""
+  if temp is None or not isinstance(temp, (int, float)):
+    return 0
+
+  # Optimal temperature range around 18-24°C
+  if 18 <= temp <= 24:
+    return 10
+  elif 15 <= temp < 18 or 24 < temp <= 28:
+    return 8
+  elif 10 <= temp < 15 or 28 < temp <= 32:
+    return 5
+  elif 5 <= temp < 10 or 32 < temp <= 35:
+    return 0
+  elif 0 <= temp < 5 or 35 < temp <= 38:
+    return -5
   else:
-    base_symbol = symbol_code.split('_')[0]  # Extract base symbol
-    base_score = WEATHER_SCORES.get(base_symbol, 0)  # Get score from symbol or 0
-
-  temp_adjustment = 0
-  if temperature is not None:
-    if temperature < 5 or temperature > 35:  # Extreme cold or extreme hot
-      temp_adjustment = -5
-    elif (5 <= temperature < 10) or (30 < temperature <= 35):  # Cold or hot
-      temp_adjustment = -3
-    elif 10 <= temperature < 15:  # Cool
-      temp_adjustment = -1
-    elif (15 <= temperature < 20) or (25 < temperature <= 30):  # Mildly warm or warm
-      temp_adjustment = 1
-    elif 20 <= temperature <= 25:  # Ideal
-      temp_adjustment = 2
-
-  wind_adjustment = 0
-  if wind_speed is not None:
-    if wind_speed < 2:
-      wind_adjustment = 1
-    elif 5 <= wind_speed < 8:
-      wind_adjustment = -1
-    elif 8 <= wind_speed < 11:
-      wind_adjustment = -3
-    elif 11 <= wind_speed < 14:
-      wind_adjustment = -5
-    elif wind_speed >= 14:
-      wind_adjustment = -8
-
-  precip_adjustment = 0
-  if base_score != 0:  # Only apply precipitation adjustment if there is a base symbol
-    if isinstance(symbol_code, str):
-      base_symbol_for_precip = symbol_code.split('_')[0]
-      if base_symbol_for_precip in RAIN_SYMBOLS and precipitation_amount is not None and precipitation_amount > 0:
-        if 0 < precipitation_amount <= 0.5:
-          precip_adjustment = -1
-        elif 0.5 < precipitation_amount <= 2.0:
-          precip_adjustment = -2
-        elif 2.0 < precipitation_amount <= 4.0:
-          precip_adjustment = -3
-        elif precipitation_amount > 4.0:
-          precip_adjustment = -4
-
-  return base_score + temp_adjustment + wind_adjustment + precip_adjustment
+    return -10  # Too cold (< 0°C) or too hot (> 38°C)
 
 
-def get_score_category(score: int | float) -> str:
-  """Convert numerical score to a human-readable category."""
-  int_score = int(score)
-  if int_score >= 12:
-    return f"{Fore.GREEN}[Excellent]{Style.RESET_ALL}"
-  elif int_score >= 8:
-    return f"{Fore.GREEN}[Very Good]{Style.RESET_ALL}"
-  elif int_score >= 5:
-    return f"{Fore.GREEN}[Good]{Style.RESET_ALL}"
-  elif int_score >= 2:
-    return f"{Fore.YELLOW}[Fair]{Style.RESET_ALL}"
-  elif int_score >= 0:
-    return f"{Fore.YELLOW}[Okay]{Style.RESET_ALL}"
-  elif int_score >= -3:
-    return f"{Fore.RED}[Poor]{Style.RESET_ALL}"
-  elif int_score >= -7:
-    return f"{Fore.RED}[Bad]{Style.RESET_ALL}"
+def wind_score(wind_speed):
+  """Rate wind speed comfort on a scale of -10 to 0."""
+  if wind_speed is None or not isinstance(wind_speed, (int, float)):
+    return 0
+
+  if wind_speed < 2:
+    return 0
+  elif 2 <= wind_speed < 4:
+    return -2
+  elif 4 <= wind_speed < 6:
+    return -4
+  elif 6 <= wind_speed < 10:
+    return -6
   else:
-    return f"{Fore.RED}[Very Bad]{Style.RESET_ALL}"
+    return -10  # Very windy, not pleasant for outdoor activities
 
 
-def format_weather_block_for_display(
-    start_time: datetime,
-    end_time: datetime,  # This is the timestamp of the start of the last hour in the block
-    avg_score: float,
-    avg_temp: float | None,
-    weather_description: str,
-    duration_hours: float | None = None  # Optional, can be calculated if not provided
-) -> str:
-  """Formats a single weather block's data into a display string."""
-  start_str = start_time.strftime('%H:%M')
-  # For a block like 10:00, 11:00, 12:00, end_time is 12:00. Display as 10:00 - 12:00.
-  # The duration implies it covers the full hour of end_time.
-  end_str = end_time.strftime('%H:%M')
+def cloud_score(cloud_coverage):
+  """Rate cloud coverage for outdoor activities on a scale of -5 to 5."""
+  if cloud_coverage is None or not isinstance(cloud_coverage, (int, float)):
+    return 0
 
-  if duration_hours is None:
-    # If start and end are the same, it's a 1-hour block.
-    # If different, add 1 because end_time is the *start* of the last hour slot.
-    duration_hours = (end_time - start_time).total_seconds() / 3600 + 1
-
-  duration_display = f"({duration_hours:.0f}h)"
-
-  avg_temp_display = f"{avg_temp:.1f}°C" if avg_temp is not None else "N/A"
-  score_category_display = get_score_category(avg_score)
-
-  return (f"  {Fore.CYAN}{start_str} - {end_str}{Style.RESET_ALL} {duration_display}: "
-          f"{weather_description}, {avg_temp_display}, "
-          f"Score: {score_category_display} ({avg_score:.1f})")
-
-
-def get_standardized_weather_desc(symbol: str | None) -> str:
-  """Return standardized weather description from symbol code."""
-  if not symbol or not isinstance(symbol, str):
-    return "Unknown"
-
-  # Check for direct matches in the global SYMBOL_MAP
-  if symbol in SYMBOL_MAP:
-    return SYMBOL_MAP[symbol]
+  # Lower cloud coverage is better for most outdoor activities
+  if cloud_coverage < 20:
+    return 5  # Nearly clear skies
+  elif cloud_coverage < 40:
+    return 3  # Mostly clear
+  elif cloud_coverage < 60:
+    return 1  # Partly cloudy
+  elif cloud_coverage < 80:
+    return -2  # Mostly cloudy
   else:
-    # Fallback: Capitalize and replace underscores for any other unmapped symbols
-    base_symbol_only = symbol.split('_')[0]  # Use only the base part before underscore for lookup or formatting
-    if base_symbol_only in SYMBOL_MAP:  # Check SYMBOL_MAP again with only base symbol
-      return SYMBOL_MAP[base_symbol_only]
-    return base_symbol_only.replace("_", " ").capitalize()
+    return -5  # Overcast
 
 
-def calculate_location_rank_data(weather_data: dict[str, Any] | None) -> dict[str, Any]:
-  """
-  Calculates ranking data for a single location based on good weather blocks.
-  Considers weather for the next 48 hours for ranking.
-  """
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    return {'rank_score': 0, 'good_blocks': [], 'error': 'No timeseries data'}
+def uv_score(uv_index):
+  """Rate UV index for comfort/safety on a scale of -5 to 5."""
+  if uv_index is None or not isinstance(uv_index, (int, float)):
+    return 0
 
-  timeseries = weather_data['properties']['timeseries']
+  # Moderate UV (3-5) is generally pleasant without excessive sun exposure risk
+  if 2 <= uv_index <= 5:
+    return 5  # Ideal for outdoor activities
+  elif uv_index <= 2:
+    return 3  # Low UV, safe but less warmth/light
+  elif 5 < uv_index <= 7:
+    return 0  # Higher UV, need sun protection
+  elif 7 < uv_index <= 10:
+    return -3  # Very high, risk of sunburn
+  else:
+    return -5  # Extreme, avoid midday sun
+
+
+def precip_probability_score(probability):
+  """Rate precipitation probability on a scale of -10 to 0."""
+  if probability is None or not isinstance(probability, (int, float)):
+    return 0
+
+  # Lower probability is better for outdoor activities
+  if probability < 10:
+    return 0  # Very unlikely to rain
+  elif probability < 30:
+    return -2  # Slight chance of rain
+  elif probability < 50:
+    return -5  # Moderate chance of rain
+  elif probability < 70:
+    return -7  # High chance of rain
+  else:
+    return -10  # Very likely to rain
+
+
+def find_weather_blocks(hours):
+  """Find blocks of hours with similar weather conditions."""
+  if not hours:
+    return []
+
+  # Sort hours by time
+  sorted_hours = sorted(hours, key=lambda x: x["hour"])
+
+  blocks = []
+  current_block = [sorted_hours[0]]
+  current_type = "sunny" if sorted_hours[0]["symbol"] in ["clearsky", "fair"] else "rainy" if "rain" in sorted_hours[0]["symbol"] else "cloudy"
+
+  for hour in sorted_hours[1:]:
+    hour_type = "sunny" if hour["symbol"] in ["clearsky", "fair"] else "rainy" if "rain" in hour["symbol"] else "cloudy"
+
+    # If same type, extend the current block
+    if hour_type == current_type and hour["hour"] == current_block[-1]["hour"] + 1:
+      current_block.append(hour)
+    else:
+      # Save the completed block and start a new one
+      blocks.append((current_block, current_type))
+      current_block = [hour]
+      current_type = hour_type
+
+  # Add the last block
+  blocks.append((current_block, current_type))
+
+  return blocks
+
+# Forecast analysis functions
+
+
+def process_forecast(forecast_data, location_name):
+  """Process weather forecast data into daily summaries."""
+  if not forecast_data:
+    return None
+
+  forecast = forecast_data['properties']['timeseries']
+
+  # Organize forecasts by day and hour
   madrid_tz = pytz.timezone(TIMEZONE)
-  now_madrid = datetime.now(madrid_tz)
-  ranking_horizon_end = now_madrid + timedelta(hours=48)
+  daily_forecasts = defaultdict(list)
+  today = datetime.now(madrid_tz).date()
+  end_date = today + timedelta(days=7)
 
-  good_blocks_details = []
-  current_block_data = None
-  total_rank_score = 0.0
-
-  for entry in timeseries:
+  for entry in forecast:
     time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
     local_time = time_utc.astimezone(madrid_tz)
+    forecast_date = local_time.date()
 
-    if local_time > ranking_horizon_end:  # Only consider next 48h for ranking
-      if current_block_data:  # Finalize any open block before breaking
-        duration_hours = (current_block_data['last_good_time'] - current_block_data['start_time']).total_seconds() / 3600 + 1  # +1 for inclusive hour
-        avg_score_block = sum(current_block_data['scores']) / len(current_block_data['scores'])
-        valid_temps_block = [t for t in current_block_data['temps'] if t is not None]
-        avg_temp_block = sum(valid_temps_block) / len(valid_temps_block) if valid_temps_block else None
+    # Only include forecasts for the next 7 days
+    if forecast_date >= today and forecast_date < end_date:
+      # Extract instant details with proper error handling
+      instant_details = entry["data"]["instant"]["details"]
+      temp = instant_details.get("air_temperature", "n/a")
+      wind = instant_details.get("wind_speed", "n/a")
+      humidity = instant_details.get("relative_humidity", "n/a")
+      cloud_coverage = instant_details.get("cloud_area_fraction", "n/a")
+      fog = instant_details.get("fog_area_fraction", "n/a")
+      wind_direction = instant_details.get("wind_from_direction", "n/a")
+      wind_gust = instant_details.get("wind_speed_of_gust", "n/a")
 
-        block_info = {
-            'start_time': current_block_data['start_time'],
-            'end_time': current_block_data['last_good_time'],  # This is the start of the last hour in block
-            'duration_hours': duration_hours,
-            'avg_score': avg_score_block,
-            'avg_temp': avg_temp_block,
-            'weather': get_standardized_weather_desc(current_block_data['symbols'][0]),
-        }
-        good_blocks_details.append(block_info)
-        total_rank_score += avg_score_block * duration_hours
-        current_block_data = None
-      break
+      # Get next 1 hour forecast details if available
+      next_1h = entry["data"].get("next_1_hours", {})
+      next_1h_details = next_1h.get("details", {})
+      precipitation_1h = next_1h_details.get("precipitation_amount", "n/a")
+      precipitation_prob_1h = next_1h_details.get("probability_of_precipitation", "n/a")
 
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    symbol_code_1h = next_1h_summary.get('symbol_code')
+      # Get next 6 hour forecast details if available
+      next_6h = entry["data"].get("next_6_hours", {})
+      next_6h_details = next_6h.get("details", {})
+      precipitation_6h = next_6h_details.get("precipitation_amount", "n/a")
+      precipitation_prob_6h = next_6h_details.get("probability_of_precipitation", "n/a")
+      uv_index = next_6h_details.get("ultraviolet_index_clear_sky_max", "n/a")
 
-    if not symbol_code_1h:
-      if current_block_data:
-        duration_hours = (current_block_data['last_good_time'] - current_block_data['start_time']).total_seconds() / 3600 + 1
-        avg_score_block = sum(current_block_data['scores']) / len(current_block_data['scores'])
-        valid_temps_block = [t for t in current_block_data['temps'] if t is not None]
-        avg_temp_block = sum(valid_temps_block) / len(valid_temps_block) if valid_temps_block else None
-        block_info = {
-            'start_time': current_block_data['start_time'],
-            'end_time': current_block_data['last_good_time'],
-            'duration_hours': duration_hours,
-            'avg_score': avg_score_block,
-            'avg_temp': avg_temp_block,
-            'weather': get_standardized_weather_desc(current_block_data['symbols'][0]),
-        }
-        good_blocks_details.append(block_info)
-        total_rank_score += avg_score_block * duration_hours
-        current_block_data = None
+      # Use 1h precipitation probability if available, otherwise use 6h
+      precipitation_prob = precipitation_prob_1h if precipitation_prob_1h != "n/a" else precipitation_prob_6h
+
+      # Get weather symbol with fallbacks
+      symbol = next_1h.get("summary", {}).get("symbol_code", next_6h.get("summary", {}).get("symbol_code", "n/a"))
+
+      # Clean up the symbol code by removing day/night suffix if present
+      if symbol != "n/a" and "_" in symbol:
+        symbol = symbol.split("_")[0]
+
+      daily_forecasts[forecast_date].append({
+          "hour": local_time.hour,
+          "time": local_time,
+          "temp": temp,
+          "wind": wind,
+          "humidity": humidity,
+          "cloud_coverage": cloud_coverage,
+          "fog": fog,
+          "wind_direction": wind_direction,
+          "wind_gust": wind_gust,
+          "precipitation_amount": precipitation_1h if precipitation_1h != "n/a" else precipitation_6h,
+          "precipitation_probability": precipitation_prob,
+          "uv_index": uv_index,
+          "symbol": symbol,
+          # Calculate outdoor score for this hour
+          "weather_score": WEATHER_SCORES.get(symbol, 0) if symbol != "n/a" else 0,
+          "temp_score": temp_score(temp),
+          "wind_score": wind_score(wind),
+          "cloud_score": cloud_score(cloud_coverage),
+          "uv_score": uv_score(uv_index),
+          "precip_prob_score": precip_probability_score(precipitation_prob)
+      })
+
+  # Calculate daily scores for outdoor activities
+  day_scores = {}
+  for date, hours in daily_forecasts.items():
+    # Focus on daylight hours
+    daylight_hours = [h for h in hours if DAYLIGHT_START_HOUR <= h["hour"] <= DAYLIGHT_END_HOUR]
+
+    if not daylight_hours:
       continue
 
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-    score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
+    # Calculate total scores
+    total_weather_score = sum(h["weather_score"] for h in daylight_hours)
+    total_temp_score = sum(h["temp_score"] for h in daylight_hours)
+    total_wind_score = sum(h["wind_score"] for h in daylight_hours)
+    total_cloud_score = sum(h["cloud_score"] for h in daylight_hours if isinstance(h["cloud_score"], (int, float)))
+    total_uv_score = sum(h["uv_score"] for h in daylight_hours if isinstance(h["uv_score"], (int, float)))
+    total_precip_prob_score = sum(h["precip_prob_score"] for h in daylight_hours if isinstance(h["precip_prob_score"], (int, float)))
 
-    if score >= 5:  # Good weather
-      if current_block_data is None:
-        current_block_data = {
-            'start_time': local_time,
-            'scores': [score],
-            'temps': [temp if temp is not None else 0.0],  # Store 0 if None, handle in avg calc
-            'symbols': [symbol_code_1h],
-            'last_good_time': local_time
-        }
-      else:
-        current_block_data['scores'].append(score)
-        current_block_data['temps'].append(temp if temp is not None else 0.0)
-        current_block_data['symbols'].append(symbol_code_1h)
-        current_block_data['last_good_time'] = local_time
-    else:  # Not good weather, end current block if one exists
-      if current_block_data:
-        duration_hours = (current_block_data['last_good_time'] - current_block_data['start_time']).total_seconds() / 3600 + 1
-        avg_score_block = sum(current_block_data['scores']) / len(current_block_data['scores'])
-        valid_temps_block = [t for t in current_block_data['temps'] if t is not None]
-        avg_temp_block = sum(valid_temps_block) / len(valid_temps_block) if valid_temps_block else None
+    # Count sunny/fair hours
+    sunny_hours = sum(1 for h in daylight_hours if h["symbol"] in ["clearsky", "fair"])
+    partly_cloudy_hours = sum(1 for h in daylight_hours if h["symbol"] == "partlycloudy")
+    rainy_hours = sum(1 for h in daylight_hours if "rain" in h["symbol"] or "shower" in h["symbol"])
 
-        block_info = {
-            'start_time': current_block_data['start_time'],
-            'end_time': current_block_data['last_good_time'],
-            'duration_hours': duration_hours,
-            'avg_score': avg_score_block,
-            'avg_temp': avg_temp_block,
-            'weather': get_standardized_weather_desc(current_block_data['symbols'][0]),
-        }
-        good_blocks_details.append(block_info)
-        total_rank_score += avg_score_block * duration_hours
-        current_block_data = None
+    # Get precipitation hours with probability > 30%
+    likely_rain_hours = sum(1 for h in daylight_hours if isinstance(h["precipitation_probability"], (int, float)) and h["precipitation_probability"] > 30)
 
-  # After loop, check if a block was active till the end of horizon or data
-  if current_block_data:
-    duration_hours = (current_block_data['last_good_time'] - current_block_data['start_time']).total_seconds() / 3600 + 1
-    avg_score_block = sum(current_block_data['scores']) / len(current_block_data['scores'])
-    valid_temps_block = [t for t in current_block_data['temps'] if t is not None]  # Recalc valid temps
-    avg_temp_block = sum(valid_temps_block) / len(valid_temps_block) if valid_temps_block else None
-    block_info = {
-        'start_time': current_block_data['start_time'],
-        'end_time': current_block_data['last_good_time'],
-        'duration_hours': duration_hours,
-        'avg_score': avg_score_block,
-        'avg_temp': avg_temp_block,
-        'weather': get_standardized_weather_desc(current_block_data['symbols'][0]),
+    # Average precipitation probability
+    precip_probs = [h["precipitation_probability"] for h in daylight_hours if isinstance(h["precipitation_probability"], (int, float))]
+    avg_precip_prob = sum(precip_probs) / len(precip_probs) if precip_probs else None
+
+    # Calculate average scores
+    num_hours = len(daylight_hours)
+    total_available_factors = 3  # Weather, temp and wind always available
+
+    if any(isinstance(h["cloud_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
+    if any(isinstance(h["uv_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
+    if any(isinstance(h["precip_prob_score"], (int, float)) for h in daylight_hours):
+      total_available_factors += 1
+
+    # Get min/max temps
+    temps = [h["temp"] for h in daylight_hours if isinstance(h["temp"], (int, float))]
+    min_temp = min(temps) if temps else None
+    max_temp = max(temps) if temps else None
+    avg_temp = sum(temps) / len(temps) if temps else None
+
+    # Calculate average for all available scores
+    total_score = (total_weather_score + total_temp_score + total_wind_score + total_cloud_score + total_uv_score + total_precip_prob_score)
+
+    avg_score = total_score / (num_hours * total_available_factors) if num_hours > 0 and total_available_factors > 0 else 0
+
+    day_scores[date] = {
+        "avg_score": avg_score,
+        "sunny_hours": sunny_hours,
+        "partly_cloudy_hours": partly_cloudy_hours,
+        "rainy_hours": rainy_hours,
+        "likely_rain_hours": likely_rain_hours,
+        "avg_precip_prob": avg_precip_prob,
+        "total_score": total_score,
+        "day_name": date.strftime("%A"),
+        "daylight_hours": daylight_hours,
+        "min_temp": min_temp,
+        "max_temp": max_temp,
+        "avg_temp": avg_temp,
+        "location": location_name
     }
-    good_blocks_details.append(block_info)
-    total_rank_score += avg_score_block * duration_hours
 
-  return {'rank_score': total_rank_score, 'good_blocks': good_blocks_details}
+  return {
+      "daily_forecasts": daily_forecasts,
+      "day_scores": day_scores
+  }
 
 
-def display_ranked_locations(all_locations_data: list[tuple[str, dict[str, Any]]], top_n: int = 20) -> None:
-  """Displays locations ranked by their weather suitability."""
-  print(f"\n{Fore.CYAN}--- Top Locations for Outdoor Activities (Next 48 Hours) ---{Style.RESET_ALL}")
+def extract_best_blocks(forecast_data, location_name):
+  """Extract best time blocks from forecast data for a specific location."""
+  if not forecast_data:
+    return []
 
-  if not all_locations_data:
-    print(f"{Fore.YELLOW}No location data to rank.{Style.RESET_ALL}")
+  extracted_blocks = []
+  daily_forecasts = forecast_data["daily_forecasts"]
+  day_scores = forecast_data["day_scores"]
+
+  # Get all days with reasonable scores
+  for date, scores in day_scores.items():
+    # Skip days with very poor scores
+    if scores["avg_score"] < -8:
+      continue
+
+    # Get daylight hours and calculate scores
+    daylight_hours = sorted([h for h in daily_forecasts[date] if DAYLIGHT_START_HOUR <= h["hour"] <= DAYLIGHT_END_HOUR],
+                            key=lambda x: x["hour"])
+
+    # Score each hour for outdoor activity
+    for hour in daylight_hours:
+      hour["total_score"] = calc_total_score(hour)
+
+    # Find consecutive hours with similar weather
+    weather_blocks = find_weather_blocks(daylight_hours)
+
+    # Find the best block
+    best_block = None
+    best_score = float('-inf')
+
+    # Identify best block for this day
+    for block, weather_type in weather_blocks:
+      if len(block) < 2:  # Skip single hour blocks
+        continue
+
+      avg_block_score = sum(h["total_score"] for h in block) / len(block)
+
+      # Identify best block
+      if avg_block_score > best_score:
+        best_score = avg_block_score
+        best_block = (block, weather_type)
+
+    # Add the best block to our extracted blocks
+    if best_block:
+      block, weather_type = best_block
+      start_time = block[0]["time"]
+      end_time = block[-1]["time"]
+
+      # Get the average temperature during this period
+      temps = [h["temp"] for h in block if isinstance(h["temp"], (int, float))]
+      avg_temp = sum(temps) / len(temps) if temps else None
+
+      # Get the dominant weather symbol
+      symbols = [h["symbol"] for h in block if isinstance(h["symbol"], str)]
+      symbol_counts = {}
+      for symbol in symbols:
+        if symbol in symbol_counts:
+          symbol_counts[symbol] += 1
+        else:
+          symbol_counts[symbol] = 1
+
+      # Find the symbol that appears most frequently
+      dominant_symbol = ""
+      max_count = 0
+      for symbol, count in symbol_counts.items():
+        if count > max_count:
+          dominant_symbol = symbol
+          max_count = count
+
+      # Create a record for this period
+      period = {
+          "location": location_name,
+          "date": date,
+          "day_name": date.strftime("%A"),
+          "start_time": start_time,
+          "end_time": end_time,
+          "duration": len(block),
+          "score": avg_block_score,
+          "weather_type": weather_type,
+          "avg_temp": avg_temp,
+          "dominant_symbol": dominant_symbol
+      }
+      extracted_blocks.append(period)
+
+  return extracted_blocks
+
+
+def recommend_best_times(location_data):
+  """Analyze forecast data and recommend the best times to go out this week."""
+  madrid_tz = pytz.timezone(TIMEZONE)
+  today = datetime.now(madrid_tz).date()
+  end_date = today + timedelta(days=7)
+
+  # Store all acceptable periods
+  all_periods = []
+
+  # First, extract best blocks for each location
+  for location_name, forecast in location_data.items():
+    if not forecast:
+      continue
+
+    location_display_name = LOCATIONS[location_name]["name"]
+
+    # Use the same approach as display_forecast to get best blocks
+    best_blocks = extract_best_blocks(forecast, location_display_name)
+    all_periods.extend(best_blocks)
+
+  # If no periods found, use the more general approach
+  if not all_periods:
+    # Store the best outdoor periods for the week, organized by day
+    day_periods = {}
+
+    # Process each location
+    for location_name, forecast in location_data.items():
+      if not forecast or not forecast.get("day_scores"):
+        continue
+
+      location_display_name = LOCATIONS[location_name]["name"]
+
+      # Process each day in the forecast
+      for date, scores in sorted(forecast["day_scores"].items()):
+        if date < today or date >= end_date:
+          continue
+
+        # Extremely lenient threshold
+        if scores["avg_score"] < -15:
+          continue
+
+        # Get the daily forecast data
+        daily_hours = forecast["daily_forecasts"].get(date, [])
+        daylight_hours = sorted([h for h in daily_hours if DAYLIGHT_START_HOUR <= h["hour"] <= DAYLIGHT_END_HOUR],
+                                key=lambda x: x["hour"])
+
+        # Calculate scores for each hour
+        for hour in daylight_hours:
+          hour["total_score"] = calc_total_score(hour)
+
+        # Find blocks of weather
+        weather_blocks = find_weather_blocks(daylight_hours)
+
+        # Identify blocks of at least 2 hours
+        for block, weather_type in weather_blocks:
+          if len(block) < 2:  # Skip single hour blocks
+            continue
+
+          avg_block_score = sum(h["total_score"] for h in block) / len(block)
+
+          # Very low threshold for all locations
+          block_threshold = -10
+
+          # Only exclude severe weather
+          extremely_bad_weather = ["heavyrain", "heavyrainshowers", "thunderstorm"]
+          if (avg_block_score >= block_threshold and
+                  not any(bad in block[0]["symbol"] for bad in extremely_bad_weather if isinstance(block[0]["symbol"], str))):
+            start_time = block[0]["time"]
+            end_time = block[-1]["time"]
+
+            # Get the average temperature during this period
+            temps = [h["temp"] for h in block if isinstance(h["temp"], (int, float))]
+            avg_temp = sum(temps) / len(temps) if temps else None
+
+            # Get the dominant weather symbol
+            symbols = [h["symbol"] for h in block if isinstance(h["symbol"], str)]
+            symbol_counts = {}
+            for symbol in symbols:
+              if symbol in symbol_counts:
+                symbol_counts[symbol] += 1
+              else:
+                symbol_counts[symbol] = 1
+
+            # Find the symbol that appears most frequently
+            dominant_symbol = ""
+            max_count = 0
+            for symbol, count in symbol_counts.items():
+              if count > max_count:
+                dominant_symbol = symbol
+                max_count = count
+
+            # Create a record for this period
+            period = {
+                "location": location_display_name,
+                "date": date,
+                "day_name": date.strftime("%A"),
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": len(block),
+                "score": avg_block_score,
+                "weather_type": weather_type,
+                "avg_temp": avg_temp,
+                "dominant_symbol": dominant_symbol
+            }
+            # Store by day
+            day_periods[date] = period
+
+    # Collect top periods for each day
+    for date in sorted(day_periods.keys()):
+      # Sort by score (best first)
+      day_periods[date].sort(key=lambda x: x["score"], reverse=True)
+
+      # Take up to 3 best periods per day
+      num_to_take = min(3, len(day_periods[date]))
+      for i in range(num_to_take):
+        all_periods.append(day_periods[date])
+
+  # Sort all periods by date and then by score
+  all_periods.sort(key=lambda x: (x["date"], -x["score"]))
+
+  return all_periods
+
+# Display utility functions
+
+
+def get_rating_info(score):
+  """Return standardized rating description and color based on score."""
+  if score >= 6:
+    return "Excellent", Fore.LIGHTGREEN_EX
+  elif score >= 3:
+    return "Good", Fore.GREEN
+  elif score >= 0:
+    return "Fair", Fore.YELLOW
+  elif score >= -3:
+    return "Poor", Fore.LIGHTRED_EX
+  else:
+    return "Avoid", Fore.RED
+
+
+def display_forecast(forecast_data, location_name, compare_mode=False):
+  """Display weather forecast for a location."""
+  if not forecast_data:
     return
 
-  # Filter out locations with errors or no good blocks for ranking
-  # And sort by rank_score descending
-  sorted_locations = sorted(
-      [data for data in all_locations_data if not data[1].get('error') and data[1]['rank_score'] > 0],
-      key=lambda x: x[1]['rank_score'],
-      reverse=True
-  )
+  daily_forecasts = forecast_data["daily_forecasts"]
+  day_scores = forecast_data["day_scores"]
 
-  if not sorted_locations:
-    print(f"{Fore.YELLOW}No locations with suitable upcoming weather found for ranking.{Style.RESET_ALL}")
-    return
-
-  for i, (location_name, data) in enumerate(sorted_locations[:top_n]):
-    rank = i + 1
-    rank_score_display = f"{data['rank_score']:.1f}"
-
-    # Find the best block (e.g., longest duration, then highest score)
-    best_block_info_str = "No significant good weather periods."
-    if data['good_blocks']:
-      # Sort blocks by duration, then by avg_score
-      best_block = sorted(data['good_blocks'], key=lambda b: (b['duration_hours'], b['avg_score']), reverse=True)[0]
-      start_t = best_block['start_time'].strftime('%a %H:%M')
-      end_t = (best_block['end_time'] + timedelta(hours=1)).strftime('%H:%M')  # Display end of block inclusively
-      duration_h = best_block['duration_hours']
-      avg_s = best_block['avg_score']
-      avg_t_display = f"{best_block['avg_temp']:.1f}°C" if best_block['avg_temp'] is not None else 'N/A'
-      weather_b = best_block['weather']
-      best_block_info_str = (
-          f"Best period: {start_t}-{end_t} ({duration_h:.0f}h), "
-          f"Avg Score: {avg_s:.1f}, {avg_t_display}, {weather_b}"
-      )
-
-    print(f"{Fore.GREEN}{rank}. {location_name}{Style.RESET_ALL} "
-          f"(Rank Score: {Fore.YELLOW}{rank_score_display}{Style.RESET_ALL})")
-    # print(f"   {best_block_info_str}") # Old way of showing just one best block
-
-    # New: Display all good blocks for this ranked location using the unified formatter
-    if data['good_blocks']:
-      print(f"   {Fore.BLUE}Key Good Weather Periods (next 48h):{Style.RESET_ALL}")
-      current_rank_display_day: str | None = None
-      for good_block in sorted(data['good_blocks'], key=lambda b: b['start_time']):  # Sort by time
-
-        block_day = good_block['start_time'].strftime('%A, %Y-%m-%d')
-        if block_day != current_rank_display_day:
-          # Indent day header slightly for ranked list context
-          print(f"     {Fore.MAGENTA}{block_day}{Style.RESET_ALL}")
-          current_rank_display_day = block_day
-
-        # format_weather_block_for_display expects 'weather_description'
-        # good_block has 'weather'
-        formatted_block_str = format_weather_block_for_display(
-            start_time=good_block['start_time'],
-            end_time=good_block['end_time'],  # 'end_time' in good_block is last good hour start
-            avg_score=good_block['avg_score'],
-            avg_temp=good_block['avg_temp'],
-            weather_description=good_block['weather'],  # Key name matches
-            duration_hours=good_block['duration_hours']
-        )
-        # Indent the block info further
-        print(f"   {formatted_block_str.strip()}")  # strip to remove its leading spaces if any
-    else:
-      print(f"   {Fore.YELLOW}No significant good weather periods identified for ranking.{Style.RESET_ALL}")
-
-    if i < top_n - 1 and i < len(sorted_locations) - 1:
-      print()  # Add a space between ranked location entries
-
-
-def display_hourly_forecast_24h(weather_data: dict[str, Any] | None, location_name: str) -> None:
-  """Displays detailed hourly forecast for the next 24 hours for a specific location."""
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    print(f"{Fore.YELLOW}No timeseries data to display for {location_name}.{Style.RESET_ALL}")
-    return
-
+  # Consistently color location names
   print(f"\n{Fore.CYAN}{location_name}{Style.RESET_ALL}")
 
-  timeseries = weather_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
-  now_madrid = datetime.now(madrid_tz)
-  forecast_end_time = now_madrid + timedelta(hours=24)
-
-  current_display_day: str | None = None
-  displayed_an_hour = False
-
-  for entry in timeseries:
-    time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc.astimezone(madrid_tz)
-
-    if local_time < now_madrid:  # Skip past events
-      continue
-    if local_time > forecast_end_time:  # Don't go beyond 24 hours from now
-      break
-
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    symbol_code_1h = next_1h_summary.get('symbol_code')
-
-    if not symbol_code_1h:
+  # Sort days chronologically
+  for date in sorted(daily_forecasts.keys()):
+    if date not in day_scores:
       continue
 
-    base_symbol = symbol_code_1h.split('_')[0]
-    weather_display = get_standardized_weather_desc(symbol_code_1h)  # Use full symbol
-
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-
-    score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
-    score_category = get_score_category(score)
-
-    day_name_full = local_time.strftime('%A, %Y-%m-%d')
-    if day_name_full != current_display_day:
-      if displayed_an_hour:
-        print()  # Add space if not the very first day header
-      print(f"{Fore.MAGENTA}{day_name_full}{Style.RESET_ALL}")
-      current_display_day = day_name_full
-
-    temp_display = f"{temp}°C" if temp is not None else "N/A"
-    wind_display = f"{wind_speed_instant} m/s" if wind_speed_instant is not None else "N/A"
-    precip_display = f"{precip_amount_1h} mm" if precip_amount_1h is not None else "N/A"
-
-    print(f"{Fore.CYAN}{local_time.strftime('%H:%M')}{Style.RESET_ALL}: "
-          f"{score_category}, {temp_display}, Wind: {wind_display}, Precip: {precip_display}, {weather_display}")
-    displayed_an_hour = True
-
-  if not displayed_an_hour:
-    print(f"{Fore.YELLOW}No forecast data available for the next 24 hours for {location_name}.{Style.RESET_ALL}")
-
-
-def display_best_times_for_activities(weather_data: dict[str, Any] | None, location_name: str) -> None:
-  """Displays the best time ranges for outdoor activities based on a weather score threshold."""
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    print(f"{Fore.YELLOW}No timeseries data to analyze for {location_name}.{Style.RESET_ALL}")
-    return
-
-  print(f"\n{Fore.CYAN}Best Time Ranges for Outdoor Activities in {location_name} (Score >= 5):{Style.RESET_ALL}")
-
-  timeseries = weather_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
-
-  good_time_blocks = []
-  current_block_data = None
-
-  for i, entry in enumerate(timeseries):
-    time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc.astimezone(madrid_tz)
-
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    symbol_code_1h = next_1h_summary.get('symbol_code')
-
-    if not symbol_code_1h:
-      # If a block was active, and current hour has no symbol, end the block.
-      if current_block_data:
-        good_time_blocks.append(current_block_data)
-        current_block_data = None
-      continue
-
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-    score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
-
-    if score >= 5:
-      if current_block_data is None:  # New block starts
-        current_block_data = {
-            'start_time': local_time,
-            'scores': [score],
-            'temps': [temp],
-            'symbols': [symbol_code_1h],
-            'last_good_time': local_time
-        }
-      else:  # Continue existing block
-        current_block_data['scores'].append(score)
-        current_block_data['temps'].append(temp)
-        current_block_data['symbols'].append(symbol_code_1h)
-        current_block_data['last_good_time'] = local_time
-    else:  # Score < 5, so good block (if any) ends
-      if current_block_data is not None:
-        good_time_blocks.append(current_block_data)
-        current_block_data = None
-
-  # If a block was active till the very end of timeseries
-  if current_block_data is not None:
-    good_time_blocks.append(current_block_data)
-
-  if not good_time_blocks:
-    print(f"{Fore.YELLOW}No suitable time ranges with a score of 'Good' or better found for {location_name}.{Style.RESET_ALL}")
-    return
-
-  current_display_day: str | None = None
-  for block in good_time_blocks:
-    avg_score = sum(block['scores']) / len(block['scores'])
-
-    valid_temps = [t for t in block['temps'] if t is not None]
-    avg_temp = sum(valid_temps) / len(valid_temps) if valid_temps else None
-
-    representative_symbol = block['symbols'][0]  # Use the first symbol of the block
-    weather_display = get_standardized_weather_desc(representative_symbol)
-    score_category = get_score_category(int(avg_score))
-
-    block_start_time = block['start_time']
-    # block_end_time_inclusive is the timestamp of the start of the last good hour slot
-    block_end_time_inclusive = block['last_good_time']
-
-    day_name_full = block_start_time.strftime('%A, %Y-%m-%d')
-    if day_name_full != current_display_day:
-      # Prevent printing an extra newline if it's the first day block
-      if current_display_day is not None:
-        print()
-      print(f"{Fore.MAGENTA}{day_name_full}{Style.RESET_ALL}")
-      current_display_day = day_name_full
-
-    start_str = block_start_time.strftime('%H:%M')
-    end_str = block_end_time_inclusive.strftime('%H:%M')
-
-    avg_temp_display = f"{avg_temp:.1f}°C" if avg_temp is not None else "N/A"
-
-    if start_str == end_str:  # Single hour block
-      print(f"  {Fore.CYAN}{start_str}{Style.RESET_ALL}: "
-            f"{score_category} (Avg Score: {avg_score:.1f}) "
-            f"({avg_temp_display}, {weather_display})")
-    else:  # Multi-hour block
-      # For display, if block is 10:00, 11:00, 12:00, show as 10:00 - 12:00
-      print(f"  {Fore.CYAN}{start_str} - {end_str}{Style.RESET_ALL}: "
-            f"{score_category} (Avg Score: {avg_score:.1f}) "
-            f"({avg_temp_display}, {weather_display})")
-  if not good_time_blocks and current_display_day is None:  # Handles if no good blocks at all
-    print(f"{Fore.YELLOW}No times with a score of 'Good' or better found for {location_name}.{Style.RESET_ALL}")
-
-
-def display_timeseries_data(weather_data: dict[str, Any] | None, location_name: str) -> None:
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    print(f"{Fore.YELLOW}No timeseries data to display for {location_name}.{Style.RESET_ALL}")
-    return
-
-  print(f"\n{Fore.CYAN}Detailed Timeseries Data for: {location_name}{Style.RESET_ALL}")
-
-  timeseries = weather_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
-  current_display_day: str | None = None
-
-  for _, entry in enumerate(timeseries):
-    time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc.astimezone(madrid_tz)
-
-    # Hourly data extraction
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    symbol_code_1h = next_1h_summary.get('symbol_code')
-
-    # If no symbol code, skip this entry and do not print it
-    if not symbol_code_1h:
-      continue
-
-    base_symbol = symbol_code_1h.split('_')[0]
-    weather_display = f"{get_standardized_weather_desc(base_symbol)}"
-
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-
-    score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
-    score_category = get_score_category(score)
-
-    # Print day header when it changes
-    day_name_full = local_time.strftime('%A, %Y-%m-%d')
-    if day_name_full != current_display_day:
-      print(f"\n{Fore.MAGENTA}{day_name_full}{Style.RESET_ALL}")
-      current_display_day = day_name_full
-
-    temp_display = f"{temp}°C" if temp is not None else "N/A"
-
-    print(f"{Fore.CYAN}{local_time.strftime('%H:%M')}{Style.RESET_ALL}: "
-          f"{score_category} ({temp_display}, {weather_display})")
-
-
-def display_weather_forecast_by_ranges(weather_data: dict[str, Any] | None, location_name: str) -> None:
-  """Displays the full weather forecast in condensed time ranges based on consistent weather symbols."""
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    print(f"{Fore.RED}No timeseries data available for {location_name}.{Style.RESET_ALL}")
-    return
-
-  print(f"\n{Fore.BLUE}--- Weather Forecast for: {location_name} ---{Style.RESET_ALL}")
-
-  timeseries = weather_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
-
-  weather_blocks = []
-  current_block = None
-  # Consider data for a reasonable horizon, e.g., next 7 days, to avoid overly long outputs if API returns extensive data.
-  # For now, processing all available in timeseries.
-
-  for i, entry in enumerate(timeseries):
-    time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc.astimezone(madrid_tz)
-
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    current_symbol_code = next_1h_summary.get('symbol_code')
-
-    if not current_symbol_code:  # Should ideally not happen if API is consistent
-      if current_block:  # Finalize existing block
-        weather_blocks.append(current_block)
-        current_block = None
-      continue
-
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-    score = get_weather_score(current_symbol_code, temp, wind_speed_instant, precip_amount_1h)
-
-    # Define block by consistent base symbol_code
-    current_base_symbol = current_symbol_code.split('_')[0]
-
-    if current_block is None:
-      current_block = {
-          'start_time': local_time,
-          'base_symbol': current_base_symbol,
-          'scores': [score],
-          'temps': [temp],
-          'last_time': local_time,
-          'full_symbols': [current_symbol_code]
-      }
-    elif current_block['base_symbol'] == current_base_symbol:
-      current_block['scores'].append(score)
-      current_block['temps'].append(temp)
-      current_block['last_time'] = local_time
-      current_block['full_symbols'].append(current_symbol_code)
-    else:  # Symbol changed, finalize previous block and start new one
-      weather_blocks.append(current_block)
-      current_block = {
-          'start_time': local_time,
-          'base_symbol': current_base_symbol,
-          'scores': [score],
-          'temps': [temp],
-          'last_time': local_time,
-          'full_symbols': [current_symbol_code]
-      }
-
-  if current_block:  # Append the last block
-    weather_blocks.append(current_block)
-
-  if not weather_blocks:
-    print(f"{Fore.YELLOW}No forecast data processed for {location_name}.{Style.RESET_ALL}")
-    return
-
-  current_display_day: str | None = None
-  for block in weather_blocks:
-    avg_score = sum(block['scores']) / len(block['scores'])
-    valid_temps = [t for t in block['temps'] if t is not None]
-    avg_temp = sum(valid_temps) / len(valid_temps) if valid_temps else None
-
-    # Use the most frequent full symbol in the block, or the first one, for display
-    # This handles cases like partlycloudy_day vs partlycloudy_night within same base block
-    representative_full_symbol = max(set(block['full_symbols']), key=block['full_symbols'].count)
-    weather_display = get_standardized_weather_desc(representative_full_symbol)
-    # score_category = get_score_category(avg_score) # No longer needed here
-
-    block_start_time = block['start_time']
-    block_end_time_inclusive = block['last_time']
-    duration_hours = (block_end_time_inclusive - block_start_time).total_seconds() / 3600 + 1
-
-    day_name_full = block_start_time.strftime('%A, %Y-%m-%d')
-    if day_name_full != current_display_day:
-      if current_display_day is not None:
-        print()  # Newline before new day
-      print(f"{Fore.MAGENTA}{day_name_full}{Style.RESET_ALL}")
-      current_display_day = day_name_full
-
-    # Use the new formatter
-    display_string = format_weather_block_for_display(
-        start_time=block_start_time,
-        end_time=block_end_time_inclusive,
-        avg_score=avg_score,
-        avg_temp=avg_temp,
-        weather_description=weather_display,
-        duration_hours=duration_hours
-    )
-    print(display_string)
-    # print(f"  {Fore.CYAN}{start_str} - {end_str}{Style.RESET_ALL} {duration_str}: "
-    #       f"{weather_display}, {avg_temp_display}, Score: {score_category} ({avg_score:.1f})")
-
-
-def display_best_times_table(all_locations_data: list[tuple[str, dict[str, Any]]], top_n: int = 15) -> None:
-  """Displays a compact, ranked table of the best weather periods across all locations."""
-  # Gather all good blocks from all locations
-  blocks = []
-  for location_name, data in all_locations_data:
-    if data.get('good_blocks'):
-      for block in data['good_blocks']:
-        blocks.append({
-            'location': location_name,
-            'start_time': block['start_time'],
-            'end_time': block['end_time'],
-            'duration_hours': block['duration_hours'],
-            'avg_score': block['avg_score'],
-            'avg_temp': block['avg_temp'],
-            'weather': block['weather'],
-        })
-  # Sort by avg_score (desc), then duration (desc), then start_time
-  blocks.sort(key=lambda b: (b['avg_score'], b['duration_hours'], -b['start_time'].timestamp()), reverse=True)
-  # Table header
-  print(f"\n{Fore.CYAN}{Style.BRIGHT}Best Times to Go Out in the Next 7 Days:{Style.RESET_ALL}")
-  print(f"{Style.BRIGHT}#   {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<20} {'Weather':<20} {'Score':<6}{Style.RESET_ALL}")
-  print(f"{'---':<3} {'-'*16} {'-'*15} {'-'*10} {'-'*20} {'-'*20} {'-'*6}")
-  # Print top N blocks
-  for idx, block in enumerate(blocks[:top_n]):
-    day_str = block['start_time'].strftime('%a, %d %b')
-    time_str = f"{block['start_time'].strftime('%H:%M')}-{(block['end_time'] + timedelta(hours=1)).strftime('%H:%M')}"
-    duration_str = f"{int(block['duration_hours']):>2} hour{'s' if int(block['duration_hours']) != 1 else ''}"
-    location_col = f"{Style.BRIGHT}{block['location']:<20}{Style.RESET_ALL}"
-    weather_col = color_weather(block['weather'], block['weather'])
-    temp_col = color_temp(block['avg_temp'])
-    score_col = f"{Fore.GREEN if block['avg_score'] >= 3.5 else (Fore.YELLOW if block['avg_score'] >= 2.5 else Fore.RED)}{block['avg_score']:>5.1f}{Style.RESET_ALL}"
-    print(f"{idx+1:<3} {Fore.MAGENTA}{day_str:<16}{Style.RESET_ALL} {Fore.CYAN}{time_str:<15}{Style.RESET_ALL} {duration_str:<10} {location_col} {weather_col:<20} {temp_col:>7} {score_col:>6}")
-
-
-def display_7day_forecast(weather_data: dict[str, Any] | None, location_name: str) -> None:
-  """Displays a 7-day daily summary forecast for a specific location."""
-  if not weather_data or 'properties' not in weather_data or 'timeseries' not in weather_data['properties']:
-    print(f"{Fore.RED}No timeseries data available for {location_name}.{Style.RESET_ALL}")
-    return
-
-  # Use Cyan for the location header
-  print(f"\n{Fore.CYAN}{Style.BRIGHT}{location_name}{Style.RESET_ALL}")
-
-  timeseries = weather_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
-  daily_data = {}
-
-  for entry in timeseries:
-    time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc.astimezone(madrid_tz)
-    date_key = local_time.date()
-
-    instant_details = entry['data'].get('instant', {}).get('details', {})
-    next_1h_summary = entry['data'].get('next_1_hours', {}).get('summary', {})
-    next_1h_details = entry['data'].get('next_1_hours', {}).get('details', {})
-    symbol_code_1h = next_1h_summary.get('symbol_code')
-    temp = instant_details.get('air_temperature')
-    wind_speed_instant = instant_details.get('wind_speed')
-    precip_amount_1h = next_1h_details.get('precipitation_amount')
-    score = get_weather_score(symbol_code_1h, temp, wind_speed_instant, precip_amount_1h)
-
-    if date_key not in daily_data:
-      daily_data[date_key] = {
-          'symbols': [],
-          'temps': [],
-          'scores': [],
-      }
-    if symbol_code_1h:
-      daily_data[date_key]['symbols'].append(symbol_code_1h)
-    if temp is not None:
-      daily_data[date_key]['temps'].append(temp)
-    daily_data[date_key]['scores'].append(score)
-
-  # Only show the next 7 days
-  sorted_days = sorted(daily_data.keys())[:7]
-  if not sorted_days:
-    print(f"{Fore.YELLOW}No daily forecast data available for {location_name}.{Style.RESET_ALL}")
-    return
-
-  # Table column widths
-  day_col_w = 14
-  weather_col_w = 22
-  temp_col_w = 10
-  score_col_w = 8
-
-  print(f"{Style.BRIGHT}{'Day':<{day_col_w}} {'Weather':<{weather_col_w}} {'Avg Temp':<{temp_col_w}} {'Score':<{score_col_w}}{Style.RESET_ALL}")
-  print(f"{'-'*day_col_w} {'-'*weather_col_w} {'-'*temp_col_w} {'-'*score_col_w}")
-  for day in sorted_days:
-    data = daily_data[day]
-    if data['symbols']:
-      # Use the most frequent symbol for the day
-      representative_symbol = max(set(data['symbols']), key=data['symbols'].count)
-      weather_display = get_standardized_weather_desc(representative_symbol)
+    scores = day_scores[date]
+    date_str = date.strftime("%a, %d %b")
+
+    # Use centralized rating function
+    rating, color = get_rating_info(scores["avg_score"])
+
+    # Determine overall weather description
+    precip_warning = ""
+    if scores["avg_precip_prob"] is not None and scores["avg_precip_prob"] > 40:
+      precip_warning = f" - {scores['avg_precip_prob']:.0f}% rain"
+
+    if scores["sunny_hours"] > scores["partly_cloudy_hours"] and scores["sunny_hours"] > scores["rainy_hours"]:
+      weather_desc = "Sunny" + precip_warning
+    elif scores["partly_cloudy_hours"] > scores["sunny_hours"] and scores["partly_cloudy_hours"] > scores["rainy_hours"]:
+      weather_desc = "Partly Cloudy" + precip_warning
+    elif scores["rainy_hours"] > 0:
+      weather_desc = f"Rain ({scores['rainy_hours']}h)"
     else:
-      weather_display = 'Unknown'
-    avg_temp = sum(data['temps']) / len(data['temps']) if data['temps'] else None
-    avg_score = sum(data['scores']) / len(data['scores']) if data['scores'] else 0
-    day_str = day.strftime('%a, %d %b')
-    temp_display = color_temp(avg_temp)
-    weather_col = color_weather(weather_display, weather_display)
-    score_col = f"{Fore.GREEN if avg_score >= 3.5 else (Fore.YELLOW if avg_score >= 2.5 else Fore.RED)}{avg_score:>6.1f}{Style.RESET_ALL}"
-    print(f"{day_str:<{day_col_w}} {weather_col:<{weather_col_w}} {temp_display:<{temp_col_w}} {score_col:<{score_col_w}}")
+      weather_desc = "Mixed" + precip_warning
+
+    # Use min-max temperature range
+    temp_str = ""
+    if scores["min_temp"] is not None and scores["max_temp"] is not None:
+      temp_str = f"{scores['min_temp']:>4.1f}°C - {scores['max_temp']:>4.1f}°C"
+    else:
+      temp_str = "N/A"
+
+    # Print the day summary with color and weather description
+    print(f"{date_str} {color}[{rating}]{Style.RESET_ALL} {temp_str} - {weather_desc}")
+
+    # In comparison mode, don't show hourly details
+    if compare_mode:
+      continue
+
+    # Sort and identify best and worst blocks
+    daylight_hours = sorted([h for h in daily_forecasts[date] if DAYLIGHT_START_HOUR <= h["hour"] <= DAYLIGHT_END_HOUR], key=lambda x: x["hour"])
+
+    if not daylight_hours:
+      continue
+
+    # Score each hour for outdoor activity
+    for hour in daylight_hours:
+      hour["total_score"] = calc_total_score(hour)
+
+    # Find blocks with similar weather
+    weather_blocks = find_weather_blocks(daylight_hours)
+
+    # Get best and worst times (highest and lowest scoring blocks)
+    best_block = None
+    worst_block = None
+    best_score = float('-inf')
+    worst_score = float('inf')
+
+    # Identify blocks with consistently good or bad weather scores
+    for block, weather_type in weather_blocks:
+      if len(block) < 2:  # Skip single hour blocks
+        continue
+
+      avg_block_score = sum(h["total_score"] for h in block) / len(block)
+
+      # Find single best block
+      if avg_block_score > best_score and (weather_type in ["sunny", "cloudy"] or avg_block_score >= 0):
+        best_score = avg_block_score
+        best_block = (block, weather_type)
+
+      # Find single worst block
+      if avg_block_score < worst_score and (weather_type == "rainy" or avg_block_score < 0):
+        worst_score = avg_block_score
+        worst_block = (block, weather_type)
+
+    # Display best time block
+    if best_block:
+      block, weather_type = best_block
+      start_time = block[0]["time"].strftime("%H:%M")
+      end_time = block[-1]["time"].strftime("%H:%M")
+      print(f"  Best: {Fore.GREEN}{start_time}-{end_time}{Style.RESET_ALL}")
+
+    # Display worst time only if it's a good day with a specific bad period
+    if worst_block and scores["avg_score"] >= 0:
+      block, weather_type = worst_block
+      start_time = block[0]["time"].strftime("%H:%M")
+      end_time = block[-1]["time"].strftime("%H:%M")
+      print(f"  Avoid: {Fore.RED}{start_time}-{end_time}{Style.RESET_ALL}")
 
 
-def main() -> None:
+def compare_locations(location_data, date_filter=None):
+  """Compare weather conditions across multiple locations for planning purposes."""
+  # If no date filter provided, use today
+  if not date_filter:
+    date_filter = datetime.now(pytz.timezone(TIMEZONE)).date()
+
+  print(f"\nBest locations for {date_filter.strftime('%A, %d %b')}")
+
+  # Get data for the specified date across all locations
+  date_data = []
+  for location_name, forecast in location_data.items():
+    if not forecast or not forecast["day_scores"]:
+      continue
+
+    for date, scores in forecast["day_scores"].items():
+      if date == date_filter:
+        date_data.append(scores)
+        break
+
+  # Sort locations by score (best to worst)
+  date_data.sort(key=lambda x: x["avg_score"], reverse=True)
+
+  if not date_data:
+    print(f"\n{Fore.YELLOW}No data available for this date.{Style.RESET_ALL}")
+    return
+
+  # Find longest location name for proper formatting
+  max_location_length = max(len(data["location"]) for data in date_data)
+  location_width = max(max_location_length + 2, 17)  # Minimum 17 chars
+
+  # Print table header with proper spacing
+  print(f"\n{'Location':<{location_width}} {'Rating':<10} {'Temp':<15} {'Weather':<13} {'Score':>6}")
+  print(f"{'-'*location_width} {'-'*10} {'-'*15} {'-'*13} {'-'*6}")
+
+  for data in date_data:
+    location = data["location"]
+
+    # Use centralized rating function
+    rating, color = get_rating_info(data["avg_score"])
+
+    # Weather description
+    if data["sunny_hours"] > data["partly_cloudy_hours"] and data["sunny_hours"] > data["rainy_hours"]:
+      weather = "Sunny"
+    elif data["partly_cloudy_hours"] > data["sunny_hours"] and data["partly_cloudy_hours"] > data["rainy_hours"]:
+      weather = "Partly Cloudy"
+    elif data["rainy_hours"] > 0:
+      weather = f"Rain ({data['rainy_hours']}h)"
+    else:
+      weather = "Mixed"
+
+    # Temperature range
+    temp = "N/A"
+    if data["min_temp"] is not None and data["max_temp"] is not None:
+      temp = f"{data['min_temp']:.1f}°C - {data['max_temp']:.1f}°C"
+
+    # Format score
+    score_str = f"{data['avg_score']:.1f}"
+
+    # Always color location with cyan
+    print(f"{Fore.CYAN}{location:<{location_width}}{Style.RESET_ALL} {color}{rating:<10}{Style.RESET_ALL} {temp:<15} {weather:<13} {score_str:>6}")
+
+
+def list_locations():
+  """List all available locations."""
+  print(f"\n{Fore.CYAN}Available locations:{Style.RESET_ALL}")
+  for key, loc in LOCATIONS.items():
+    print(f"  {key} - {Fore.CYAN}{loc['name']}{Style.RESET_ALL}")
+
+
+def display_best_times_recommendation(location_data):
+  """Display a simple recommendation for when to go out this week."""
+  all_periods = recommend_best_times(location_data)
+
+  if not all_periods:
+    print(f"\n{Fore.YELLOW}No ideal outdoor times found for this week.{Style.RESET_ALL}")
+    print("Try checking individual locations for more details.")
+    return
+
+  print(f"\n{Fore.CYAN}BEST TIMES TO GO OUT IN THE NEXT 7 DAYS:{Style.RESET_ALL}")
+
+  # Group periods by date
+  days = {}
+  for period in all_periods:
+    days.setdefault(period["date"], []).append(period)
+
+  # Extract more options per day, including those with lower scores
+  filtered_periods = []
+  for date, periods in sorted(days.items()):
+    periods.sort(key=lambda x: x["score"], reverse=True)
+    for p in periods[:5]:  # Take top 5 periods per day
+      filtered_periods.append(p)
+
+  # Find the longest location name for proper alignment
+  max_location_length = max(len(period["location"]) for period in filtered_periods) if filtered_periods else 15
+  location_width = max(max_location_length + 2, 17)  # Minimum 17 chars
+  weather_width = 20  # Field width for weather + temp alignment
+
+  # Print header row
+  print(f"{'#':<3} {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<{location_width}} {'Weather':<{weather_width}} {'Score':>6}")
+  print(f"{'-'*3} {'-'*16} {'-'*15} {'-'*10} {'-'*location_width} {'-'*weather_width} {'-'*6}")
+
+  current_date = None
+
+  for i, period in enumerate(filtered_periods, 1):
+    if current_date and current_date != period["date"]:
+      print()  # Add line break between dates
+    current_date = period["date"]
+
+    date_str = period["date"].strftime("%d %b")
+    day_name = period["day_name"][:3]
+    day_date = f"{day_name}, {date_str}"
+
+    start_str = period["start_time"].strftime("%H:%M")
+    end_str = period["end_time"].strftime("%H:%M")
+    time_range = f"{start_str}-{end_str}"
+
+    rating, color = get_rating_info(period["score"])
+    duration_str = f"{period['duration']} hours"
+
+    weather_desc = get_standardized_weather_desc(period["dominant_symbol"])[:12]  # Limit length
+    weather_desc = f"{weather_desc:<12}"  # Left-align
+
+    temp_desc = ""
+    if period["avg_temp"] is not None:
+      temp_desc = f"{period['avg_temp']:>5.1f}°C"  # Right-align temp
+
+    weather_with_temp = f"{weather_desc} {temp_desc}"  # Combined field
+    score_str = f"{period['score']:.1f}"
+
+    # Print formatted row
+    print(
+        f"{i:<3} "
+        f"{color}{day_date:<16}{Style.RESET_ALL} "
+        f"{time_range:<15} "
+        f"{duration_str:<10} "
+        f"{Fore.CYAN}{period['location']:<{location_width}}{Style.RESET_ALL} "
+        f"{weather_with_temp:<{weather_width}} "
+        f"{score_str:>6}"
+    )
+
+
+def calc_total_score(hour):
+  return sum(score for score_name, score in hour.items() if score_name.endswith('_score') and isinstance(score, (int, float)))
+
+
+def main():
   """Main function to process command-line arguments and display weather forecasts."""
-  parser = argparse.ArgumentParser(description="Daily Helper: Asturias weather forecasting tool.")
-  parser.add_argument(
-      "--rank",
-      action="store_true",
-      help="Rank locations by weather suitability for outdoor activities over the next 48 hours."
-  )
-  parser.add_argument(
-      "--top",
-      type=int,
-      default=15,  # Default to top 15 for best times table
-      help="Number of periods to display when ranking (default: 15)."
-  )
-  # Consider adding --location to focus on one or more specific locations
+  parser = argparse.ArgumentParser(description="Weather forecast for outdoor activities in Asturias")
+
+  location_group = parser.add_mutually_exclusive_group()
+  location_group.add_argument("--location", "-l", choices=LOCATIONS.keys(), help="Specific location to check")
+  location_group.add_argument("--all", "-a", action="store_true", help="Show all locations")
+  location_group.add_argument("--compare", "-c", action="store_true", help="Compare all locations for best weather")
+  location_group.add_argument("--list", action="store_true", help="List all available locations")
+
+  parser.add_argument("--date", "-d", type=str, help="Date to compare locations (format: YYYY-MM-DD)")
+  parser.add_argument("--no-clear", action="store_true", help="Don't clear the screen before displaying results")
+  parser.add_argument("--recommend", "-r", action="store_true", help="Show direct recommendations for when to go out this week")
 
   args = parser.parse_args()
 
-  if args.rank:
-    all_location_data_for_ranking = []
-    print(f"{Fore.BLUE}Fetching and analyzing data for ranking...{Style.RESET_ALL}")
-    for loc_key, loc_info in LOCATIONS.items():
-      display_name = str(loc_info['display_name'])
-      print(f"{Fore.BLUE}Fetching data for {display_name}...{Style.RESET_ALL}")
-      weather_data = fetch_weather_data(loc_info)
-      if weather_data:
-        rank_data = calculate_location_rank_data(weather_data)
-        all_location_data_for_ranking.append((display_name, rank_data))
-      else:
-        all_location_data_for_ranking.append((display_name, {'rank_score': 0, 'good_blocks': [], 'error': 'Failed to fetch data'}))
+  # Just list locations and exit
+  if args.list:
+    list_locations()
+    return
 
-    display_best_times_table(all_location_data_for_ranking, top_n=args.top)
+  # Parse comparison date if provided
+  comparison_date = None
+  if args.date:
+    try:
+      comparison_date = datetime.strptime(args.date, "%Y-%m-%d").date()
+    except ValueError:
+      print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
+      return
+
+  # Default to Oviedo if no location specified
+  selected_locations = {args.location: LOCATIONS[args.location]} if args.location else LOCATIONS if (
+      args.all or args.compare or args.recommend) else {"oviedo": LOCATIONS["oviedo"]}
+
+  # Clear screen unless disabled
+  if not args.no_clear:
+    print("\033[2J\033[H")  # ANSI escape sequence to clear screen
+
+  # Fetch and process data for all selected locations
+  location_data = {}
+  for loc_key, location in selected_locations.items():
+    print(f"Fetching data for {location['name']}...")
+    data = fetch_weather_data(location)
+    if data:
+      location_data[loc_key] = process_forecast(data, location['name'])
+      # Add a small delay between API calls to avoid rate limiting
+      time.sleep(0.5)
+
+  print()  # Add a blank line for better readability
+
+  # Display recommendations if requested
+  if args.recommend:
+    display_best_times_recommendation(location_data)
+    return
+
+  # Display mode depends on arguments
+  if args.compare:
+    if comparison_date:
+      compare_locations(location_data, comparison_date)
+    else:
+      # Compare for today
+      compare_locations(location_data)
+
+    # Show location summaries for each city in comparison mode
+    for loc_key, forecast in location_data.items():
+      display_forecast(forecast, LOCATIONS[loc_key]["name"], compare_mode=True)
   else:
-    # Default behavior: Show condensed best times for each location.
-    for loc_key, loc_info in LOCATIONS.items():
-      display_name = str(loc_info['display_name'])
-      weather_data = fetch_weather_data(loc_info)
-      display_7day_forecast(weather_data, display_name)
+    # Display each location's forecast in detail
+    for loc_key, forecast in location_data.items():
+      display_forecast(forecast, LOCATIONS[loc_key]["name"])
 
 
 if __name__ == "__main__":
