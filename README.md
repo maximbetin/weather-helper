@@ -19,14 +19,14 @@ This is a weather forecasting tool that helps you find the best times and locati
 ### Activity Planning
 The app helps you determine the best days and time ranges for outdoor activities:
 - Analyzes temperature, wind conditions, precipitation probability, and weather patterns
-- Rates each day for outdoor suitability (Excellent, Good, Fair, Poor, Avoid)
+- Rates each day for outdoor suitability (Excellent, Very Good, Good, Fair, Poor, Bad)
 - Identifies specific time blocks that offer the best outdoor conditions
 - Highlights periods to avoid when applicable
 - Focuses on daylight hours (8:00-20:00) for optimal activity scheduling
 
 ### Direct Recommendations
 - Get straightforward recommendations for when to go out this week
-- Shows the top 5 best time periods across all locations
+- Shows up to the top 5 best time periods for each day across all locations
 - Ranks time blocks by weather quality score
 - Provides simple, actionable advice without needing to analyze the details yourself
 
@@ -127,7 +127,7 @@ The application includes weather data for these Asturian locations:
 ## Dependencies
 
 - Python 3.x
-- requests==2.31.0
+- requests==2.32.3
 - pytz==2024.1
 - colorama==0.4.6
 
