@@ -1024,70 +1024,85 @@ def main():
 
   location_group = parser.add_mutually_exclusive_group()
   location_group.add_argument("--location", "-l", choices=LOCATIONS.keys(), help="Specific location to check")
-  location_group.add_argument("--all", "-a", action="store_true", help="Show all locations")
-  location_group.add_argument("--compare", "-c", action="store_true", help="Compare all locations for best weather")
+  location_group.add_argument("--all", "-a", action="store_true", help="Show all locations (detailed view)")
+  location_group.add_argument("--compare", "-c", action="store_true", help="Compare all locations (today's scores)")
   location_group.add_argument("--list", action="store_true", help="List all available locations")
 
-  parser.add_argument("--date", "-d", type=str, help="Date to compare locations (format: YYYY-MM-DD)")
-  parser.add_argument("--no-clear", action="store_true", help="Don't clear the screen before displaying results")
   parser.add_argument("--recommend", "-r", action="store_true", help="Show direct recommendations for when to go out this week")
 
   args = parser.parse_args()
 
-  # Just list locations and exit
+  # Action: List locations and exit
   if args.list:
     list_locations()
     return
 
-  # Parse comparison date if provided
-  comparison_date = None
-  if args.date:
-    try:
-      comparison_date = datetime.strptime(args.date, "%Y-%m-%d").date()
-    except ValueError:
-      print(f"{Fore.RED}Invalid date format. Use YYYY-MM-DD.{Style.RESET_ALL}")
-      return
+  # Clear screen before displaying results (unless just listing)
+  print("\033[2J\033[H")  # ANSI escape sequence to clear screen
 
-  # Default to Oviedo if no location specified
-  selected_locations = {args.location: LOCATIONS[args.location]} if args.location else LOCATIONS if (
-      args.all or args.compare or args.recommend) else {"oviedo": LOCATIONS["oviedo"]}
-
-  # Clear screen unless disabled
-  if not args.no_clear:
-    print("\033[2J\033[H")  # ANSI escape sequence to clear screen
+  # Determine selected locations
+  selected_location_keys = []
+  if args.location:
+    selected_location_keys = [args.location]
+  elif args.all or args.compare or args.recommend:
+    selected_location_keys = list(LOCATIONS.keys())  # All locations
+  else:
+    # Default action: show forecast for "oviedo" if no other mode is specified
+    selected_location_keys = ["oviedo"]
+    print(f"{Fore.MAGENTA}No location specified, defaulting to Oviedo.{Style.RESET_ALL}")
+    print(f"{Fore.MAGENTA}Use --help for more options.{Style.RESET_ALL}\n")
 
   # Fetch and process data for all selected locations
-  location_data = {}
-  for loc_key, location in selected_locations.items():
-    print(
-        f"Fetching data for {Fore.LIGHTMAGENTA_EX}{location.name}{Style.RESET_ALL}...")
-    data = fetch_weather_data(location)
-    if data:
-      location_data[loc_key] = process_forecast(data, location.name)
-      # Add a small delay between API calls to avoid rate limiting
-      time.sleep(0.5)
-
-  # Display recommendations if requested
-  if args.recommend:
-    display_best_times_recommendation(location_data)
+  all_processed_data = {}
+  if not selected_location_keys:
+    print(f"{Fore.RED}No locations selected for fetching data.{Style.RESET_ALL}")
     return
 
-  # Display mode depends on arguments
-  if args.compare:
-    if comparison_date:
-      compare_locations(location_data, comparison_date)
+  for loc_key in selected_location_keys:
+    location_obj = LOCATIONS[loc_key]
+    print(f"Fetching data for {Fore.LIGHTMAGENTA_EX}{location_obj.name}{Style.RESET_ALL}...")
+    raw_data = fetch_weather_data(location_obj)
+    if raw_data:
+      processed_data = process_forecast(raw_data, location_obj.name)  # Pass display name for DailyReport
+      if processed_data:
+        all_processed_data[loc_key] = processed_data
+      else:
+        print(f"{Fore.YELLOW}Could not process data for {location_obj.name}.{Style.RESET_ALL}")
     else:
-      # Compare for today
-      compare_locations(location_data)
+      # raw_data is None
+      pass  # Continue to next location if one fails
+    time.sleep(0.5)  # API courtesy delay
 
-    # Show location summaries for each city in comparison mode
-    for loc_key, forecast in location_data.items():
-      display_forecast(
-          forecast, LOCATIONS[loc_key].name, compare_mode=True)
-  else:
-    # Display each location's forecast in detail
-    for loc_key, forecast in location_data.items():
-      display_forecast(forecast, LOCATIONS[loc_key].name)
+  if not all_processed_data:
+    print(f"{Fore.RED}No weather data successfully fetched or processed for any selected location.{Style.RESET_ALL}")
+    return
+
+  # --- Display based on arguments ---
+  if args.recommend:
+    display_best_times_recommendation(all_processed_data)
+  elif args.compare:
+    compare_locations(all_processed_data)
+    # If you still want to show detailed views after comparison table:
+    # print(f"\n{Fore.MAGENTA}Detailed forecasts for compared locations:{Style.RESET_ALL}")
+    # for loc_key, processed_data_for_loc in all_processed_data.items():
+    #   if loc_key in LOCATIONS:
+    #     display_forecast(processed_data_for_loc, LOCATIONS[loc_key].name, compare_mode=True)
+  elif args.all:
+    for loc_key, processed_data_for_loc in all_processed_data.items():
+      if loc_key in LOCATIONS:
+        display_forecast(processed_data_for_loc, LOCATIONS[loc_key].name, compare_mode=False)
+  elif args.location:
+    loc_key_single = selected_location_keys[0]
+    if loc_key_single in all_processed_data:
+      display_forecast(all_processed_data[loc_key_single], LOCATIONS[loc_key_single].name, compare_mode=False)
+    else:
+      print(f"{Fore.RED}No data available for the specified location: {LOCATIONS[loc_key_single].name}{Style.RESET_ALL}")
+  else:  # Default case (Oviedo)
+    loc_key_default = selected_location_keys[0]
+    if loc_key_default in all_processed_data:
+      display_forecast(all_processed_data[loc_key_default], LOCATIONS[loc_key_default].name, compare_mode=False)
+    else:
+      print(f"{Fore.RED}No data available for the default location: {LOCATIONS[loc_key_default].name}{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":
