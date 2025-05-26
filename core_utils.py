@@ -4,12 +4,14 @@ Core utility functions used across the application.
 
 import pytz
 from datetime import datetime, date, time, timedelta
-from typing import Optional, Union, List, Any
+from typing import Optional, Union, List, TypeVar, Any
 
 from config import TIMEZONE, WEATHER_SYMBOLS
 
+T = TypeVar('T')
 
-def get_timezone() -> Any:
+
+def get_timezone():
   """Get the application timezone object.
 
   Returns:
@@ -102,3 +104,31 @@ def safe_average(values: List[Union[int, float]]) -> Optional[float]:
   if not valid_values:
     return None
   return sum(valid_values) / len(valid_values)
+
+
+def get_or_default(value: Optional[T], default: T) -> T:
+  """Get a value if it's not None, otherwise return the default.
+
+  Args:
+      value: The value to check
+      default: Default value to return if value is None
+
+  Returns:
+      The value if not None, otherwise the default
+  """
+  return value if value is not None else default
+
+
+def safe_get_numeric(value: Optional[Union[int, float]], default: Union[int, float] = 0) -> Union[int, float]:
+  """Safely get a numeric value, returning a default if None.
+
+  Args:
+      value: The numeric value to check
+      default: Default value to return if value is None
+
+  Returns:
+      The value if it's a valid number, otherwise the default
+  """
+  if is_value_valid(value):
+    return value  # type: ignore
+  return default

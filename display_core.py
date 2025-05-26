@@ -7,7 +7,7 @@ from datetime import datetime
 
 import colors
 from colors import colorize, get_rating_info
-from core_utils import format_time, format_date, get_weather_desc
+from core_utils import format_time, format_date, get_weather_desc, get_or_default, safe_get_numeric
 from locations import LOCATIONS
 
 
@@ -86,9 +86,7 @@ def display_temperature(temp: Optional[float]) -> str:
   Returns:
       str: Formatted temperature string
   """
-  if temp is None:
-    return "N/A"
-  return f"{temp:.1f}°C"
+  return get_or_default(f"{temp:.1f}°C" if temp is not None else None, "N/A")
 
 
 def display_wind(wind: Optional[float]) -> str:
@@ -100,9 +98,7 @@ def display_wind(wind: Optional[float]) -> str:
   Returns:
       str: Formatted wind string
   """
-  if wind is None:
-    return "N/A"
-  return f"{wind:.1f}m/s"
+  return get_or_default(f"{wind:.1f}m/s" if wind is not None else None, "N/A")
 
 
 def display_precipitation_probability(prob: Optional[float]) -> str:
@@ -114,9 +110,7 @@ def display_precipitation_probability(prob: Optional[float]) -> str:
   Returns:
       str: Formatted probability string
   """
-  if prob is None:
-    return "N/A"
-  return f"{prob:.0f}%"
+  return get_or_default(f"{prob:.0f}%" if prob is not None else None, "N/A")
 
 
 def display_table_header(headers: List[str], widths: List[int]) -> None:
