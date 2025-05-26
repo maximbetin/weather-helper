@@ -48,14 +48,6 @@ WEATHER_SYMBOLS = {
     "thunderstorm": ("Thunderstorm", -15)
 }
 
-# Weather description mapping (used by get_standardized_weather_desc)
-WEATHER_DESC_MAP = {
-    "cloudy": "Cloudy",
-    "clearsky": "Sunny",
-    "fair": "Mostly Sunny",
-    "partlycloudy": "Partly Cloudy",
-}
-
 # Colorama Styles (optional, can be used in display_utils)
 COLOR_EXCELLENT = Fore.LIGHTGREEN_EX
 COLOR_VERY_GOOD = Fore.GREEN

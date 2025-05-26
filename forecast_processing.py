@@ -19,8 +19,7 @@ def extract_blocks(hours, min_block_len=2):
   if not hours:
     return []
   # Ensure hours are HourlyWeather objects and sorted
-  # The original sort key was x.hour, assuming hours were already HourlyWeather objects
-  sorted_hours = sorted(hours, key=lambda x: x.time)  # Sort by full datetime to be safe
+  sorted_hours = sorted(hours, key=lambda x: x.time)  # Sort by full datetime
   blocks = []
   current_block = [sorted_hours[0]]
 
@@ -57,7 +56,6 @@ def process_forecast(forecast_data, location_name):
   madrid_tz = pytz.timezone(TIMEZONE)
   daily_forecasts = defaultdict(list)
   today = datetime.now(madrid_tz).date()
-  # Ensure end_date calculation uses FORECAST_DAYS from config
   end_date = today + timedelta(days=FORECAST_DAYS)
 
   for entry in forecast_timeseries:
@@ -84,7 +82,6 @@ def process_forecast(forecast_data, location_name):
 
     next_6h = entry["data"].get("next_6_hours", {})
     next_6h_details = next_6h.get("details", {})
-    # precipitation_6h = next_6h_details.get("precipitation_amount") # Not directly used for HourlyWeather if 1h exists
     precipitation_prob_6h = next_6h_details.get("probability_of_precipitation")
 
     precipitation_prob = precipitation_prob_1h if precipitation_prob_1h is not None else precipitation_prob_6h
@@ -124,8 +121,6 @@ def process_forecast(forecast_data, location_name):
   for date, hours_list in daily_forecasts.items():
     daylight_h = [h for h in hours_list if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR]
     if not daylight_h:  # Skip if no daylight hours data for the day
-      # Create an empty/default DailyReport if you always want an entry for the day
-      # day_scores_reports[date] = DailyReport(date, [], location_name)
       continue
     day_report = DailyReport(date, daylight_h, location_name)
     day_scores_reports[date] = day_report
@@ -152,7 +147,6 @@ def extract_best_blocks(forecast_data, location_name_key):
       continue
 
     # Get daylight hours from the already processed daily_forecasts_map
-    # These are already HourlyWeather objects
     daylight_hours_list = sorted(
         [h for h in daily_forecasts_map.get(date, []) if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR],
         key=lambda x: x.time  # Sort by time for extract_blocks
@@ -205,87 +199,87 @@ def extract_best_blocks(forecast_data, location_name_key):
 
 
 def recommend_best_times(all_location_processed_data):
-  """Analyze forecast data across all locations and recommend best times.
-  all_location_processed_data: dict where key is loc_key, value is output of process_forecast
-  """
+  """Analyze forecast data and recommend the best times to go out this week."""
   madrid_tz = pytz.timezone(TIMEZONE)
   today = datetime.now(madrid_tz).date()
   end_date = today + timedelta(days=FORECAST_DAYS)
+  all_periods = []
 
-  all_potential_periods = []
-
-  # Primary strategy: Use extract_best_blocks for each location
-  for loc_key, processed_forecast in all_location_processed_data.items():
-    if not processed_forecast:
+  # Extract best blocks for each location
+  for location_name_key, forecast_data in all_location_processed_data.items():
+    if not forecast_data:
       continue
-    # location_name_key for extract_best_blocks should be the key e.g. "gijon"
-    best_blocks_for_loc = extract_best_blocks(processed_forecast, loc_key)
-    all_potential_periods.extend(best_blocks_for_loc)
+    location_display_name = LOCATIONS[location_name_key].name
+    best_blocks = extract_best_blocks(forecast_data, location_name_key)
+    all_periods.extend(best_blocks)
 
-  # Fallback strategy if primary yields nothing
-  if not all_potential_periods:
+  # If no periods found, use a more lenient approach
+  if not all_periods:
     fallback_periods = []
-    for loc_key, processed_forecast in all_location_processed_data.items():
-      if not processed_forecast or not processed_forecast.get("day_scores"):
+    for location_name_key, forecast_data in all_location_processed_data.items():
+      if not forecast_data or not forecast_data.get("day_scores"):
         continue
 
-      loc_disp_name = LOCATIONS[loc_key].name
-      daily_scores_map = processed_forecast["day_scores"]
-      daily_forecasts_map = processed_forecast["daily_forecasts"]
+      location_display_name = LOCATIONS[location_name_key].name
 
-      for date_val, daily_report_obj in sorted(daily_scores_map.items()):
-        if not (today <= date_val < end_date):
+      for date_val, daily_report in sorted(forecast_data["day_scores"].items()):
+        if date_val < today or date_val >= end_date:
           continue
-        if daily_report_obj.avg_score < -15:  # Lenient day threshold for fallback
+        if daily_report.avg_score < -15:  # Extremely lenient threshold
           continue
 
-        hourly_weather_list_for_day = daily_forecasts_map.get(date_val, [])
-        daylight_h_list = sorted(
-            [h_obj for h_obj in hourly_weather_list_for_day if DAYLIGHT_START_HOUR <= h_obj.hour <= DAYLIGHT_END_HOUR],
-            key=lambda x_obj: x_obj.time
+        daylight_hours = sorted(
+            [h for h in forecast_data["daily_forecasts"].get(date_val, [])
+             if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR],
+            key=lambda x: x.hour
         )
 
-        if not daylight_h_list:
+        if not daylight_hours:
           continue
 
-        weather_block_tuples = extract_blocks(daylight_h_list, min_block_len=2)
+        weather_block_tuples = extract_blocks(daylight_hours, min_block_len=2)
 
-        for block_list, weather_tp_str in weather_block_tuples:
-          avg_blk_score = sum(h_obj.total_score for h_obj in block_list) / len(block_list)
-          block_thresh = -10  # Lenient block threshold
+        for block, weather_type in weather_block_tuples:
+          if len(block) < 2:  # Skip single hour blocks
+            continue
 
-          # Check for extremely bad weather symbols in the first hour of the block
-          # Symbol in HourlyWeather is already the base symbol
-          first_hour_symbol = block_list[0].symbol if block_list and isinstance(block_list[0].symbol, str) else ""
-          extremely_bad_w = ["heavyrain", "heavyrainshowers", "thunderstorm"]
+          avg_block_score = sum(h.total_score for h in block) / len(block)
+          block_threshold = -10  # Very low threshold
 
-          if avg_blk_score >= block_thresh and not any(bad_w_sym in first_hour_symbol for bad_w_sym in extremely_bad_w):
-            start_t_dt = block_list[0].time
-            end_t_dt = block_list[-1].time
-            temps_in_blk = [h.temp for h in block_list if isinstance(h.temp, (int, float))]
-            avg_t_val = sum(temps_in_blk) / len(temps_in_blk) if temps_in_blk else None
+          extremely_bad_weather = ["heavyrain", "heavyrainshowers", "thunderstorm"]
+          if (avg_block_score >= block_threshold and
+              not any(bad in block[0].symbol for bad in extremely_bad_weather
+                      if isinstance(block[0].symbol, str))):
 
-            symbols_in_blk = [h.symbol for h in block_list if isinstance(h.symbol, str)]
-            sym_counts = defaultdict(int)
-            for s in symbols_in_blk:
-              sym_counts[s] += 1
-            dom_sym_str = max(sym_counts, key=lambda k: sym_counts[k]) if sym_counts else ""
+            start_time = block[0].time
+            end_time = block[-1].time
 
-            period_data_dict = {
-                "location": loc_disp_name,
+            temps = [h.temp for h in block if isinstance(h.temp, (int, float))]
+            avg_temp = sum(temps) / len(temps) if temps else None
+
+            symbols = [h.symbol for h in block if isinstance(h.symbol, str)]
+            symbol_counts = defaultdict(int)
+            for symbol in symbols:
+              symbol_counts[symbol] += 1
+            dominant_symbol = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
+
+            period = {
+                "location": location_display_name,
                 "date": date_val,
                 "day_name": date_val.strftime("%A"),
-                "start_time": start_t_dt,
-                "end_time": end_t_dt,
-                "duration": len(block_list),
-                "score": avg_blk_score,
-                "weather_type": weather_tp_str,
-                "avg_temp": avg_t_val,
-                "dominant_symbol": dom_sym_str
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": len(block),
+                "score": avg_block_score,
+                "weather_type": weather_type,
+                "avg_temp": avg_temp,
+                "dominant_symbol": dominant_symbol
             }
-            fallback_periods.append(period_data_dict)
-    all_potential_periods.extend(fallback_periods)
+            fallback_periods.append(period)
 
-  # Sort all collected periods by date and then by score (descending)
-  all_potential_periods.sort(key=lambda x: (x["date"], -x["score"]))
-  return all_potential_periods
+    all_periods.extend(fallback_periods)
+
+  # Sort all periods by date and then by score (highest first)
+  all_periods.sort(key=lambda x: (x["date"], -x["score"]))
+
+  return all_periods

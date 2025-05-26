@@ -5,11 +5,9 @@ Utility functions for displaying weather information and recommendations.
 from datetime import datetime
 import pytz  # For timezone in compare_locations default date
 
-from colorama import Fore, Style  # Already initialized in config.py
-
 # Import constants and configs
 from config import (
-    WEATHER_SYMBOLS, WEATHER_DESC_MAP, TIMEZONE,
+    WEATHER_SYMBOLS, TIMEZONE,
     DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR,
     COLOR_EXCELLENT, COLOR_VERY_GOOD, COLOR_GOOD, COLOR_FAIR,
     COLOR_POOR, COLOR_BAD, COLOR_MAGENTA, COLOR_RESET,
@@ -32,30 +30,6 @@ def get_weather_desc(symbol):
   base = symbol
   desc, _ = WEATHER_SYMBOLS.get(base, (base.replace('_', ' ').capitalize(), 0))
   return desc
-
-
-def get_standardized_weather_desc(symbol):
-  """Return standardized weather description from symbol code (legacy, consider merging with get_weather_desc)."""
-  if not symbol or not isinstance(symbol, str):
-    return "Unknown"
-  if symbol in WEATHER_DESC_MAP:
-    return WEATHER_DESC_MAP[symbol]
-  # Fallback logic similar to original, symbol is base
-  if "lightrain" in symbol:
-    return "Light Rain"
-  if "heavyrain" in symbol:
-    return "Heavy Rain"
-  if "rain" in symbol:
-    return "Rain"
-  if "lightsnow" in symbol:
-    return "Light Snow"
-  if "snow" in symbol:
-    return "Snow"
-  if "fog" in symbol:
-    return "Foggy"
-  if "thunder" in symbol:
-    return "Thunder"
-  return symbol.replace("_", " ").capitalize()
 
 
 def get_rating_info(score):
@@ -81,6 +55,61 @@ def list_locations():
   print(f"\n{COLOR_MAGENTA}Available Locations{COLOR_RESET}")
   for key, loc in LOCATIONS.items():
     print(f"  {key} - {COLOR_LIGHTMAGENTA_EX}{loc.name}{COLOR_RESET}")
+
+
+def display_hourly_forecast(forecast_data, location_name):
+  """Display hourly weather forecast for a location for the current day."""
+  if not forecast_data:
+    return
+
+  daily_forecasts = forecast_data["daily_forecasts"]
+  day_scores = forecast_data["day_scores"]
+
+  print(f"\n{COLOR_MAGENTA}Hourly Forecast for {location_name}{COLOR_RESET}")
+
+  # Get today's date
+  madrid_tz = pytz.timezone(TIMEZONE)
+  today = datetime.now(madrid_tz).date()
+
+  if today not in daily_forecasts:
+    print(f"{COLOR_YELLOW}No hourly data available for today.{COLOR_RESET}")
+    return
+
+  # Get today's hours
+  hours = sorted([h for h in daily_forecasts[today]], key=lambda x: x.hour)
+
+  if not hours:
+    print(f"{COLOR_YELLOW}No hourly data available for today.{COLOR_RESET}")
+    return
+
+  # Get current hour
+  current_hour = datetime.now(madrid_tz).hour
+
+  # Print table header
+  print(f"\n{COLOR_CYAN}{'Time':<8} {'Weather':<15} {'Temp':<8} {'Wind':<8} {'Rain %':<8} {'Score':>6}{COLOR_RESET}")
+  print(f"{'-' * 8} {'-' * 15} {'-' * 8} {'-' * 8} {'-' * 8} {'-' * 6}")
+
+  # Print hourly data, starting from current hour
+  for hour in [h for h in hours if h.hour >= current_hour]:
+    time_str = hour.time.strftime("%H:%M")
+
+    # Weather description
+    weather_desc = get_weather_desc(hour.symbol)
+
+    # Temperature
+    temp_str = f"{hour.temp:.1f}°C" if isinstance(hour.temp, (int, float)) else "N/A"
+
+    # Wind
+    wind_str = f"{hour.wind:.1f}m/s" if isinstance(hour.wind, (int, float)) else "N/A"
+
+    # Precipitation probability
+    precip_prob_str = f"{hour.precipitation_probability:.0f}%" if isinstance(hour.precipitation_probability, (int, float)) else "N/A"
+
+    # Score
+    rating, color = get_rating_info(hour.total_score)
+    score_str = f"{hour.total_score:6.1f}"
+
+    print(f"{time_str:<8} {weather_desc:<15} {temp_str:<8} {wind_str:<8} {precip_prob_str:<8} {color}{score_str}{COLOR_RESET}")
 
 
 def display_forecast(processed_forecast_data, location_display_name, compare_mode=False):
@@ -173,21 +202,24 @@ def display_forecast(processed_forecast_data, location_display_name, compare_mod
   print()  # Add a blank line after each location's full forecast
 
 
-def compare_locations(all_location_processed_data):
+def compare_locations(all_location_processed_data, date_filter=None):
   """Compare weather conditions across multiple locations for the current day's forecast.
   Args:
     all_location_processed_data: Dict where key is loc_key, value is output of process_forecast().
+    date_filter: Optional date to compare. If None, uses the earliest date in the data.
   """
-  # Determine the primary date for comparison from the data itself (usually today)
-  # We will pick the earliest date for which any location has a DailyReport.
-  comparison_target_date = None
-  for loc_key, processed_data in all_location_processed_data.items():
-    if processed_data and processed_data.get("day_scores"):
-      # day_scores is a dict of date -> DailyReport, find the min date (earliest)
-      min_date_for_loc = min(processed_data["day_scores"].keys(), default=None)
-      if min_date_for_loc:
-        if comparison_target_date is None or min_date_for_loc < comparison_target_date:
-          comparison_target_date = min_date_for_loc
+  # Use provided date_filter if available, otherwise determine from data
+  comparison_target_date = date_filter
+
+  # If no date_filter provided, determine the earliest date from the data
+  if comparison_target_date is None:
+    for loc_key, processed_data in all_location_processed_data.items():
+      if processed_data and processed_data.get("day_scores"):
+        # day_scores is a dict of date -> DailyReport, find the min date (earliest)
+        min_date_for_loc = min(processed_data["day_scores"].keys(), default=None)
+        if min_date_for_loc:
+          if comparison_target_date is None or min_date_for_loc < comparison_target_date:
+            comparison_target_date = min_date_for_loc
 
   if not comparison_target_date:
     # Fallback to system's today if no data yields a date (should not happen if all_processed_data is not empty)
@@ -246,20 +278,32 @@ def compare_locations(all_location_processed_data):
   print()  # Blank line after table
 
 
-def display_best_times_recommendation(all_location_processed_data):
+def display_best_times_recommendation(all_location_processed_data, location_key=None):
   """Display a simple recommendation for when to go out this week, using all_location_processed_data.
   Args:
     all_location_processed_data: Dict where key is loc_key, value is output of process_forecast().
+    location_key: Optional location key to filter recommendations for a specific location.
   """
+  # Filter data if location_key is provided
+  if location_key:
+    if location_key not in all_location_processed_data:
+      print(f"\n{COLOR_YELLOW}No data available for location: {LOCATIONS[location_key].name}{COLOR_RESET}")
+      return
+    filtered_data = {location_key: all_location_processed_data[location_key]}
+    location_display = f" in {LOCATIONS[location_key].name}"
+  else:
+    filtered_data = all_location_processed_data
+    location_display = ""
+
   # recommend_best_times expects the all_location_processed_data structure
-  all_periods_list = recommend_best_times(all_location_processed_data)
+  all_periods_list = recommend_best_times(filtered_data)
 
   if not all_periods_list:
-    print(f"\n{COLOR_YELLOW}No ideal outdoor times found for this week based on current criteria.{COLOR_RESET}")
+    print(f"\n{COLOR_YELLOW}No ideal outdoor times found for this week{location_display} based on current criteria.{COLOR_RESET}")
     print("Try checking individual locations for more details.")
     return
 
-  print(f"\n{COLOR_MAGENTA}Best Times to Go Out (Next 7 Days){COLOR_RESET}")
+  print(f"\n{COLOR_MAGENTA}Best Times to Go Out{location_display} (Next 7 Days){COLOR_RESET}")
 
   # Filter to top N per day if list is very long, or just cap total.
   # For now, let's use the logic from recommend_best_times which already sorts and has fallbacks.

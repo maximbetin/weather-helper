@@ -3,9 +3,8 @@ Handles API calls to fetch weather data from Met.no.
 """
 
 import requests
-from colorama import Fore, Style  # For error message coloring
 
-from config import API_URL, USER_AGENT
+from config import API_URL, USER_AGENT, COLOR_RED, COLOR_RESET
 
 
 def fetch_weather_data(location):
@@ -34,8 +33,8 @@ def fetch_weather_data(location):
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
   except requests.exceptions.RequestException as e:
-    print(f"{Fore.RED}Error fetching weather data for {location.name}: {e}{Style.RESET_ALL}")
+    print(f"{COLOR_RED}Error fetching weather data for {location.name}: {e}{COLOR_RESET}")
     return None
   except ValueError as e:  # Handle cases where response is not valid JSON
-    print(f"{Fore.RED}Error parsing JSON response for {location.name}: {e}{Style.RESET_ALL}")
+    print(f"{COLOR_RED}Error parsing JSON response for {location.name}: {e}{COLOR_RESET}")
     return None
