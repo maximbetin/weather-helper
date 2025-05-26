@@ -3,21 +3,25 @@ Daily Helper: Weather forecasting tool that helps find the best times and locati
 for outdoor activities in Asturias, Spain.
 """
 
-from weather_api import fetch_weather_data
-from forecast_processing import process_forecast
-from display_utils import (
-    list_locations, display_forecast, compare_locations, display_best_times_recommendation,
-    display_hourly_forecast
-)
-from config import FORECAST_DAYS, COLOR_RED, COLOR_YELLOW, COLOR_RESET
-from locations import LOCATIONS
 import argparse
 import time
 from datetime import datetime
-import pytz
+from typing import Dict, List, Optional, Any
+
+from weather_api import fetch_weather_data
+from forecast_processing import process_forecast, recommend_best_times
+from display_core import (
+    list_locations, display_loading_message,
+    display_error, display_info
+)
+from display_forecast import display_forecast, display_hourly_forecast
+from display_comparison import compare_locations, display_best_times_recommendation
+from core_utils import get_timezone
+from config import FORECAST_DAYS
+from locations import LOCATIONS
 
 
-def main():
+def main() -> None:
   """Process command-line arguments and execute requested operations."""
   parser = argparse.ArgumentParser(
       description='Daily Helper: Weather forecast tool for finding the best times for outdoor activities.')
@@ -46,16 +50,16 @@ def main():
     try:
       date_filter = datetime.strptime(args.date, '%Y-%m-%d').date()
     except ValueError:
-      print(f"{COLOR_RED}Invalid date format. Please use YYYY-MM-DD format.{COLOR_RESET}")
+      display_error("Invalid date format. Please use YYYY-MM-DD format.")
       return
 
   # Get location(s) to process
-  target_locations = []
+  target_locations: List[str] = []
   if args.location:
     if args.location in LOCATIONS:
       target_locations = [args.location]
     else:
-      print(f"{COLOR_RED}Invalid location. Use --list to see available locations.{COLOR_RESET}")
+      display_error("Invalid location. Use --list to see available locations.")
       return
   elif args.all or args.compare or args.recommend:
     target_locations = list(LOCATIONS.keys())
@@ -64,11 +68,11 @@ def main():
     target_locations = ["gijon"]
 
   # Show loading message
-  print(f"{COLOR_YELLOW}Fetching weather data...{COLOR_RESET}")
+  display_loading_message()
   start_time = time.time()
 
   # Fetch and process weather data
-  location_data = {}
+  location_data: Dict[str, Any] = {}
   for loc_key in target_locations:
     location = LOCATIONS[loc_key]
     weather_data = fetch_weather_data(location)
@@ -77,15 +81,15 @@ def main():
       processed_data = process_forecast(weather_data, location.name)
       location_data[loc_key] = processed_data
     else:
-      print(f"{COLOR_RED}Unable to fetch weather data for {location.name}.{COLOR_RESET}")
+      display_error(f"Unable to fetch weather data for {location.name}.")
 
   end_time = time.time()
   if args.debug:
-    print(f"{COLOR_YELLOW}Data fetched in {end_time - start_time:.2f} seconds.{COLOR_RESET}")
+    display_info(f"Data fetched in {end_time - start_time:.2f} seconds.")
 
   # No data retrieved
   if not location_data:
-    print(f"{COLOR_RED}No weather data available. Please try again later.{COLOR_RESET}")
+    display_error("No weather data available. Please try again later.")
     return
 
   # Handle different display modes

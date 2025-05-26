@@ -3,11 +3,22 @@ Handles API calls to fetch weather data from Met.no.
 """
 
 import requests
+import logging
+from typing import Dict, Any, Optional
 
-from config import API_URL, USER_AGENT, COLOR_RED, COLOR_RESET
+from colors import ERROR, RESET, colorize
+from config import API_URL, USER_AGENT
+from locations import Location
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('weather_api')
 
 
-def fetch_weather_data(location):
+def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
   """Fetch weather data for a specific location.
 
   Args:
@@ -21,7 +32,7 @@ def fetch_weather_data(location):
 
   # Request headers - required by Met.no API
   headers = {
-    "User-Agent": USER_AGENT
+      "User-Agent": USER_AGENT
   }
 
   # Construct API URL
@@ -29,12 +40,19 @@ def fetch_weather_data(location):
 
   # Fetch data with error handling
   try:
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=10)
     response.raise_for_status()  # Raise an exception for HTTP errors
     return response.json()
+  except requests.exceptions.Timeout:
+    error_msg = f"Timeout error fetching weather data for {location.name}"
+    logger.error(error_msg)
+    print(colorize(f"Error: {error_msg}", ERROR))
+    return None
   except requests.exceptions.RequestException as e:
-    print(f"{COLOR_RED}Error fetching weather data for {location.name}: {e}{COLOR_RESET}")
+    logger.error(f"Error fetching weather data for {location.name}: {e}")
+    print(colorize(f"Error fetching weather data for {location.name}: {e}", ERROR))
     return None
   except ValueError as e:  # Handle cases where response is not valid JSON
-    print(f"{COLOR_RED}Error parsing JSON response for {location.name}: {e}{COLOR_RESET}")
+    logger.error(f"Error parsing JSON response for {location.name}: {e}")
+    print(colorize(f"Error parsing JSON response for {location.name}: {e}", ERROR))
     return None

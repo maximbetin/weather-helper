@@ -1,18 +1,26 @@
 """
 Defines the Location class and the dictionary of known locations.
 """
+from typing import Dict, NamedTuple
 
 
-class Location:
-  def __init__(self, key, name, lat, lon):
-    self.key = key
-    self.name = name
-    self.lat = lat
-    self.lon = lon
+class Location(NamedTuple):
+  """Represents a geographical location with coordinates.
+
+  Attributes:
+      key: Unique identifier for the location
+      name: Human-readable name of the location
+      lat: Latitude coordinate
+      lon: Longitude coordinate
+  """
+  key: str
+  name: str
+  lat: float
+  lon: float
 
 
 # Define locations in Asturias
-LOCATIONS = {
+LOCATIONS: Dict[str, Location] = {
     "gijon": Location("gijon", "Gijón", 43.5322, -5.6611),
     "oviedo": Location("oviedo", "Oviedo", 43.3619, -5.8494),
     "llanes": Location("llanes", "Llanes", 43.4200, -4.7550),

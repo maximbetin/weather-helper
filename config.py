@@ -4,6 +4,7 @@ Configuration constants for the Daily Helper application.
 
 import pytz
 from colorama import Fore, Style, init
+from typing import Dict, Tuple, Any
 
 # Initialize colorama for colored terminal output
 init()
@@ -21,7 +22,7 @@ DAYLIGHT_END_HOUR = 20
 FORECAST_DAYS = 7  # Max days for forecast processing
 
 # Weather rating system - positive scores for good outdoor conditions
-WEATHER_SYMBOLS = {
+WEATHER_SYMBOLS: Dict[str, Tuple[str, int]] = {
     "clearsky": ("Sunny", 10),
     "fair": ("Mostly Sunny", 8),
     "partlycloudy": ("Partly Cloudy", 6),

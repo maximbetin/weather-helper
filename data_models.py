@@ -2,54 +2,71 @@
 Defines the data models for HourlyWeather and DailyReport.
 """
 
-# Forward declaration for type hinting, will be imported properly later
-# from scoring_utils import get_weather_score, temp_score, wind_score, cloud_score, precip_probability_score
-# from forecast_processing import extract_blocks # Needed for DailyReport, if we keep advanced stats there
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import List, Dict, Optional, Union, Any
+
+NumericType = Union[int, float]
 
 
+@dataclass
 class HourlyWeather:
-  def __init__(self, time, temp, wind, humidity, cloud_coverage, fog, wind_direction, wind_gust, precipitation_amount, precipitation_probability, symbol, weather_score, temp_score, wind_score, cloud_score, precip_prob_score):
-    self.time = time
-    self.hour = time.hour
-    self.temp = temp
-    self.wind = wind
-    self.humidity = humidity
-    self.cloud_coverage = cloud_coverage
-    self.fog = fog
-    self.wind_direction = wind_direction
-    self.wind_gust = wind_gust
-    self.precipitation_amount = precipitation_amount
-    self.precipitation_probability = precipitation_probability
-    self.symbol = symbol
-    self.weather_score = weather_score
-    self.temp_score = temp_score
-    self.wind_score = wind_score
-    self.cloud_score = cloud_score
-    self.precip_prob_score = precip_prob_score
+  """Represents hourly weather data with calculated scores."""
+  time: datetime
+  temp: Optional[NumericType] = None
+  wind: Optional[NumericType] = None
+  humidity: Optional[NumericType] = None
+  cloud_coverage: Optional[NumericType] = None
+  fog: Optional[NumericType] = None
+  wind_direction: Optional[NumericType] = None
+  wind_gust: Optional[NumericType] = None
+  precipitation_amount: Optional[NumericType] = None
+  precipitation_probability: Optional[NumericType] = None
+  symbol: str = ""
+  weather_score: NumericType = 0
+  temp_score: NumericType = 0
+  wind_score: NumericType = 0
+  cloud_score: NumericType = 0
+  precip_prob_score: NumericType = 0
+  total_score: NumericType = field(init=False)
+  hour: int = field(init=False)
+
+  def __post_init__(self) -> None:
+    """Calculate derived fields after initialization."""
+    self.hour = self.time.hour
     self.total_score = self._calculate_total_score()
 
-  def _calculate_total_score(self):
-    return sum(score for score in [self.weather_score, self.temp_score, self.wind_score, self.cloud_score, self.precip_prob_score] if isinstance(score, (int, float)))
+  def _calculate_total_score(self) -> NumericType:
+    """Calculate the total score from individual component scores."""
+    return sum(score for score in [
+        self.weather_score,
+        self.temp_score,
+        self.wind_score,
+        self.cloud_score,
+        self.precip_prob_score
+    ] if isinstance(score, (int, float)))
 
 
 class DailyReport:
-  def __init__(self, date, daylight_hours, location_name):
+  """Represents a daily weather report with calculated statistics."""
+
+  def __init__(self, date: datetime, daylight_hours: List[HourlyWeather], location_name: str):
     self.date = date
     self.daylight_hours = daylight_hours
     self.location_name = location_name
     self.day_name = date.strftime("%A")
 
     if not daylight_hours:
-      self.avg_score = -float('inf')
-      self.sunny_hours = 0
-      self.partly_cloudy_hours = 0
-      self.rainy_hours = 0
-      self.likely_rain_hours = 0
-      self.avg_precip_prob = None
-      self.total_score_sum = 0
-      self.min_temp = None
-      self.max_temp = None
-      self.avg_temp = None
+      self.avg_score: float = -float('inf')
+      self.sunny_hours: int = 0
+      self.partly_cloudy_hours: int = 0
+      self.rainy_hours: int = 0
+      self.likely_rain_hours: int = 0
+      self.avg_precip_prob: Optional[float] = None
+      self.total_score_sum: float = 0
+      self.min_temp: Optional[float] = None
+      self.max_temp: Optional[float] = None
+      self.avg_temp: Optional[float] = None
       return
 
     # Calculate weather condition hours
