@@ -48,7 +48,7 @@ WEATHER_SYMBOLS = {
     "thunderstorm": ("Thunderstorm", -15)
 }
 
-# Colorama Styles (optional, can be used in display_utils)
+# Color definitions for terminal output
 COLOR_EXCELLENT = Fore.LIGHTGREEN_EX
 COLOR_VERY_GOOD = Fore.GREEN
 COLOR_GOOD = Fore.CYAN
@@ -58,11 +58,9 @@ COLOR_BAD = Fore.RED
 COLOR_MAGENTA = Fore.MAGENTA
 COLOR_RESET = Style.RESET_ALL
 COLOR_LIGHTMAGENTA_EX = Fore.LIGHTMAGENTA_EX
-
-# Add missing direct color usages if any
-COLOR_CYAN = Fore.CYAN  # For Good rating, and table headers
-COLOR_YELLOW = Fore.YELLOW  # For Fair rating, and warnings
-COLOR_RED = Fore.RED  # For Bad rating, and errors/avoid
-COLOR_GREEN = Fore.GREEN  # For Very Good rating
-COLOR_LIGHTRED_EX = Fore.LIGHTRED_EX  # For Poor rating
-COLOR_LIGHTGREEN_EX = Fore.LIGHTGREEN_EX  # For Excellent rating
+COLOR_YELLOW = Fore.YELLOW
+COLOR_RED = Fore.RED
+COLOR_CYAN = Fore.CYAN
+COLOR_GREEN = Fore.GREEN
+COLOR_LIGHTRED_EX = Fore.LIGHTRED_EX
+COLOR_LIGHTGREEN_EX = Fore.LIGHTGREEN_EX

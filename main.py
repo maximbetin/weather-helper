@@ -9,14 +9,11 @@ from display_utils import (
     list_locations, display_forecast, compare_locations, display_best_times_recommendation,
     display_hourly_forecast
 )
-from config import (
-    FORECAST_DAYS, TIMEZONE, COLOR_RED, COLOR_YELLOW, COLOR_RESET
-)
+from config import FORECAST_DAYS, COLOR_RED, COLOR_YELLOW, COLOR_RESET
 from locations import LOCATIONS
 import argparse
 import time
 from datetime import datetime
-
 import pytz
 
 
@@ -52,10 +49,6 @@ def main():
       print(f"{COLOR_RED}Invalid date format. Please use YYYY-MM-DD format.{COLOR_RESET}")
       return
 
-  # Show loading message
-  print(f"{COLOR_YELLOW}Fetching weather data...{COLOR_RESET}")
-  start_time = time.time()
-
   # Get location(s) to process
   target_locations = []
   if args.location:
@@ -69,6 +62,10 @@ def main():
   else:
     # Default to Gijón if no location specified
     target_locations = ["gijon"]
+
+  # Show loading message
+  print(f"{COLOR_YELLOW}Fetching weather data...{COLOR_RESET}")
+  start_time = time.time()
 
   # Fetch and process weather data
   location_data = {}
@@ -113,7 +110,6 @@ def main():
       display_hourly_forecast(forecast, location_name)
     else:
       display_forecast(forecast, location_name)
-      # Also show recommendation for single location
       display_best_times_recommendation(location_data, loc_key)
 
 

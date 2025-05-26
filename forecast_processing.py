@@ -133,12 +133,10 @@ def process_forecast(forecast_data, location_name):
 
 def extract_best_blocks(forecast_data, location_name_key):
   """Extract best time blocks from forecast data for a specific location."""
-  # Assumes forecast_data is the output of process_forecast
   if not forecast_data or "daily_forecasts" not in forecast_data or "day_scores" not in forecast_data:
     return []
 
   extracted_blocks = []
-  daily_forecasts_map = forecast_data["daily_forecasts"]
   day_scores_map = forecast_data["day_scores"]
   location_display_name = LOCATIONS[location_name_key].name
 
@@ -146,11 +144,8 @@ def extract_best_blocks(forecast_data, location_name_key):
     if daily_report_obj.avg_score < -8:  # Skip days with very poor scores
       continue
 
-    # Get daylight hours from the already processed daily_forecasts_map
-    daylight_hours_list = sorted(
-        [h for h in daily_forecasts_map.get(date, []) if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR],
-        key=lambda x: x.time  # Sort by time for extract_blocks
-    )
+    # Use the daylight hours already available in the daily_report_obj
+    daylight_hours_list = sorted(daily_report_obj.daylight_hours, key=lambda x: x.time)
 
     if not daylight_hours_list:
       continue
@@ -161,7 +156,6 @@ def extract_best_blocks(forecast_data, location_name_key):
     best_score_for_day = float('-inf')
 
     for block_list, weather_type_str in weather_blocks_tuples:
-      # block_list is a list of HourlyWeather objects
       avg_block_score = sum(h.total_score for h in block_list) / len(block_list)
 
       if avg_block_score > best_score_for_day:
@@ -172,9 +166,12 @@ def extract_best_blocks(forecast_data, location_name_key):
       block_list, weather_type_str = best_block_for_day
       start_time_dt = block_list[0].time
       end_time_dt = block_list[-1].time
+
+      # Calculate average temperature for the block
       temps_in_block = [h.temp for h in block_list if isinstance(h.temp, (int, float))]
       avg_temp_val = sum(temps_in_block) / len(temps_in_block) if temps_in_block else None
 
+      # Find dominant weather symbol
       symbols_in_block = [h.symbol for h in block_list if isinstance(h.symbol, str)]
       symbol_counts = defaultdict(int)
       for s in symbols_in_block:
@@ -188,7 +185,7 @@ def extract_best_blocks(forecast_data, location_name_key):
           "start_time": start_time_dt,
           "end_time": end_time_dt,
           "duration": len(block_list),
-          "score": best_score_for_day,  # This is avg_block_score of the best block
+          "score": best_score_for_day,
           "weather_type": weather_type_str,
           "avg_temp": avg_temp_val,
           "dominant_symbol": dominant_sym_str
@@ -209,13 +206,11 @@ def recommend_best_times(all_location_processed_data):
   for location_name_key, forecast_data in all_location_processed_data.items():
     if not forecast_data:
       continue
-    location_display_name = LOCATIONS[location_name_key].name
     best_blocks = extract_best_blocks(forecast_data, location_name_key)
     all_periods.extend(best_blocks)
 
   # If no periods found, use a more lenient approach
   if not all_periods:
-    fallback_periods = []
     for location_name_key, forecast_data in all_location_processed_data.items():
       if not forecast_data or not forecast_data.get("day_scores"):
         continue
@@ -223,61 +218,55 @@ def recommend_best_times(all_location_processed_data):
       location_display_name = LOCATIONS[location_name_key].name
 
       for date_val, daily_report in sorted(forecast_data["day_scores"].items()):
-        if date_val < today or date_val >= end_date:
-          continue
-        if daily_report.avg_score < -15:  # Extremely lenient threshold
+        if date_val < today or date_val >= end_date or daily_report.avg_score < -15:
           continue
 
-        daylight_hours = sorted(
-            [h for h in forecast_data["daily_forecasts"].get(date_val, [])
-             if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR],
-            key=lambda x: x.hour
-        )
-
+        daylight_hours = sorted(daily_report.daylight_hours, key=lambda x: x.hour)
         if not daylight_hours:
           continue
 
         weather_block_tuples = extract_blocks(daylight_hours, min_block_len=2)
+        extremely_bad_weather = ["heavyrain", "heavyrainshowers", "thunderstorm"]
+        block_threshold = -10  # Very low threshold
 
         for block, weather_type in weather_block_tuples:
           if len(block) < 2:  # Skip single hour blocks
             continue
 
           avg_block_score = sum(h.total_score for h in block) / len(block)
-          block_threshold = -10  # Very low threshold
 
-          extremely_bad_weather = ["heavyrain", "heavyrainshowers", "thunderstorm"]
-          if (avg_block_score >= block_threshold and
-              not any(bad in block[0].symbol for bad in extremely_bad_weather
-                      if isinstance(block[0].symbol, str))):
+          # Skip blocks with extremely bad weather
+          if (avg_block_score < block_threshold or
+              any(bad in block[0].symbol for bad in extremely_bad_weather
+                  if isinstance(block[0].symbol, str))):
+            continue
 
-            start_time = block[0].time
-            end_time = block[-1].time
+          # Create period dictionary - similar to extract_best_blocks logic
+          start_time = block[0].time
+          end_time = block[-1].time
 
-            temps = [h.temp for h in block if isinstance(h.temp, (int, float))]
-            avg_temp = sum(temps) / len(temps) if temps else None
+          temps = [h.temp for h in block if isinstance(h.temp, (int, float))]
+          avg_temp = sum(temps) / len(temps) if temps else None
 
-            symbols = [h.symbol for h in block if isinstance(h.symbol, str)]
-            symbol_counts = defaultdict(int)
-            for symbol in symbols:
-              symbol_counts[symbol] += 1
-            dominant_symbol = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
+          symbols = [h.symbol for h in block if isinstance(h.symbol, str)]
+          symbol_counts = defaultdict(int)
+          for symbol in symbols:
+            symbol_counts[symbol] += 1
+          dominant_symbol = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
 
-            period = {
-                "location": location_display_name,
-                "date": date_val,
-                "day_name": date_val.strftime("%A"),
-                "start_time": start_time,
-                "end_time": end_time,
-                "duration": len(block),
-                "score": avg_block_score,
-                "weather_type": weather_type,
-                "avg_temp": avg_temp,
-                "dominant_symbol": dominant_symbol
-            }
-            fallback_periods.append(period)
-
-    all_periods.extend(fallback_periods)
+          period = {
+              "location": location_display_name,
+              "date": date_val,
+              "day_name": date_val.strftime("%A"),
+              "start_time": start_time,
+              "end_time": end_time,
+              "duration": len(block),
+              "score": avg_block_score,
+              "weather_type": weather_type,
+              "avg_temp": avg_temp,
+              "dominant_symbol": dominant_symbol
+          }
+          all_periods.append(period)
 
   # Sort all periods by date and then by score (highest first)
   all_periods.sort(key=lambda x: (x["date"], -x["score"]))

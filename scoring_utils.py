@@ -9,7 +9,6 @@ def get_weather_score(symbol):
   """Return weather score from symbol code."""
   if not symbol or not isinstance(symbol, str):
     return 0
-  # The symbol is already processed to be the base part in process_forecast
   base = symbol
   _, score = WEATHER_SYMBOLS.get(base, ("", 0))
   return score
