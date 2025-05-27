@@ -69,8 +69,8 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
   print(f"  {time_header} {rating_header} {temp_header} {weather_header}")
   print(f"  {'-' * time_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
 
-  # Print hourly data, starting from current hour
-  filtered_hours = [h for h in hours if h.hour >= current_hour]
+  # Print hourly data, starting from current hour and ending at 21:00 (9 PM)
+  filtered_hours = [h for h in hours if h.hour >= current_hour and h.hour <= 21]
 
   for hour in filtered_hours:
     time_str = format_time(hour.time)
