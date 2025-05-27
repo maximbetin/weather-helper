@@ -4,12 +4,12 @@ Functions for displaying weather forecasts.
 
 from typing import Any, Dict
 
-import colors
-from colors import get_rating_info
-from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
-from core_utils import format_date, format_time, get_current_datetime, get_weather_desc
-from display_core import display_heading, display_precipitation_probability, display_table_header, display_temperature, display_warning, display_wind
-from forecast_processing import extract_blocks
+from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
+from core.core_utils import format_date, format_time, get_current_datetime, get_weather_desc
+from data.forecast_processing import extract_blocks
+from display import colors
+from display.colors import get_rating_info
+from display.display_core import display_heading, display_precipitation_probability, display_table_header, display_temperature, display_warning, display_wind
 
 
 def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -> None:

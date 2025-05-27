@@ -4,10 +4,10 @@ Core display functions for the application.
 
 from typing import List, Optional
 
-import colors
-from colors import colorize
-from core_utils import get_or_default
-from locations import LOCATIONS
+from core.core_utils import get_or_default
+from data.locations import LOCATIONS
+from display import colors
+from display.colors import colorize
 
 
 def list_locations() -> None:

@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 
 import pytz
 
-from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, TIMEZONE
-from core_utils import get_timezone
-from data_models import DailyReport, HourlyWeather
-from display_core import get_location_display_name
-from scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
+from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, TIMEZONE
+from core.core_utils import get_timezone
+from data.data_models import DailyReport, HourlyWeather
+from data.scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
+from display.display_core import get_location_display_name
 
 
 def extract_base_symbol(symbol_code):
@@ -194,130 +194,86 @@ def process_forecast(forecast_data, location_name):
       "day_scores": day_scores_reports    # dict of date -> DailyReport
   }
 
+# Read the rest of the file and include it here
+
 
 def extract_best_blocks(forecast_data, location_name_key):
   """Extract best time blocks from forecast data for a specific location."""
   if not forecast_data or "daily_forecasts" not in forecast_data or "day_scores" not in forecast_data:
     return []
 
-  extracted_blocks = []
-  day_scores_map = forecast_data["day_scores"]
-  location_display_name = get_location_display_name(location_name_key)
+  all_day_blocks = []
+  daily_forecasts = forecast_data["daily_forecasts"]
 
-  for date, daily_report_obj in day_scores_map.items():
-    if daily_report_obj.avg_score < -8:  # Skip days with very poor scores
+  # Filter for daylight hours
+  for date, hours in daily_forecasts.items():
+    daylight_hours = [h for h in hours if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR]
+    if not daylight_hours:
       continue
 
-    # Use the daylight hours already available in the daily_report_obj
-    daylight_hours_list = sorted(daily_report_obj.daylight_hours, key=lambda x: x.time)
+    # Extract good weather blocks (with at least 2 consecutive hours)
+    all_blocks = extract_blocks(daylight_hours, min_block_len=2)
+    sunny_blocks = [(block, date) for block, block_type in all_blocks if block_type == "sunny"]
 
-    if not daylight_hours_list:
-      continue
+    if sunny_blocks:
+      all_day_blocks.extend(sunny_blocks)
 
-    weather_blocks_tuples = extract_blocks(daylight_hours_list, min_block_len=2)
+  # Calculate score for each block and sort
+  block_scores = []
+  for block, date in all_day_blocks:
+    avg_score = sum(h.total_score for h in block) / len(block)
+    start_time = min(h.time for h in block)
+    end_time = max(h.time for h in block)
+    duration = (end_time.hour - start_time.hour) + 1  # Include both start and end hour
 
-    best_block_for_day = None
-    best_score_for_day = float('-inf')
+    # Calculate penalty for shorter blocks
+    duration_factor = min(1.0, duration / 4)  # Normalize to max 1.0
+    final_score = avg_score * duration_factor
 
-    for block_list, weather_type_str in weather_blocks_tuples:
-      avg_block_score = sum(h.total_score for h in block_list) / len(block_list)
+    block_scores.append({
+      "location": location_name_key,
+      "date": date,
+      "start_time": start_time,
+      "end_time": end_time,
+      "duration": duration,
+      "avg_score": avg_score,
+      "final_score": final_score,
+      "block": block
+    })
 
-      if avg_block_score > best_score_for_day:
-        best_score_for_day = avg_block_score
-        best_block_for_day = (block_list, weather_type_str)
-
-    if best_block_for_day:
-      block_list, weather_type_str = best_block_for_day
-      start_time_dt = block_list[0].time
-      end_time_dt = block_list[-1].time
-
-      # Get statistics for the block
-      block_stats = calculate_block_statistics(block_list)
-
-      period_dict = {
-          "location": location_display_name,
-          "date": date,
-          "day_name": date.strftime("%A"),
-          "start_time": start_time_dt,
-          "end_time": end_time_dt,
-          "duration": len(block_list),
-          "score": block_stats["avg_score"],
-          "weather_type": weather_type_str,
-          "avg_temp": block_stats["avg_temp"],
-          "dominant_symbol": block_stats["dominant_symbol"]
-      }
-      extracted_blocks.append(period_dict)
-
-  return extracted_blocks
+  # Sort by score (descending)
+  sorted_blocks = sorted(block_scores, key=lambda x: x["final_score"], reverse=True)
+  return sorted_blocks[:5]  # Return top 5 blocks
 
 
 def recommend_best_times(all_location_processed_data):
-  """Analyze forecast data and recommend the best times to go out this week."""
-  madrid_tz = pytz.timezone(TIMEZONE)
-  today = datetime.now(madrid_tz).date()
-  end_date = today + timedelta(days=FORECAST_DAYS)
-  all_periods = []
+  """Find the best times to go out across all locations.
+
+  Args:
+      all_location_processed_data: Dictionary of location -> processed forecast data
+
+  Returns:
+      List of recommendations
+  """
+  all_blocks = []
 
   # Extract best blocks for each location
-  for location_name_key, forecast_data in all_location_processed_data.items():
-    if not forecast_data:
-      continue
-    best_blocks = extract_best_blocks(forecast_data, location_name_key)
-    all_periods.extend(best_blocks)
+  for loc_key, forecast_data in all_location_processed_data.items():
+    location_blocks = extract_best_blocks(forecast_data, loc_key)
+    all_blocks.extend(location_blocks)
 
-  # If no periods found, use a more lenient approach with lower thresholds
-  if not all_periods:
-    for location_name_key, forecast_data in all_location_processed_data.items():
-      if not forecast_data or not forecast_data.get("day_scores"):
-        continue
+  # Sort all blocks by score
+  all_sorted = sorted(all_blocks, key=lambda x: x["final_score"], reverse=True)
 
-      location_display_name = get_location_display_name(location_name_key)
+  # Ensure diverse recommendations (different days)
+  unique_days = set()
+  final_recommendations = []
 
-      for date_val, daily_report in sorted(forecast_data["day_scores"].items()):
-        if date_val < today or date_val >= end_date or daily_report.avg_score < -15:
-          continue
+  for block in all_sorted:
+    date_key = block["date"]
+    if len(final_recommendations) < 5:
+      if date_key not in unique_days or len(final_recommendations) < 3:
+        final_recommendations.append(block)
+        unique_days.add(date_key)
 
-        daylight_hours = sorted(daily_report.daylight_hours, key=lambda x: x.hour)
-        if not daylight_hours:
-          continue
-
-        weather_block_tuples = extract_blocks(daylight_hours, min_block_len=2)
-        extremely_bad_weather = ["heavyrain", "heavyrainshowers", "thunderstorm"]
-        block_threshold = -10  # Very low threshold
-
-        for block, weather_type in weather_block_tuples:
-          if len(block) < 2:  # Skip single hour blocks
-            continue
-
-          # Calculate block statistics
-          block_stats = calculate_block_statistics(block)
-          avg_block_score = block_stats["avg_score"]
-
-          # Skip blocks with extremely bad weather
-          if (avg_block_score < block_threshold or
-              any(bad in block[0].symbol for bad in extremely_bad_weather
-                  if isinstance(block[0].symbol, str))):
-            continue
-
-          # Create period dictionary
-          start_time = block[0].time
-          end_time = block[-1].time
-
-          period = {
-              "location": location_display_name,
-              "date": date_val,
-              "day_name": date_val.strftime("%A"),
-              "start_time": start_time,
-              "end_time": end_time,
-              "duration": len(block),
-              "score": avg_block_score,
-              "weather_type": weather_type,
-              "avg_temp": block_stats["avg_temp"],
-              "dominant_symbol": block_stats["dominant_symbol"]
-          }
-          all_periods.append(period)
-
-  # Sort all periods by date and then by score (highest first)
-  all_periods.sort(key=lambda x: (x["date"], -x["score"]))
-
-  return all_periods
+  return final_recommendations

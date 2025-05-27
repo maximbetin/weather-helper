@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from colors import ERROR, colorize
-from config import API_URL, USER_AGENT
-from locations import Location
+from core.config import API_URL, USER_AGENT
+from data.locations import Location
+from display.colors import ERROR, colorize
 
 # Configure logging
 logging.basicConfig(

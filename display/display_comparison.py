@@ -5,11 +5,11 @@ Functions for comparing and recommending locations based on weather forecasts.
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-import colors
-from colors import get_rating_info
-from core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
-from display_core import display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
-from forecast_processing import recommend_best_times
+from core.core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
+from data.forecast_processing import recommend_best_times
+from display import colors
+from display.colors import get_rating_info
+from display.display_core import display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
 
 
 def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: Optional[date] = None) -> None:

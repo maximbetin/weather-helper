@@ -4,7 +4,7 @@ Utility functions for calculating weather-related scores.
 
 from typing import Optional, Union
 
-from config import WEATHER_SYMBOLS
+from core.config import WEATHER_SYMBOLS
 
 # Type alias for numeric types
 NumericType = Union[int, float]

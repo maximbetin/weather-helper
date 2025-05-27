@@ -7,7 +7,7 @@ from typing import List, Optional, TypeVar, Union, cast
 
 import pytz
 
-from config import TIMEZONE, WEATHER_SYMBOLS
+from core.config import TIMEZONE, WEATHER_SYMBOLS
 
 T = TypeVar('T')
 

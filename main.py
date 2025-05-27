@@ -8,12 +8,12 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List
 
-from display_comparison import compare_locations, display_best_times_recommendation
-from display_core import display_error, display_info, display_loading_message, list_locations
-from display_forecast import display_forecast, display_hourly_forecast
-from forecast_processing import process_forecast
-from locations import LOCATIONS
-from weather_api import fetch_weather_data
+from data.forecast_processing import process_forecast
+from data.locations import LOCATIONS
+from data.weather_api import fetch_weather_data
+from display.display_comparison import compare_locations, display_best_times_recommendation
+from display.display_core import display_error, display_info, display_loading_message, list_locations
+from display.display_forecast import display_forecast, display_hourly_forecast
 
 
 def main() -> None:
