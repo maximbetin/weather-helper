@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Dict, Optional, Union, Any
 
-from core_utils import safe_average, is_value_valid
+from core_utils import safe_average, is_value_valid, get_weather_description_from_counts
 
 NumericType = Union[int, float]
 
@@ -126,3 +126,17 @@ class DailyReport:
 
     # Calculate average score
     self.avg_score = self.total_score_sum / (num_hours * len(available_score_types)) if num_hours > 0 and available_score_types else 0
+
+  @property
+  def weather_description(self) -> str:
+    """Get weather description based on condition hours.
+
+    Returns:
+        str: Description of the overall weather
+    """
+    return get_weather_description_from_counts(
+        self.sunny_hours,
+        self.partly_cloudy_hours,
+        self.rainy_hours,
+        self.avg_precip_prob
+    )

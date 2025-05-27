@@ -3,58 +3,19 @@ Utility functions for displaying weather information and recommendations.
 """
 
 from datetime import datetime
-import pytz  # For timezone in compare_locations default date
 
 # Import constants and configs
 from config import (
-    WEATHER_SYMBOLS, TIMEZONE,
-    DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR,
-    COLOR_EXCELLENT, COLOR_VERY_GOOD, COLOR_GOOD, COLOR_FAIR,
-    COLOR_POOR, COLOR_BAD, COLOR_MAGENTA, COLOR_RESET,
-    COLOR_CYAN, COLOR_LIGHTMAGENTA_EX, COLOR_YELLOW, COLOR_RED,
-    COLOR_GREEN, COLOR_LIGHTRED_EX, COLOR_LIGHTGREEN_EX
+    DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR, TIMEZONE
 )
 from locations import LOCATIONS
 # For display_forecast to show best/worst blocks if not in compare_mode
 from forecast_processing import extract_blocks
 # For display_best_times_recommendation to get the periods
 from forecast_processing import recommend_best_times
-
-
-# --- Weather symbol/description mapping and helpers ---
-def get_weather_desc(symbol):
-  """Return standardized weather description from symbol code."""
-  if not symbol or not isinstance(symbol, str):
-    return "Unknown"
-  # Symbol is already base from processing, no need to split '_'
-  base = symbol
-  desc, _ = WEATHER_SYMBOLS.get(base, (base.replace('_', ' ').capitalize(), 0))
-  return desc
-
-
-def get_rating_info(score):
-  """Return standardized rating description and color based on score."""
-  if score is None:
-    return "N/A", COLOR_RESET  # Handle None score gracefully
-  if score >= 7.0:
-    return "Excellent", COLOR_LIGHTGREEN_EX
-  elif score >= 4.5:
-    return "Very Good", COLOR_GREEN
-  elif score >= 2.0:
-    return "Good", COLOR_CYAN
-  elif score >= 0.0:
-    return "Fair", COLOR_YELLOW
-  elif score >= -3.0:
-    return "Poor", COLOR_LIGHTRED_EX
-  else:
-    return "Bad", COLOR_RED
-
-
-def list_locations():
-  """List all available locations."""
-  print(f"\n{COLOR_MAGENTA}Available Locations{COLOR_RESET}")
-  for key, loc in LOCATIONS.items():
-    print(f"  {key} - {COLOR_LIGHTMAGENTA_EX}{loc.name}{COLOR_RESET}")
+from core_utils import get_weather_desc, get_weather_description_from_counts, get_timezone, get_current_datetime
+import colors
+from colors import get_rating_info
 
 
 def display_hourly_forecast(forecast_data, location_name):
@@ -65,28 +26,28 @@ def display_hourly_forecast(forecast_data, location_name):
   daily_forecasts = forecast_data["daily_forecasts"]
   day_scores = forecast_data["day_scores"]
 
-  print(f"\n{COLOR_MAGENTA}Hourly Forecast for {location_name}{COLOR_RESET}")
+  print(f"\n{colors.HIGHLIGHT}Hourly Forecast for {location_name}{colors.RESET}")
 
   # Get today's date
-  madrid_tz = pytz.timezone(TIMEZONE)
-  today = datetime.now(madrid_tz).date()
+  current_dt = get_current_datetime()
+  today = current_dt.date()
 
   if today not in daily_forecasts:
-    print(f"{COLOR_YELLOW}No hourly data available for today.{COLOR_RESET}")
+    print(f"{colors.WARNING}No hourly data available for today.{colors.RESET}")
     return
 
   # Get today's hours
   hours = sorted([h for h in daily_forecasts[today]], key=lambda x: x.hour)
 
   if not hours:
-    print(f"{COLOR_YELLOW}No hourly data available for today.{COLOR_RESET}")
+    print(f"{colors.WARNING}No hourly data available for today.{colors.RESET}")
     return
 
   # Get current hour
-  current_hour = datetime.now(madrid_tz).hour
+  current_hour = current_dt.hour
 
   # Print table header
-  print(f"\n{COLOR_CYAN}{'Time':<8} {'Weather':<15} {'Temp':<8} {'Wind':<8} {'Rain %':<8} {'Score':>6}{COLOR_RESET}")
+  print(f"\n{colors.INFO}{'Time':<8} {'Weather':<15} {'Temp':<8} {'Wind':<8} {'Rain %':<8} {'Score':>6}{colors.RESET}")
   print(f"{'-' * 8} {'-' * 15} {'-' * 8} {'-' * 8} {'-' * 8} {'-' * 6}")
 
   # Print hourly data, starting from current hour
@@ -109,7 +70,7 @@ def display_hourly_forecast(forecast_data, location_name):
     rating, color = get_rating_info(hour.total_score)
     score_str = f"{hour.total_score:6.1f}"
 
-    print(f"{time_str:<8} {weather_desc:<15} {temp_str:<8} {wind_str:<8} {precip_prob_str:<8} {color}{score_str}{COLOR_RESET}")
+    print(f"{time_str:<8} {weather_desc:<15} {temp_str:<8} {wind_str:<8} {precip_prob_str:<8} {color}{score_str}{colors.RESET}")
 
 
 def display_forecast(processed_forecast_data, location_display_name, compare_mode=False):
@@ -120,7 +81,7 @@ def display_forecast(processed_forecast_data, location_display_name, compare_mod
     compare_mode: Boolean, if True, adjusts output for comparison view.
   """
   if not processed_forecast_data:
-    print(f"\n{COLOR_YELLOW}No forecast data to display for {location_display_name}.{COLOR_RESET}")
+    print(f"\n{colors.WARNING}No forecast data to display for {location_display_name}.{colors.RESET}")
     return
 
   # daily_forecasts: dict of date -> list of HourlyWeather
@@ -128,7 +89,7 @@ def display_forecast(processed_forecast_data, location_display_name, compare_mod
   daily_forecasts = processed_forecast_data.get("daily_forecasts", {})
   day_scores = processed_forecast_data.get("day_scores", {})
 
-  print(f"\n{COLOR_MAGENTA}Daily Forecast for {location_display_name}{COLOR_RESET}")
+  print(f"\n{colors.HIGHLIGHT}Daily Forecast for {location_display_name}{colors.RESET}")
 
   # Sort days chronologically
   for date_obj in sorted(daily_forecasts.keys()):
@@ -140,25 +101,14 @@ def display_forecast(processed_forecast_data, location_display_name, compare_mod
 
     rating, color = get_rating_info(daily_report.avg_score)
 
-    precip_warning = ""
-    if daily_report.avg_precip_prob is not None and daily_report.avg_precip_prob > 40:
-      precip_warning = f" - {daily_report.avg_precip_prob:.0f}% rain"
-
-    # Determine overall weather description based on DailyReport stats
-    if daily_report.sunny_hours > daily_report.partly_cloudy_hours and daily_report.sunny_hours > daily_report.rainy_hours:
-      weather_desc_display = "Sunny" + precip_warning
-    elif daily_report.partly_cloudy_hours > daily_report.sunny_hours and daily_report.partly_cloudy_hours > daily_report.rainy_hours:
-      weather_desc_display = "Partly Cloudy" + precip_warning
-    elif daily_report.rainy_hours > 0:
-      weather_desc_display = f"Rain ({daily_report.rainy_hours}h)"
-    else:
-      weather_desc_display = "Mixed" + precip_warning
+    # Use the weather_description property
+    weather_desc_display = daily_report.weather_description
 
     temp_str = "N/A"
     if daily_report.min_temp is not None and daily_report.max_temp is not None:
       temp_str = f"{daily_report.min_temp:>4.1f}°C - {daily_report.max_temp:>4.1f}°C"
 
-    print(f"{date_str} {color}[{rating}]{COLOR_RESET} {temp_str} - {weather_desc_display}")
+    print(f"{date_str} {color}[{rating}]{colors.RESET} {temp_str} - {weather_desc_display}")
 
     if not compare_mode:
       # Get daylight HourlyWeather objects for this date
@@ -192,89 +142,79 @@ def display_forecast(processed_forecast_data, location_display_name, compare_mod
         block, _ = best_block_info
         start_t = block[0].time.strftime("%H:%M")
         end_t = block[-1].time.strftime("%H:%M")
-        print(f"  Best: {COLOR_GREEN}{start_t}-{end_t}{COLOR_RESET}")
+        print(f"  Best: {colors.GREEN}{start_t}-{end_t}{colors.RESET}")
 
       if worst_block_info and daily_report.avg_score >= 0:  # Only show avoid if day is generally good
         block, _ = worst_block_info
         start_t = block[0].time.strftime("%H:%M")
         end_t = block[-1].time.strftime("%H:%M")
-        print(f"  Avoid: {COLOR_RED}{start_t}-{end_t}{COLOR_RESET}")
+        print(f"  Avoid: {colors.RED}{start_t}-{end_t}{colors.RESET}")
   print()  # Add a blank line after each location's full forecast
 
 
 def compare_locations(all_location_processed_data, date_filter=None):
-  """Compare weather conditions across multiple locations for the current day's forecast.
+  """Compare weather conditions across all locations for a given date.
+
   Args:
-    all_location_processed_data: Dict where key is loc_key, value is output of process_forecast().
-    date_filter: Optional date to compare. If None, uses the earliest date in the data.
+    all_location_processed_data: Dictionary of location_key -> processed_forecast_data
+    date_filter: Optional date to filter to, or current date if None
   """
-  # Use provided date_filter if available, otherwise determine from data
-  comparison_target_date = date_filter
-
-  # If no date_filter provided, determine the earliest date from the data
-  if comparison_target_date is None:
-    for loc_key, processed_data in all_location_processed_data.items():
-      if processed_data and processed_data.get("day_scores"):
-        # day_scores is a dict of date -> DailyReport, find the min date (earliest)
-        min_date_for_loc = min(processed_data["day_scores"].keys(), default=None)
-        if min_date_for_loc:
-          if comparison_target_date is None or min_date_for_loc < comparison_target_date:
-            comparison_target_date = min_date_for_loc
-
-  if not comparison_target_date:
-    # Fallback to system's today if no data yields a date (should not happen if all_processed_data is not empty)
-    comparison_target_date = datetime.now(pytz.timezone(TIMEZONE)).date()
-
-  date_str_formatted = comparison_target_date.strftime('%A, %d %b')
-  print(f"\n{COLOR_MAGENTA}Location Comparison for {date_str_formatted}{COLOR_RESET}")
-
-  daily_reports_for_date = []
-  for loc_key, processed_data in all_location_processed_data.items():
-    if not processed_data or not processed_data.get("day_scores"):
-      continue
-    # Get the DailyReport for the determined comparison_target_date
-    if comparison_target_date in processed_data["day_scores"]:
-      daily_reports_for_date.append(processed_data["day_scores"][comparison_target_date])
-
-  if not daily_reports_for_date:
-    print(f"\n{COLOR_YELLOW}No data available for this date to compare.{COLOR_RESET}")
+  if not all_location_processed_data:
     return
 
-  # Sort DailyReport objects by avg_score
-  daily_reports_for_date.sort(key=lambda dr: dr.avg_score, reverse=True)
+  # Get the target date
+  comparison_target_date = date_filter
+  if comparison_target_date is None:
+    comparison_target_date = get_current_datetime().date()
 
-  max_loc_len = max(len(dr.location_name) for dr in daily_reports_for_date) if daily_reports_for_date else 15
-  loc_width = max(max_loc_len + 2, 17)
+  date_str_formatted = comparison_target_date.strftime('%A, %d %b')
+  print(f"\n{colors.HIGHLIGHT}Location Comparison for {date_str_formatted}{colors.RESET}")
+
+  daily_reports_for_date = []
+  for location_key, processed_data in all_location_processed_data.items():
+    day_scores = processed_data.get("day_scores", {})
+    if comparison_target_date in day_scores:
+      daily_reports_for_date.append(day_scores[comparison_target_date])
+
+  if not daily_reports_for_date:
+    print(f"\n{colors.WARNING}No data available for this date to compare.{colors.RESET}")
+    return
+
+  # Sort locations by score, best first
+  daily_reports_for_date.sort(key=lambda r: r.avg_score, reverse=True)
+
+  # Find optimal column widths
+  loc_width = max(len(dr.location_name) for dr in daily_reports_for_date) + 2
   weather_col_width = 15  # For "Partly Cloudy"
 
-  header = f"{COLOR_CYAN}{'Location':<{loc_width}} {'Rating':<10} {'Temp':<15} {'Weather':<{weather_col_width}} {'Score':>6}{COLOR_RESET}"
+  header = f"{colors.INFO}{'Location':<{loc_width}} {'Rating':<10} {'Temp':<15} {'Weather':<{weather_col_width}} {'Score':>6}{colors.RESET}"
   print(f"\n{header}")
   print(f"{'.' * loc_width} {'.' * 10} {'.' * 15} {'.' * weather_col_width} {'.' * 6}".replace(".", "-"))  # Dashes
 
   for dr in daily_reports_for_date:  # dr is DailyReport
     rating_str, rating_color = get_rating_info(dr.avg_score)
 
-    weather_disp = "Mixed"
-    if dr.sunny_hours > dr.partly_cloudy_hours and dr.sunny_hours > dr.rainy_hours:
-      weather_disp = "Sunny"
-    elif dr.partly_cloudy_hours > dr.sunny_hours and dr.partly_cloudy_hours > dr.rainy_hours:
-      weather_disp = "Partly Cloudy"
-    elif dr.rainy_hours > 0:
+    # Weather
+    weather_disp = "N/A"
+    if dr.rainy_hours > 0:
       weather_disp = f"Rain ({dr.rainy_hours}h)"
+    elif dr.sunny_hours > 0 or dr.partly_cloudy_hours > 0:
+      weather_disp = dr.weather_description
+
+    # Format score
+    raw_score_val = dr.avg_score
+    score_str_disp = f"{raw_score_val:6.1f}"
+    _, score_color = get_rating_info(raw_score_val)
 
     temp_disp = "N/A"
     if dr.min_temp is not None and dr.max_temp is not None:
       temp_disp = f"{dr.min_temp:.1f}°C - {dr.max_temp:.1f}°C"
 
-    raw_score_val = dr.avg_score
-    score_str_disp = f"{raw_score_val:6.1f}"
-    _, score_color = get_rating_info(raw_score_val)
-
-    print(f"{COLOR_LIGHTMAGENTA_EX}{dr.location_name:<{loc_width}}{COLOR_RESET} "
-          f"{rating_color}{rating_str:<10}{COLOR_RESET} "
+    print(f"{colors.EMPHASIS}{dr.location_name:<{loc_width}}{colors.RESET} "
+          f"{rating_color}{rating_str:<10}{colors.RESET} "
           f"{temp_disp:<15} "
           f"{weather_disp:<{weather_col_width}} "
-          f"{score_color}{score_str_disp}{COLOR_RESET}")
+          f"{score_color}{score_str_disp}{colors.RESET}")
   print()  # Blank line after table
 
 
@@ -287,7 +227,7 @@ def display_best_times_recommendation(all_location_processed_data, location_key=
   # Filter data if location_key is provided
   if location_key:
     if location_key not in all_location_processed_data:
-      print(f"\n{COLOR_YELLOW}No data available for location: {LOCATIONS[location_key].name}{COLOR_RESET}")
+      print(f"\n{colors.WARNING}No data available for location: {LOCATIONS[location_key].name}{colors.RESET}")
       return
     filtered_data = {location_key: all_location_processed_data[location_key]}
     location_display = f" in {LOCATIONS[location_key].name}"
@@ -299,11 +239,11 @@ def display_best_times_recommendation(all_location_processed_data, location_key=
   all_periods_list = recommend_best_times(filtered_data)
 
   if not all_periods_list:
-    print(f"\n{COLOR_YELLOW}No ideal outdoor times found for this week{location_display} based on current criteria.{COLOR_RESET}")
+    print(f"\n{colors.WARNING}No ideal outdoor times found for this week{location_display} based on current criteria.{colors.RESET}")
     print("Try checking individual locations for more details.")
     return
 
-  print(f"\n{COLOR_MAGENTA}Best Times to Go Out{location_display} (Next 7 Days){COLOR_RESET}")
+  print(f"\n{colors.HIGHLIGHT}Best Times to Go Out{location_display} (Next 7 Days){colors.RESET}")
 
   # Filter to top N per day if list is very long, or just cap total.
   # For now, let's use the logic from recommend_best_times which already sorts and has fallbacks.
@@ -325,7 +265,7 @@ def display_best_times_recommendation(all_location_processed_data, location_key=
     filtered_display_periods.extend(day_specific_periods[:5])  # Take top 5 for this day
 
   if not filtered_display_periods:
-    print(f"\n{COLOR_YELLOW}No suitable periods found after filtering.{COLOR_RESET}")
+    print(f"\n{colors.WARNING}No suitable periods found after filtering.{colors.RESET}")
     return
 
   # Cap total recommendations to e.g. 20 if many days have 5 good slots
@@ -335,7 +275,7 @@ def display_best_times_recommendation(all_location_processed_data, location_key=
   loc_width = max(max_loc_len + 2, 17)
   weather_width = 22  # Accommodate "Partly Cloudy  18.5°C"
 
-  header = f"{COLOR_CYAN}{'#':<3} {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<{loc_width}} {'Weather & Temp':<{weather_width}} {'Score':>6}{COLOR_RESET}"
+  header = f"{colors.INFO}{'#':<3} {'Day & Date':<16} {'Time':<15} {'Duration':<10} {'Location':<{loc_width}} {'Weather & Temp':<{weather_width}} {'Score':>6}{colors.RESET}"
   print(f"\n{header}")
   print(f"{'.' * 3} {'.' * 16} {'.' * 15} {'.' * 10} {'.' * loc_width} {'.' * weather_width} {'.' * 6}".replace('.', '-'))
 
@@ -372,10 +312,10 @@ def display_best_times_recommendation(all_location_processed_data, location_key=
     # For location and weather, use specific colors or default
 
     print(f"{i:<3} "
-          f"{overall_color}{day_date_display:<16}{COLOR_RESET} "
+          f"{overall_color}{day_date_display:<16}{colors.RESET} "
           f"{time_range_display:<15} "
           f"{duration_display:<10} "
-          f"{COLOR_LIGHTMAGENTA_EX}{period_dict['location']:<{loc_width}}{COLOR_RESET} "
+          f"{colors.EMPHASIS}{period_dict['location']:<{loc_width}}{colors.RESET} "
           f"{weather_temp_combined:<{weather_width}} "  # Text color for this part is default
-          f"{overall_color}{score_str_val}{COLOR_RESET}")
+          f"{overall_color}{score_str_val}{colors.RESET}")
   print()  # final blank line

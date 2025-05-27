@@ -12,6 +12,7 @@ from scoring_utils import (
     get_weather_score, temp_score, wind_score, cloud_score, precip_probability_score
 )
 from display_core import get_location_display_name
+from core_utils import get_timezone, get_weather_description_from_counts
 
 
 def calculate_block_statistics(block_list):
@@ -83,7 +84,7 @@ def process_forecast(forecast_data, location_name):
     return None
 
   forecast_timeseries = forecast_data['properties']['timeseries']
-  madrid_tz = pytz.timezone(TIMEZONE)
+  madrid_tz = get_timezone()
   daily_forecasts = defaultdict(list)
   today = datetime.now(madrid_tz).date()
   end_date = today + timedelta(days=FORECAST_DAYS)
