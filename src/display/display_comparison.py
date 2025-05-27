@@ -7,10 +7,8 @@ from typing import Any, Dict, List, Optional
 
 from core.core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
 from data.forecast_processing import recommend_best_times
-from display.colors import colorize, get_rating_info
+from display.colors import HIGHLIGHT, INFO, colorize, get_rating_info
 from display.display_core import _format_column, display_temperature, get_location_display_name
-
-from . import colors
 
 
 def display_best_times_recommendation(all_location_processed_data: Dict[str, Any],
@@ -73,16 +71,16 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
     date_str = format_date(date_obj)
 
     if i == 0:
-      print(colorize(f"{day_name}, {date_str}", colors.HIGHLIGHT))
+      print(colorize(f"{day_name}, {date_str}", HIGHLIGHT))
     else:
-      print(f"\n{colorize(f'{day_name}, {date_str}', colors.HIGHLIGHT)}")
+      print(f"\n{colorize(f'{day_name}, {date_str}', HIGHLIGHT)}")
 
     # Print table headers
-    loc_header = _format_column(colorize("Location", colors.INFO), location_width)
-    time_header = _format_column(colorize("Time", colors.INFO), time_width)
-    rating_header = _format_column(colorize("Rating", colors.INFO), rating_width)
-    temp_header = _format_column(colorize("Temperature", colors.INFO), temp_width)
-    weather_header = _format_column(colorize("Weather", colors.INFO), weather_width)
+    loc_header = _format_column(colorize("Location", INFO), location_width)
+    time_header = _format_column(colorize("Time", INFO), time_width)
+    rating_header = _format_column(colorize("Rating", INFO), rating_width)
+    temp_header = _format_column(colorize("Temperature", INFO), temp_width)
+    weather_header = _format_column(colorize("Weather", INFO), weather_width)
 
     print(f"  {loc_header} {time_header} {rating_header} {temp_header} {weather_header}")
     print(f"  {'-' * location_width} {'-' * time_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -147,7 +145,7 @@ def _display_location_rankings_by_date(all_location_processed_data: Dict[str, An
     # Display date header
     day_name = current_date.strftime("%A")
     date_str = format_date(current_date)
-    print(colorize(f"{day_name}, {date_str}", colors.HIGHLIGHT))
+    print(colorize(f"{day_name}, {date_str}", HIGHLIGHT))
 
     # Get data for each location for this date
     location_ratings = []
@@ -194,10 +192,10 @@ def _display_location_rankings_by_date(all_location_processed_data: Dict[str, An
     location_ratings.sort(key=lambda x: x[2], reverse=True)
 
     # Print table headers
-    loc_header = _format_column(colorize("Location", colors.INFO), location_width)
-    rating_header = _format_column(colorize("Rating", colors.INFO), rating_width)
-    temp_header = _format_column(colorize("Temperature", colors.INFO), temp_width)
-    weather_header = _format_column(colorize("Weather", colors.INFO), weather_width)
+    loc_header = _format_column(colorize("Location", INFO), location_width)
+    rating_header = _format_column(colorize("Rating", INFO), rating_width)
+    temp_header = _format_column(colorize("Temperature", INFO), temp_width)
+    weather_header = _format_column(colorize("Weather", INFO), weather_width)
 
     print(f"  {loc_header} {rating_header} {temp_header} {weather_header}")
     print(f"  {'-' * location_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")

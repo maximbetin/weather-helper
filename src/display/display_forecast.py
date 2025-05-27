@@ -7,11 +7,8 @@ from typing import Any, Dict
 from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
 from core.core_utils import format_date, format_time, get_current_datetime, get_weather_desc, is_value_valid
 from data.forecast_processing import find_best_and_worst_blocks
-from display.colors import colorize, get_rating_info
-from display.display_core import (_format_column, display_heading, display_precipitation_probability, display_table_header, display_temperature,
-                                  display_warning, display_wind)
-
-from . import colors
+from display.colors import EMPHASIS, ERROR, INFO, SUCCESS, colorize, get_rating_info
+from display.display_core import _format_column, display_temperature, display_warning
 
 
 def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -> None:
@@ -49,7 +46,7 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
     daily_report = day_scores[today]
     _, location_color = get_rating_info(daily_report.avg_score)
   else:
-    location_color = colors.EMPHASIS
+    location_color = EMPHASIS
 
   # Print location name as heading
   print(colorize(f"{location_name}", location_color))
@@ -61,10 +58,10 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
   weather_width = 24
 
   # Print table headers using _format_column for consistent alignment - omitting Rank
-  time_header = _format_column(colorize("Time", colors.INFO), time_width)
-  rating_header = _format_column(colorize("Rating", colors.INFO), rating_width)
-  temp_header = _format_column(colorize("Temperature", colors.INFO), temp_width)
-  weather_header = _format_column(colorize("Weather", colors.INFO), weather_width)
+  time_header = _format_column(colorize("Time", INFO), time_width)
+  rating_header = _format_column(colorize("Rating", INFO), rating_width)
+  temp_header = _format_column(colorize("Temperature", INFO), temp_width)
+  weather_header = _format_column(colorize("Weather", INFO), weather_width)
 
   print(f"  {time_header} {rating_header} {temp_header} {weather_header}")
   print(f"  {'-' * time_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -129,18 +126,18 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
       daily_report = day_scores[first_date]
       _, location_color = get_rating_info(daily_report.avg_score)
     else:
-      location_color = colors.EMPHASIS
+      location_color = EMPHASIS
   else:
-    location_color = colors.EMPHASIS
+    location_color = EMPHASIS
 
   # Print location name as heading
   print(colorize(f"{location_display_name}", location_color))
 
   # Print table headers using _format_column for consistent alignment - omitting Rank and Time Range for weekly view
-  date_header = _format_column(colorize("Date", colors.INFO), date_width)
-  rating_header = _format_column(colorize("Rating", colors.INFO), rating_width)
-  temp_header = _format_column(colorize("Temperature", colors.INFO), temp_width)
-  weather_header = _format_column(colorize("Weather", colors.INFO), weather_width)
+  date_header = _format_column(colorize("Date", INFO), date_width)
+  rating_header = _format_column(colorize("Rating", INFO), rating_width)
+  temp_header = _format_column(colorize("Temperature", INFO), temp_width)
+  weather_header = _format_column(colorize("Weather", INFO), weather_width)
 
   print(f"  {date_header} {rating_header} {temp_header} {weather_header}")
   print(f"  {'-' * date_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -195,10 +192,10 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
         block, _ = best_block_info
         start_t = format_time(block[0].time)
         end_t = format_time(block[-1].time)
-        print(f"    Best time: {colorize(f'{start_t}-{end_t}', colors.SUCCESS)}")
+        print(f"    Best time: {colorize(f'{start_t}-{end_t}', SUCCESS)}")
 
       if worst_block_info and daily_report.avg_score >= 0:  # Only show avoid if day is generally good
         block, _ = worst_block_info
         start_t = format_time(block[0].time)
         end_t = format_time(block[-1].time)
-        print(f"    Avoid: {colorize(f'{start_t}-{end_t}', colors.ERROR)}")
+        print(f"    Avoid: {colorize(f'{start_t}-{end_t}', ERROR)}")
