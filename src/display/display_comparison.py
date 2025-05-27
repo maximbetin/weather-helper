@@ -146,10 +146,12 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
     # Sort periods by score for this date
     date_periods.sort(key=lambda x: x["final_score"], reverse=True)
 
-    for period in date_periods:
+    # Display with sequential ranking
+    for rank, period in enumerate(date_periods, 1):
       start_time = period["start_time"].strftime("%H:%M")
       end_time = period["end_time"].strftime("%H:%M")
       score = period["final_score"]
+      score_formatted = f"{score:.1f}"
       rating, color = get_rating_info(score)
 
       # Capitalize the location name
@@ -160,4 +162,6 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       temp = period.get("avg_temp")
       temp_str = display_temperature(temp)
 
-      print(f"  {colorize(location_name, color):<12} {start_time}-{end_time} [{colorize(rating, color)}] {temp_str} - {weather_desc}")
+      # New format with color applied to location and the content inside brackets
+      rating_score = f"[{rating} - {score_formatted}]"
+      print(f"  #{rank:<2} {colorize(location_name, color):<12} {start_time}-{end_time} {colorize(rating_score, color)} {temp_str} - {weather_desc}")

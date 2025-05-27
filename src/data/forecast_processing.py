@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS
-from core.core_utils import get_timezone
+from core.core_utils import get_current_date, get_timezone
 from data.data_models import DailyReport, HourlyWeather
 from data.scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
 
@@ -305,7 +305,7 @@ def recommend_best_times(all_location_processed_data):
       all_location_processed_data: Dictionary of location -> processed forecast data
 
   Returns:
-      List of recommendations
+      List of recommendations grouped by date
   """
   all_blocks = []
 
@@ -314,18 +314,30 @@ def recommend_best_times(all_location_processed_data):
     location_blocks = extract_best_blocks(forecast_data, loc_key)
     all_blocks.extend(location_blocks)
 
-  # Sort all blocks by score
-  all_sorted = sorted(all_blocks, key=lambda x: x["final_score"], reverse=True)
+  # Group blocks by date
+  blocks_by_date = {}
+  for block in all_blocks:
+    date_key = block["date"]
+    if date_key not in blocks_by_date:
+      blocks_by_date[date_key] = []
+    blocks_by_date[date_key].append(block)
 
-  # Ensure diverse recommendations (different days)
-  unique_days = set()
+  # Get today and the next 2 days
+  today = get_current_date()
+  target_dates = [today, today + timedelta(days=1), today + timedelta(days=2)]
+
+  # Get the top 5 blocks for each target date
   final_recommendations = []
 
-  for block in all_sorted:
-    date_key = block["date"]
-    if len(final_recommendations) < 5:
-      if date_key not in unique_days or len(final_recommendations) < 3:
+  for target_date in target_dates:
+    if target_date in blocks_by_date:
+      # Sort blocks for this date by score (descending)
+      date_blocks = blocks_by_date[target_date]
+      sorted_blocks = sorted(date_blocks, key=lambda x: x["final_score"], reverse=True)
+
+      # Take the top 5 blocks for this date
+      top_blocks = sorted_blocks[:5]
+      for block in top_blocks:
         final_recommendations.append(block)
-        unique_days.add(date_key)
 
   return final_recommendations
