@@ -19,7 +19,7 @@ class Location(NamedTuple):
   lon: float
 
 
-# Define locations in Asturias
+# Define locations (only Spanish locations have been tested so far)
 LOCATIONS: Dict[str, Location] = {
     "gijon": Location("gijon", "Gijón", 43.5322, -5.6610),
     "oviedo": Location("oviedo", "Oviedo", 43.3623, -5.8485),

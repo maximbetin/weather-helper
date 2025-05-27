@@ -1,6 +1,5 @@
 """
-Daily Helper: Weather forecasting tool that helps find the best times and locations
-for outdoor activities in Asturias, Spain.
+Daily Helper: Weather forecasting tool that helps find the best times and locations for outdoor activities.
 """
 
 import argparse

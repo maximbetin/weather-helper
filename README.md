@@ -1,10 +1,38 @@
 # Daily Helper
 
-This is a weather forecasting tool that helps you find the best times and locations for outdoor activities in Asturias, Spain by providing detailed weather forecasts with activity ratings.
+This is a weather forecasting tool that helps you find the best times and locations for outdoor activities given the coordinates specified in the `locations.py` file. It provides detailed weather forecasts with activity ratings.
 
 ## Features
 
-TODO: Add features
+- Weather forecasts for multiple locations
+- Location comparison to find the best place for outdoor activities
+- Time recommendations for the best weather periods
+- Hourly weather details including temperature, wind, and precipitation probability
+- Activity rating system that scores weather conditions
+- Customizable viewing options (daily/hourly forecasts)
+- Command-line interface with various filtering options
+
+## Project Structure
+
+The project is organized into three main packages:
+
+- **core/**: Core functionality and utilities
+  - `config.py`: Configuration settings
+  - `core_utils.py`: Core utility functions
+  - `main.py`: Main application logic
+
+- **data/**: Data handling and processing
+  - `data_models.py`: Data models for weather information
+  - `locations.py`: Location definitions
+  - `weather_api.py`: API interaction with MET Norway
+  - `forecast_processing.py`: Process and analyze weather data
+  - `scoring_utils.py`: Weather condition scoring algorithms
+
+- **display/**: User interface and presentation
+  - `colors.py`: Terminal color definitions
+  - `display_core.py`: Core display functions
+  - `display_forecast.py`: Forecast visualization
+  - `display_comparison.py`: Location comparison visualization
 
 ## Setup and Installation
 
@@ -33,7 +61,7 @@ pip install -r requirements.txt
 ## Usage
 
 ### Basic Usage
-Run the weather forecast for the default location (Oviedo):
+Run the weather forecast for the default location (Gijón):
 ```bash
 python main.py
 ```
@@ -80,32 +108,22 @@ List all available locations:
 python main.py --list
 ```
 
-Don't clear the screen before displaying results:
+Show hourly forecast instead of daily:
 ```bash
-python main.py --no-clear
+python main.py --hourly
 ```
 
-## Available Locations
-
-The application includes weather data for these Asturian locations:
-- Gijón
-- Oviedo
-- Llanes
-- Avilés
-- Somiedo
-- Teverga
-- Taramundi
-- Ribadesella
-- Cangas de Onís
-- Tapia de Casariego
-- Lagos de Covadonga
+Show additional debug information:
+```bash
+python main.py --debug
+```
 
 ## Dependencies
 
-- Python 3.x
-- requests==2.32.3
-- pytz==2024.1
-- colorama==0.4.6
+- The necessary dependencies are listed in the `requirements.txt` file.
+- Aside from that, you need to have Python 3.10 or higher installed (due to the use of f-strings).
+- As well as `pip` to install the dependencies themselves.
+- The code runs on Windows, Linux and MacOS.
 
 ## API Information
 
