@@ -76,7 +76,6 @@ class DailyReport:
     self.rainy_hours: int = 0
     self.likely_rain_hours: int = 0
     self.avg_precip_prob: Optional[float] = None
-    self.total_score_sum: float = 0
     self.min_temp: Optional[float] = None
     self.max_temp: Optional[float] = None
     self.avg_temp: Optional[float] = None

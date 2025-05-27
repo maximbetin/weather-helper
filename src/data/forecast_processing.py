@@ -199,8 +199,6 @@ def process_forecast(forecast_data, location_name):
       "day_scores": day_scores_reports    # dict of date -> DailyReport
   }
 
-# Read the rest of the file and include it here
-
 
 def extract_best_blocks(forecast_data, location_name_key):
   """Extract best time blocks from forecast data for a specific location."""

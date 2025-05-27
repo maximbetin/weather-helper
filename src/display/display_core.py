@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from core.core_utils import get_value_or_default
 from data.locations import LOCATIONS
-from display.colors import CYAN, EMPHASIS, ERROR, GREEN, HIGHLIGHT, INFO, LIGHTGREEN, LIGHTRED, RESET, SUCCESS, WARNING, YELLOW, colorize
+from display.colors import CYAN, ERROR, GREEN, HIGHLIGHT, INFO, LIGHTGREEN, LIGHTRED, RESET, SUCCESS, WARNING, YELLOW, colorize
 
 
 def _format_column(text: str, width: int) -> str:
@@ -79,15 +79,6 @@ def display_warning(message: str) -> None:
       message: Warning message to display
   """
   print(colorize(message, WARNING))
-
-
-def display_success(message: str) -> None:
-  """Display a success message.
-
-  Args:
-      message: Success message to display
-  """
-  print(colorize(message, SUCCESS))
 
 
 def display_temperature(temp: Optional[float]) -> str:

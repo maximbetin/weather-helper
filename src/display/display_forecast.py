@@ -5,7 +5,7 @@ Functions for displaying weather forecasts.
 from typing import Any, Dict
 
 from core.core_utils import format_time, get_current_datetime, get_weather_desc, is_value_valid
-from display.colors import EMPHASIS, INFO, colorize, get_rating_info
+from display.colors import INFO, LIGHTMAGENTA, colorize, get_rating_info
 from display.display_core import _format_column, display_temperature, display_warning
 
 
@@ -44,7 +44,7 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
     daily_report = day_scores[today]
     _, location_color = get_rating_info(daily_report.avg_score)
   else:
-    location_color = EMPHASIS
+    location_color = LIGHTMAGENTA
 
   # Print location name as heading
   print(colorize(f"{location_name}", location_color))

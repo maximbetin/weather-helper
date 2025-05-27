@@ -3,7 +3,7 @@ Core utility functions used across the application.
 """
 
 from datetime import date, datetime
-from typing import List, Optional, TypeVar, Union, cast
+from typing import List, Optional, TypeVar, Union
 
 import pytz
 
@@ -125,36 +125,6 @@ def get_value_or_default(value: Optional[T], default: T) -> T:
       The value if not None, otherwise the default
   """
   return value if value is not None else default
-
-
-def safe_numeric(value: Optional[Union[int, float]], default: Union[int, float] = 0,
-                 min_value: Optional[Union[int, float]] = None,
-                 max_value: Optional[Union[int, float]] = None) -> Union[int, float]:
-  """Comprehensive validation and retrieval of numeric values with range checking.
-  Combines functionality of validate_numeric and safe_get_numeric.
-
-  Args:
-      value: The value to validate
-      default: Default value to return if value is invalid
-      min_value: Minimum acceptable value (inclusive)
-      max_value: Maximum acceptable value (inclusive)
-
-  Returns:
-      The validated value, constrained to range if specified, or default if invalid
-  """
-  if not is_value_valid(value):
-    return default
-
-  # We know value is not None at this point
-  numeric_value = cast(Union[int, float], value)
-
-  # Apply range constraints if specified
-  if min_value is not None and numeric_value < min_value:
-    return min_value
-  if max_value is not None and numeric_value > max_value:
-    return max_value
-
-  return numeric_value
 
 
 def safe_average(values: List[Union[int, float]]) -> Optional[float]:

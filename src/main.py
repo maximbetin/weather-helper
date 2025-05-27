@@ -75,7 +75,7 @@ def main() -> None:
     # Display rankings for each day
     display_best_times_recommendation(location_data, None, [today, tomorrow, day_after])
   elif args.all:
-    # Display forecast for all locations with line breaks between them
+    # Display forecast for all locations
     for i, loc_key in enumerate(sorted(location_data.keys())):
       if i > 0:
         print()  # Add line break between locations
