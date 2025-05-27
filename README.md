@@ -63,8 +63,8 @@ This project has been implemented using the following VSCode extensions:
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd daily-helper/src
+git clone https://github.com/maximbetin/weather-helper.git
+cd weather-helper/src
 ```
 
 2. Create and activate a virtual environment:
@@ -86,7 +86,7 @@ pip install -r requirements.txt
 ## Usage
 
 ### Basic Usage
-Run the weather forecast for the default location (Gijón):
+Run the weather forecast for the first location in the `locations.py` file:
 ```bash
 python main.py
 ```
@@ -97,7 +97,7 @@ Check a specific location:
 ```bash
 python main.py --location gijon
 # or shorter form
-python main.py -l llanes
+python main.py -l gijon
 ```
 
 Show forecasts for all available locations:
@@ -140,7 +140,7 @@ python main.py --hourly
 
 Show additional debug information:
 ```bash
-python src/main.py --debug
+python main.py --debug
 ```
 
 ## Dependencies
