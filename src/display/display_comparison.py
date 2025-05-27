@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from core.core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
 from data.forecast_processing import recommend_best_times
 from display.colors import colorize, get_rating_info
-from display.display_core import display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
+from display.display_core import _format_column, display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
 
 from . import colors
 
@@ -23,8 +23,6 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
   if not all_location_processed_data:
     return
 
-  display_heading("Location Comparison")
-
   # If no date filter provided, default to today
   if date_filter is None:
     date_filter = get_current_date()
@@ -32,9 +30,9 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
   # Print the date we're comparing
   display_subheading(f"Weather for {format_date(date_filter)}")
 
-  # Headers for the comparison table
+  # Headers for the comparison table - increased location column width to 20
   headers = ["Location", "Rating", "Temp Range", "Weather", "Rain %"]
-  widths = [15, 12, 20, 20, 8]
+  widths = [20, 12, 20, 20, 8]
   display_table_header(headers, widths)
 
   # Get data for each location
@@ -85,7 +83,14 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
 
   # Display sorted locations
   for _, name, _, rating, color, temp_range, weather, rain_prob in location_ratings:
-    print(f"{name:<15} {colorize(rating, color):<12} {temp_range:<20} {weather:<20} {rain_prob:<8}")
+    # Use the _format_column function to handle proper alignment with color codes
+    name_col = _format_column(name, 20)  # Increased from 15 to 20
+    rating_col = _format_column(colorize(rating, color), 12)
+    temp_col = _format_column(temp_range, 20)
+    weather_col = _format_column(weather, 20)
+    rain_col = _format_column(rain_prob, 8)
+
+    print(f"{name_col} {rating_col} {temp_col} {weather_col} {rain_col}")
 
 
 def display_best_times_recommendation(all_location_processed_data: Dict[str, Any], location_key: Optional[str] = None) -> None:
@@ -122,14 +127,21 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       date_groups[period_date] = []
     date_groups[period_date].append(period)
 
+  # Sort dates to ensure consistent order
+  sorted_dates = sorted(date_groups.keys())
+
   # Display periods by date
-  for date_obj in sorted(date_groups.keys()):
+  for i, date_obj in enumerate(sorted_dates):
     date_periods = date_groups[date_obj]
 
-    # Display date header
+    # Display date header - only add newline before dates that aren't the first
     day_name = date_obj.strftime("%A")
     date_str = format_date(date_obj)
-    print(f"\n{colorize(f'{day_name}, {date_str}', colors.INFO)}")
+
+    if i == 0:
+      print(f"{colorize(f'{day_name}, {date_str}', colors.INFO)}")
+    else:
+      print(f"\n{colorize(f'{day_name}, {date_str}', colors.INFO)}")
 
     # Sort periods by score for this date
     date_periods.sort(key=lambda x: x["final_score"], reverse=True)
@@ -139,10 +151,13 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       end_time = period["end_time"].strftime("%H:%M")
       score = period["final_score"]
       rating, color = get_rating_info(score)
+
+      # Capitalize the location name
       location = period["location"]
+      location_name = get_location_display_name(location)
 
       weather_desc = get_weather_desc(period["dominant_symbol"])
       temp = period.get("avg_temp")
       temp_str = display_temperature(temp)
 
-      print(f"  {colorize(location, color):<12} {start_time}-{end_time} [{colorize(rating, color)}] {temp_str} - {weather_desc}")
+      print(f"  {colorize(location_name, color):<12} {start_time}-{end_time} [{colorize(rating, color)}] {temp_str} - {weather_desc}")

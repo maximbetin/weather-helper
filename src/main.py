@@ -105,7 +105,6 @@ def main() -> None:
       display_hourly_forecast(forecast, location_name)
     else:
       display_forecast(forecast, location_name)
-      display_best_times_recommendation(location_data, loc_key)
 
 
 if __name__ == "__main__":

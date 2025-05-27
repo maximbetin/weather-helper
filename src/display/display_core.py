@@ -11,6 +11,34 @@ from display.colors import colorize
 from . import colors
 
 
+def _format_column(text: str, width: int) -> str:
+  """Format a column with proper width accounting for ANSI color codes.
+
+  Args:
+      text: The text to format (may include ANSI color codes)
+      width: The desired visual width of the column
+
+  Returns:
+      Formatted text with proper spacing
+  """
+  # ANSI color codes don't affect visual width, so we need to handle them specially
+  if '\033[' in text:
+    # Find the visible text (exclude ANSI codes)
+    visible_text = text.replace(colors.RESET, '').replace(colors.LIGHTGREEN, '').replace(colors.GREEN, '')
+    visible_text = visible_text.replace(colors.CYAN, '').replace(colors.YELLOW, '').replace(colors.LIGHTRED, '')
+    visible_text = visible_text.replace(colors.INFO, '')
+
+    # Calculate padding based on visible text length
+    padding = width - len(visible_text)
+    if padding < 0:
+      padding = 0
+
+    return f"{text}{' ' * padding}"
+  else:
+    # Regular text without color codes
+    return f"{text:<{width}}"
+
+
 def list_locations() -> None:
   """List all available locations."""
   print(colorize("Available Locations", colors.HIGHLIGHT))
@@ -136,8 +164,9 @@ def display_table_header(headers: List[str], widths: List[int]) -> None:
   separator_row = ""
 
   for header, width in zip(headers, widths):
-    header_row += f"{header:<{width}} "
-    separator_row += f"{'-' * width} "
+    header_col = _format_column(colorize(header, colors.INFO), width)
+    header_row += header_col + " "
+    separator_row += "-" * width + " "
 
-  print(colorize(header_row.rstrip(), colors.INFO))
+  print(header_row)
   print(separator_row.rstrip())

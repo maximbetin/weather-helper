@@ -89,7 +89,7 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
   daily_forecasts = processed_forecast_data.get("daily_forecasts", {})
   day_scores = processed_forecast_data.get("day_scores", {})
 
-  display_heading(f"Daily Forecast for {location_display_name}")
+  display_heading(f"{location_display_name}")
 
   # Sort days chronologically
   for date_obj in sorted(daily_forecasts.keys()):
