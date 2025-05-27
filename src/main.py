@@ -20,21 +20,11 @@ def main() -> None:
   parser = argparse.ArgumentParser(description='Weather Helper: Weather forecast tool for finding the best times for outdoor activities.')
 
   parser.add_argument('-l', '--location', help='Specific location to get forecast for')
-  parser.add_argument('-d', '--date', help='Date filter for forecasts (YYYY-MM-DD format)')
   parser.add_argument('-a', '--all', action='store_true', help='Show forecasts for all locations')
   parser.add_argument('-r', '--rank', action='store_true', help='Rank locations by weather conditions for today, tomorrow and day after')
   parser.add_argument('--debug', action='store_true', help='Show additional debugging information')
 
   args = parser.parse_args()
-
-  # Parse date filter if provided
-  date_filter = None
-  if args.date:
-    try:
-      date_filter = datetime.strptime(args.date, '%Y-%m-%d').date()
-    except ValueError:
-      display_error("Invalid date format. Please use YYYY-MM-DD format.")
-      return
 
   # Get location(s) to process
   target_locations: List[str] = []

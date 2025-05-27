@@ -27,36 +27,6 @@ def extract_base_symbol(symbol_code):
   return symbol_code.split('_')[0] if '_' in symbol_code else symbol_code
 
 
-def calculate_block_statistics(block_list):
-  """Calculate statistics for a block of hours.
-
-  Args:
-      block_list: List of HourlyWeather objects in the block
-
-  Returns:
-      dict: Dictionary containing statistics for the block
-  """
-  # Calculate average temperature for the block
-  temps_in_block = [h.temp for h in block_list if isinstance(h.temp, (int, float))]
-  avg_temp_val = sum(temps_in_block) / len(temps_in_block) if temps_in_block else None
-
-  # Find dominant weather symbol
-  symbols_in_block = [h.symbol for h in block_list if isinstance(h.symbol, str)]
-  symbol_counts = defaultdict(int)
-  for s in symbols_in_block:
-    symbol_counts[s] += 1
-  dominant_sym_str = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
-
-  # Calculate average score
-  avg_block_score = sum(h.total_score for h in block_list) / len(block_list)
-
-  return {
-    "avg_temp": avg_temp_val,
-    "dominant_symbol": dominant_sym_str,
-    "avg_score": avg_block_score
-  }
-
-
 def get_block_type(hour_obj):
   """Determine weather block type from hour object.
 
