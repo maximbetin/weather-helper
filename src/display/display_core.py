@@ -39,13 +39,6 @@ def _format_column(text: str, width: int) -> str:
     return f"{text:<{width}}"
 
 
-def list_locations() -> None:
-  """List all available locations."""
-  print(colorize("Available Locations", colors.HIGHLIGHT))
-  for key, loc in LOCATIONS.items():
-    print(f"  {key} - {colorize(loc.name, colors.EMPHASIS)}")
-
-
 def get_location_display_name(location_key: str) -> str:
   """Get the display name for a location key.
 

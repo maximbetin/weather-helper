@@ -4,15 +4,15 @@ Weather Helper: Weather forecasting tool that helps find the best times and loca
 
 import argparse
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from data.forecast_processing import process_forecast
 from data.locations import LOCATIONS
 from data.weather_api import fetch_weather_data
-from display.display_comparison import compare_locations, display_best_times_recommendation
-from display.display_core import display_error, display_info, display_loading_message, list_locations
-from display.display_forecast import display_forecast, display_hourly_forecast
+from display.display_comparison import display_best_times_recommendation
+from display.display_core import display_error, display_info, display_loading_message
+from display.display_forecast import display_hourly_forecast
 
 
 def main() -> None:
@@ -20,20 +20,12 @@ def main() -> None:
   parser = argparse.ArgumentParser(description='Weather Helper: Weather forecast tool for finding the best times for outdoor activities.')
 
   parser.add_argument('-l', '--location', help='Specific location to get forecast for')
-  parser.add_argument('-d', '--date', help='Date filter for comparison (YYYY-MM-DD format)')
+  parser.add_argument('-d', '--date', help='Date filter for forecasts (YYYY-MM-DD format)')
   parser.add_argument('-a', '--all', action='store_true', help='Show forecasts for all locations')
-  parser.add_argument('-r', '--recommend', action='store_true', help='Recommend best times to go out this week')
-  parser.add_argument('-c', '--compare', action='store_true', help='Compare weather conditions across all locations')
-  parser.add_argument('--list', action='store_true', help='List all available locations')
+  parser.add_argument('-r', '--rank', action='store_true', help='Rank locations by weather conditions for today, tomorrow and day after')
   parser.add_argument('--debug', action='store_true', help='Show additional debugging information')
-  parser.add_argument('--hourly', action='store_true', help='Show hourly forecast instead of daily')
 
   args = parser.parse_args()
-
-  # List locations if requested
-  if args.list:
-    list_locations()
-    return
 
   # Parse date filter if provided
   date_filter = None
@@ -50,9 +42,9 @@ def main() -> None:
     if args.location in LOCATIONS:
       target_locations = [args.location]
     else:
-      display_error("Invalid location. Use --list to see available locations.")
+      display_error("Invalid location. Use the -a option to see all available locations.")
       return
-  elif args.all or args.compare or args.recommend:
+  elif args.all or args.rank:
     target_locations = list(LOCATIONS.keys())
   else:
     # Default to Gijón if no location specified
@@ -84,27 +76,28 @@ def main() -> None:
     return
 
   # Handle different display modes
-  if args.compare:
-    compare_locations(location_data, date_filter)
-  elif args.recommend:
-    display_best_times_recommendation(location_data)
+  if args.rank:
+    # Get today, tomorrow, and day after tomorrow's dates
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    day_after = today + timedelta(days=2)
+
+    # Display rankings for each day
+    display_best_times_recommendation(location_data, None, [today, tomorrow, day_after])
   elif args.all:
-    for loc_key, forecast in location_data.items():
+    # Display forecast for all locations with line breaks between them
+    for i, loc_key in enumerate(sorted(location_data.keys())):
+      if i > 0:
+        print()  # Add line break between locations
       location_name = LOCATIONS[loc_key].name
-      if args.hourly:
-        display_hourly_forecast(forecast, location_name)
-      else:
-        display_forecast(forecast, location_name)
+      forecast = location_data[loc_key]
+      display_hourly_forecast(forecast, location_name)
   else:
-    # Single location display
+    # Single location display - always use hourly forecast
     loc_key = target_locations[0]
     location_name = LOCATIONS[loc_key].name
     forecast = location_data[loc_key]
-
-    if args.hourly:
-      display_hourly_forecast(forecast, location_name)
-    else:
-      display_forecast(forecast, location_name)
+    display_hourly_forecast(forecast, location_name)
 
 
 if __name__ == "__main__":
