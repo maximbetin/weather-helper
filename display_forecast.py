@@ -7,7 +7,7 @@ from typing import Any, Dict
 import colors
 from colors import get_rating_info
 from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
-from core_utils import format_date, format_time, get_current_datetime, get_weather_desc, get_weather_description_from_counts
+from core_utils import format_date, format_time, get_current_datetime, get_weather_desc
 from display_core import display_heading, display_precipitation_probability, display_table_header, display_temperature, display_warning, display_wind
 from forecast_processing import extract_blocks
 
@@ -100,13 +100,8 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
 
     rating, color = get_rating_info(daily_report.avg_score)
 
-    # Determine overall weather description based on DailyReport stats
-    weather_desc_display = get_weather_description_from_counts(
-        daily_report.sunny_hours,
-        daily_report.partly_cloudy_hours,
-        daily_report.rainy_hours,
-        daily_report.avg_precip_prob
-    )
+    # Use the weather_description property directly from DailyReport
+    weather_desc_display = daily_report.weather_description
 
     temp_str = "N/A"
     if daily_report.min_temp is not None and daily_report.max_temp is not None:

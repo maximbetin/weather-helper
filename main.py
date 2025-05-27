@@ -21,13 +21,13 @@ def main() -> None:
   parser = argparse.ArgumentParser(description='Daily Helper: Weather forecast tool for finding the best times for outdoor activities.')
 
   parser.add_argument('-l', '--location', help='Specific location to get forecast for')
-  parser.add_argument('-c', '--compare', action='store_true', help='Compare weather conditions across all locations')
+  parser.add_argument('-d', '--date', help='Date filter for comparison (YYYY-MM-DD format)')
   parser.add_argument('-a', '--all', action='store_true', help='Show forecasts for all locations')
   parser.add_argument('-r', '--recommend', action='store_true', help='Recommend best times to go out this week')
-  parser.add_argument('-d', '--date', help='Date filter for comparison (YYYY-MM-DD format)')
+  parser.add_argument('-c', '--compare', action='store_true', help='Compare weather conditions across all locations')
   parser.add_argument('--list', action='store_true', help='List all available locations')
-  parser.add_argument('--hourly', action='store_true', help='Show hourly forecast instead of daily')
   parser.add_argument('--debug', action='store_true', help='Show additional debugging information')
+  parser.add_argument('--hourly', action='store_true', help='Show hourly forecast instead of daily')
 
   args = parser.parse_args()
 

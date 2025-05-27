@@ -44,26 +44,44 @@ def calculate_block_statistics(block_list):
   }
 
 
+def get_block_type(hour_obj):
+  """Determine weather block type from hour object.
+
+  Args:
+      hour_obj: HourlyWeather object
+
+  Returns:
+      str: Weather type ("sunny", "rainy", or "cloudy")
+  """
+  s = hour_obj.symbol  # symbol is already base form
+  if s in ("clearsky", "fair"):
+    return "sunny"
+  if "rain" in s:
+    return "rainy"
+  return "cloudy"
+
+
 def extract_blocks(hours, min_block_len=2):
-  """Find consecutive blocks of hours with similar weather type."""
+  """Find consecutive blocks of hours with similar weather type.
+
+  Args:
+      hours: List of HourlyWeather objects
+      min_block_len: Minimum number of hours to consider a block
+
+  Returns:
+      List of (hour_block, weather_type) tuples
+  """
   if not hours:
     return []
+
   # Ensure hours are HourlyWeather objects and sorted
   sorted_hours = sorted(hours, key=lambda x: x.time)  # Sort by full datetime
   blocks = []
   current_block = [sorted_hours[0]]
 
-  def block_type(h):
-    s = h.symbol  # symbol is already base form
-    if s in ("clearsky", "fair"):
-      return "sunny"
-    if "rain" in s:
-      return "rainy"
-    return "cloudy"
-
-  current_type = block_type(sorted_hours[0])
+  current_type = get_block_type(sorted_hours[0])
   for hour_obj in sorted_hours[1:]:
-    hour_type = block_type(hour_obj)
+    hour_type = get_block_type(hour_obj)
     # Check for consecutive hours (time difference of 1 hour)
     if hour_type == current_type and (hour_obj.time - current_block[-1].time) == timedelta(hours=1):
       current_block.append(hour_obj)
@@ -72,8 +90,11 @@ def extract_blocks(hours, min_block_len=2):
         blocks.append((current_block, current_type))
       current_block = [hour_obj]
       current_type = hour_type
+
+  # Don't forget the last block
   if len(current_block) >= min_block_len:
     blocks.append((current_block, current_type))
+
   return blocks
 
 
@@ -285,7 +306,6 @@ def recommend_best_times(all_location_processed_data):
           all_periods.append(period)
 
   # Sort all periods by date and then by score (highest first)
-  #
   all_periods.sort(key=lambda x: (x["date"], -x["score"]))
 
   return all_periods

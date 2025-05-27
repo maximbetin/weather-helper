@@ -3,13 +3,16 @@ Core utility functions used across the application.
 """
 
 from datetime import date, datetime
-from typing import List, Optional, TypeVar, Union
+from typing import List, Optional, TypeVar, Union, cast
 
 import pytz
 
 from config import TIMEZONE, WEATHER_SYMBOLS
 
 T = TypeVar('T')
+
+# Cache the timezone object to avoid repeatedly creating it
+_TIMEZONE_CACHE = None
 
 
 def get_timezone():
@@ -18,7 +21,10 @@ def get_timezone():
   Returns:
       pytz.timezone: The timezone object
   """
-  return pytz.timezone(TIMEZONE)
+  global _TIMEZONE_CACHE
+  if _TIMEZONE_CACHE is None:
+    _TIMEZONE_CACHE = pytz.timezone(TIMEZONE)
+  return _TIMEZONE_CACHE
 
 
 def get_current_datetime() -> datetime:
@@ -105,6 +111,33 @@ def is_value_valid(value: Optional[Union[int, float]]) -> bool:
   return value is not None and isinstance(value, (int, float))
 
 
+def validate_numeric(value: Optional[Union[int, float]], default: Union[int, float, None] = None, min_value: Optional[Union[int, float]] = None, max_value: Optional[Union[int, float]] = None) -> Union[int, float, None]:
+  """Comprehensive validation of numeric values with range checking.
+
+  Args:
+      value: The value to validate
+      default: Default value to return if value is invalid
+      min_value: Minimum acceptable value (inclusive)
+      max_value: Maximum acceptable value (inclusive)
+
+  Returns:
+      The validated value, constrained to range if specified, or default if invalid
+  """
+  if not is_value_valid(value):
+    return default
+
+  # We know value is not None at this point
+  numeric_value = cast(Union[int, float], value)
+
+  # Apply range constraints if specified
+  if min_value is not None and numeric_value < min_value:
+    return min_value
+  if max_value is not None and numeric_value > max_value:
+    return max_value
+
+  return numeric_value
+
+
 def safe_average(values: List[Union[int, float]]) -> Optional[float]:
   """Calculate the average of a list of values, handling empty lists.
 
@@ -160,15 +193,23 @@ def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: i
   Returns:
       str: Description of the overall weather
   """
+  # First check if there's significant rain
+  if rainy_hours > 0:
+    return f"Rain ({rainy_hours}h)"
+
+  # Determine the dominant condition
+  max_hours = max(sunny_hours, partly_cloudy_hours, 0)  # Ensure non-negative
+
+  # Format precipitation warning if needed
   precip_warning = ""
   if avg_precip_prob is not None and avg_precip_prob > 40:
     precip_warning = f" - {avg_precip_prob:.0f}% rain"
 
-  if sunny_hours > partly_cloudy_hours and sunny_hours > rainy_hours:
+  if max_hours == 0:
+    return "Mixed" + precip_warning
+  elif sunny_hours == max_hours:
     return "Sunny" + precip_warning
-  elif partly_cloudy_hours > sunny_hours and partly_cloudy_hours > rainy_hours:
+  elif partly_cloudy_hours == max_hours:
     return "Partly Cloudy" + precip_warning
-  elif rainy_hours > 0:
-    return f"Rain ({rainy_hours}h)"
   else:
     return "Mixed" + precip_warning

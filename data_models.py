@@ -40,13 +40,16 @@ class HourlyWeather:
 
   def _calculate_total_score(self) -> NumericType:
     """Calculate the total score from individual component scores."""
-    return sum(score for score in [
+    # Define the score components to include
+    score_components = [
         self.weather_score,
         self.temp_score,
         self.wind_score,
         self.cloud_score,
         self.precip_prob_score
-    ] if isinstance(score, (int, float)))
+    ]
+    # Filter valid numeric values and sum them
+    return sum(score for score in score_components if isinstance(score, (int, float)))
 
 
 class DailyReport:
@@ -62,10 +65,8 @@ class DailyReport:
       self._initialize_empty_report()
       return
 
-    self._calculate_condition_hours()
-    self._calculate_precipitation_stats()
-    self._calculate_temperature_stats()
-    self._calculate_scores()
+    # Calculate all stats in one pass through the data
+    self._calculate_all_stats()
 
   def _initialize_empty_report(self) -> None:
     """Initialize default values for an empty report (no daylight hours)."""
@@ -80,46 +81,66 @@ class DailyReport:
     self.max_temp: Optional[float] = None
     self.avg_temp: Optional[float] = None
 
-  def _calculate_condition_hours(self) -> None:
-    """Calculate hours for different weather conditions."""
-    self.sunny_hours = sum(1 for h in self.daylight_hours if h.symbol in ["clearsky", "fair"])
-    self.partly_cloudy_hours = sum(1 for h in self.daylight_hours if h.symbol == "partlycloudy")
-    self.rainy_hours = sum(1 for h in self.daylight_hours if "rain" in h.symbol or "shower" in h.symbol)
-    self.likely_rain_hours = sum(1 for h in self.daylight_hours if isinstance(h.precipitation_probability, (int, float)) and h.precipitation_probability > 30)
+  def _calculate_all_stats(self) -> None:
+    """Calculate all statistics in a single pass through the data."""
+    # Initialize counters and aggregators
+    self.sunny_hours = 0
+    self.partly_cloudy_hours = 0
+    self.rainy_hours = 0
+    self.likely_rain_hours = 0
 
-  def _calculate_precipitation_stats(self) -> None:
-    """Calculate precipitation-related statistics."""
-    precip_probs = [h.precipitation_probability for h in self.daylight_hours if is_value_valid(h.precipitation_probability)]
-    # Convert to list of valid values to fix type error
-    valid_probs = [p for p in precip_probs if p is not None]
-    self.avg_precip_prob = safe_average(valid_probs)
+    # For temperature stats
+    valid_temps = []
 
-  def _calculate_temperature_stats(self) -> None:
-    """Calculate temperature-related statistics."""
-    # Filter out None values first
-    valid_temps = [h.temp for h in self.daylight_hours if is_value_valid(h.temp) and h.temp is not None]
-    self.min_temp = min(valid_temps) if valid_temps else None
-    self.max_temp = max(valid_temps) if valid_temps else None
-    self.avg_temp = safe_average(valid_temps)
+    # For precipitation stats
+    valid_precip_probs = []
 
-  def _calculate_scores(self) -> None:
-    """Calculate overall scores for the day."""
+    # For score calculation
     num_hours = len(self.daylight_hours)
+    self.total_score_sum = 0
     score_types = ["weather_score", "temp_score", "wind_score", "cloud_score", "precip_prob_score"]
-
-    # Count how many score types are available (always at least 3: weather, temp, wind)
     available_score_types = []
+
+    # Check which score types are available
     for score_type in score_types:
       if any(is_value_valid(getattr(h, score_type, None)) for h in self.daylight_hours):
         available_score_types.append(score_type)
 
-    # Calculate total score
-    self.total_score_sum = sum(
-        getattr(h, score_type)
-        for h in self.daylight_hours
-        for score_type in available_score_types
-        if is_value_valid(getattr(h, score_type, None))
-    )
+    # Process each hour in a single loop
+    for hour in self.daylight_hours:
+      # Count condition hours
+      if hour.symbol in ["clearsky", "fair"]:
+        self.sunny_hours += 1
+      elif hour.symbol == "partlycloudy":
+        self.partly_cloudy_hours += 1
+      elif "rain" in hour.symbol or "shower" in hour.symbol:
+        self.rainy_hours += 1
+
+      # Count likely rain hours
+      if isinstance(hour.precipitation_probability, (int, float)) and hour.precipitation_probability > 30:
+        self.likely_rain_hours += 1
+
+      # Collect temperature data
+      if is_value_valid(hour.temp):
+        valid_temps.append(hour.temp)
+
+      # Collect precipitation probability data
+      if is_value_valid(hour.precipitation_probability):
+        valid_precip_probs.append(hour.precipitation_probability)
+
+      # Sum scores
+      for score_type in available_score_types:
+        score_value = getattr(hour, score_type, 0)
+        if is_value_valid(score_value):
+          self.total_score_sum += score_value
+
+    # Calculate temperature stats
+    self.min_temp = min(valid_temps) if valid_temps else None
+    self.max_temp = max(valid_temps) if valid_temps else None
+    self.avg_temp = safe_average(valid_temps)
+
+    # Calculate precipitation stats
+    self.avg_precip_prob = safe_average(valid_precip_probs)
 
     # Calculate average score
     self.avg_score = self.total_score_sum / (num_hours * len(available_score_types)) if num_hours > 0 and available_score_types else 0
