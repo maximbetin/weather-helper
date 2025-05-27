@@ -2,11 +2,12 @@
 Handles API calls to fetch weather data from Met.no.
 """
 
-import requests
 import logging
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
-from colors import ERROR, RESET, colorize
+import requests
+
+from colors import ERROR, colorize
 from config import API_URL, USER_AGENT
 from locations import Location
 

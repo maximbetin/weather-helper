@@ -2,12 +2,11 @@
 Core display functions for the application.
 """
 
-from typing import Dict, List, Any, Optional, Tuple, Union
-from datetime import datetime
+from typing import List, Optional
 
 import colors
-from colors import colorize, get_rating_info
-from core_utils import format_time, format_date, get_weather_desc, get_or_default, safe_get_numeric
+from colors import colorize
+from core_utils import get_or_default
 from locations import LOCATIONS
 
 

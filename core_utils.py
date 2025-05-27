@@ -2,9 +2,10 @@
 Core utility functions used across the application.
 """
 
+from datetime import date, datetime
+from typing import List, Optional, TypeVar, Union
+
 import pytz
-from datetime import datetime, date, time, timedelta
-from typing import Optional, Union, List, TypeVar, Any
 
 from config import TIMEZONE, WEATHER_SYMBOLS
 
@@ -147,8 +148,7 @@ def safe_get_numeric(value: Optional[Union[int, float]], default: Union[int, flo
   return default
 
 
-def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int,
-                                        avg_precip_prob: Optional[float] = None) -> str:
+def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int, avg_precip_prob: Optional[float] = None) -> str:
   """Determine overall weather description based on hour counts.
 
   Args:

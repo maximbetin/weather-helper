@@ -2,21 +2,13 @@
 Functions for displaying weather forecasts.
 """
 
-from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict
 
 import colors
 from colors import get_rating_info
-from core_utils import (
-    get_current_datetime, format_time, format_date,
-    get_weather_desc, is_value_valid, get_weather_description_from_counts
-)
-from display_core import (
-    display_heading, display_temperature, display_wind,
-    display_precipitation_probability, display_table_header,
-    display_warning, get_location_display_name
-)
-from config import DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR
+from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
+from core_utils import format_date, format_time, get_current_datetime, get_weather_desc, get_weather_description_from_counts
+from display_core import display_heading, display_precipitation_probability, display_table_header, display_temperature, display_warning, display_wind
 from forecast_processing import extract_blocks
 
 
@@ -32,7 +24,7 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
 
   daily_forecasts = forecast_data["daily_forecasts"]
 
-  display_heading(f"Hourly Forecast for {location_name}")
+  display_heading(f"{location_name}")
 
   # Get today's date
   today = get_current_datetime().date()

@@ -2,20 +2,12 @@
 Utility functions for displaying weather information and recommendations.
 """
 
-from datetime import datetime
-
-# Import constants and configs
-from config import (
-    DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR, TIMEZONE
-)
-from locations import LOCATIONS
-# For display_forecast to show best/worst blocks if not in compare_mode
-from forecast_processing import extract_blocks
-# For display_best_times_recommendation to get the periods
-from forecast_processing import recommend_best_times
-from core_utils import get_weather_desc, get_weather_description_from_counts, get_timezone, get_current_datetime
 import colors
 from colors import get_rating_info
+from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
+from core_utils import get_current_datetime, get_weather_desc
+from forecast_processing import extract_blocks, recommend_best_times
+from locations import LOCATIONS
 
 
 def display_hourly_forecast(forecast_data, location_name):
@@ -26,7 +18,7 @@ def display_hourly_forecast(forecast_data, location_name):
   daily_forecasts = forecast_data["daily_forecasts"]
   day_scores = forecast_data["day_scores"]
 
-  print(f"\n{colors.HIGHLIGHT}Hourly Forecast for {location_name}{colors.RESET}")
+  print(f"\n{colors.HIGHLIGHT}{location_name}{colors.RESET}")
 
   # Get today's date
   current_dt = get_current_datetime()

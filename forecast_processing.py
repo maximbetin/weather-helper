@@ -4,15 +4,14 @@ Processes raw forecast data, extracts meaningful blocks, and generates recommend
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+
 import pytz
 
-from config import TIMEZONE, DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR, FORECAST_DAYS
-from data_models import HourlyWeather, DailyReport
-from scoring_utils import (
-    get_weather_score, temp_score, wind_score, cloud_score, precip_probability_score
-)
+from config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, TIMEZONE
+from core_utils import get_timezone
+from data_models import DailyReport, HourlyWeather
 from display_core import get_location_display_name
-from core_utils import get_timezone, get_weather_description_from_counts
+from scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
 
 
 def calculate_block_statistics(block_list):
@@ -286,6 +285,7 @@ def recommend_best_times(all_location_processed_data):
           all_periods.append(period)
 
   # Sort all periods by date and then by score (highest first)
+  #
   all_periods.sort(key=lambda x: (x["date"], -x["score"]))
 
   return all_periods

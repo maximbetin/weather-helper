@@ -3,20 +3,12 @@ Functions for comparing and recommending locations based on weather forecasts.
 """
 
 from datetime import date
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import colors
 from colors import get_rating_info
-from core_utils import (
-    format_date, get_current_date, is_value_valid,
-    get_weather_desc, get_weather_description_from_counts
-)
-from display_core import (
-    display_heading, display_subheading,
-    display_temperature, display_table_header,
-    get_location_display_name
-)
-from locations import LOCATIONS
+from core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
+from display_core import display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
 from forecast_processing import recommend_best_times
 
 
@@ -87,6 +79,7 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
     ))
 
   # Sort by score (highest first)
+  # Given an item x from the list, grab the third item (x[2]), which is the average score for that location
   location_ratings.sort(key=lambda x: x[2], reverse=True)
 
   # Display sorted locations

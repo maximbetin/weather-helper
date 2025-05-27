@@ -2,9 +2,9 @@
 Configuration constants for the Daily Helper application.
 """
 
-import pytz
+from typing import Dict, Tuple
+
 from colorama import Fore, Style, init
-from typing import Dict, Tuple, Any
 
 # Initialize colorama for colored terminal output
 init()

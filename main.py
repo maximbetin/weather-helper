@@ -6,32 +6,24 @@ for outdoor activities in Asturias, Spain.
 import argparse
 import time
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List
 
-from weather_api import fetch_weather_data
-from forecast_processing import process_forecast, recommend_best_times
-from display_core import (
-    list_locations, display_loading_message,
-    display_error, display_info
-)
-from display_forecast import display_forecast, display_hourly_forecast
 from display_comparison import compare_locations, display_best_times_recommendation
-from core_utils import get_timezone
-from config import FORECAST_DAYS
+from display_core import display_error, display_info, display_loading_message, list_locations
+from display_forecast import display_forecast, display_hourly_forecast
+from forecast_processing import process_forecast
 from locations import LOCATIONS
+from weather_api import fetch_weather_data
 
 
 def main() -> None:
   """Process command-line arguments and execute requested operations."""
-  parser = argparse.ArgumentParser(
-      description='Daily Helper: Weather forecast tool for finding the best times for outdoor activities.')
+  parser = argparse.ArgumentParser(description='Daily Helper: Weather forecast tool for finding the best times for outdoor activities.')
+
   parser.add_argument('-l', '--location', help='Specific location to get forecast for')
-  parser.add_argument('-c', '--compare', action='store_true',
-                      help='Compare weather conditions across all locations')
-  parser.add_argument('-a', '--all', action='store_true',
-                      help='Show forecasts for all locations')
-  parser.add_argument('-r', '--recommend', action='store_true',
-                      help='Recommend best times to go out this week')
+  parser.add_argument('-c', '--compare', action='store_true', help='Compare weather conditions across all locations')
+  parser.add_argument('-a', '--all', action='store_true', help='Show forecasts for all locations')
+  parser.add_argument('-r', '--recommend', action='store_true', help='Recommend best times to go out this week')
   parser.add_argument('-d', '--date', help='Date filter for comparison (YYYY-MM-DD format)')
   parser.add_argument('--list', action='store_true', help='List all available locations')
   parser.add_argument('--hourly', action='store_true', help='Show hourly forecast instead of daily')

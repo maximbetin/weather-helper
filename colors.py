@@ -3,8 +3,9 @@ Unified color system for the application.
 Provides color constants and utility functions for colorized output.
 """
 
+from typing import Dict, Tuple, Union
+
 from colorama import Fore, Style, init
-from typing import Tuple, Union, Dict
 
 # Initialize colorama for colored terminal output
 init()
@@ -36,7 +37,6 @@ RATING_COLORS: Dict[str, str] = {
     "Good": CYAN,
     "Fair": YELLOW,
     "Poor": LIGHTRED,
-    "Bad": RED,
     "N/A": RESET
 }
 
@@ -61,10 +61,8 @@ def get_rating_info(score: Union[int, float, None]) -> Tuple[str, str]:
     return "Good", RATING_COLORS["Good"]
   elif score >= 0.0:
     return "Fair", RATING_COLORS["Fair"]
-  elif score >= -3.0:
-    return "Poor", RATING_COLORS["Poor"]
   else:
-    return "Bad", RATING_COLORS["Bad"]
+    return "Poor", RATING_COLORS["Poor"]
 
 
 def colorize(text: str, color: str) -> str:

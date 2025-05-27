@@ -4,9 +4,9 @@ Defines the data models for HourlyWeather and DailyReport.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Optional, Union, Any
+from typing import List, Optional, Union
 
-from core_utils import safe_average, is_value_valid, get_weather_description_from_counts
+from core_utils import get_weather_description_from_counts, is_value_valid, safe_average
 
 NumericType = Union[int, float]
 
@@ -85,14 +85,11 @@ class DailyReport:
     self.sunny_hours = sum(1 for h in self.daylight_hours if h.symbol in ["clearsky", "fair"])
     self.partly_cloudy_hours = sum(1 for h in self.daylight_hours if h.symbol == "partlycloudy")
     self.rainy_hours = sum(1 for h in self.daylight_hours if "rain" in h.symbol or "shower" in h.symbol)
-    self.likely_rain_hours = sum(1 for h in self.daylight_hours
-                                 if isinstance(h.precipitation_probability, (int, float))
-                                 and h.precipitation_probability > 30)
+    self.likely_rain_hours = sum(1 for h in self.daylight_hours if isinstance(h.precipitation_probability, (int, float)) and h.precipitation_probability > 30)
 
   def _calculate_precipitation_stats(self) -> None:
     """Calculate precipitation-related statistics."""
-    precip_probs = [h.precipitation_probability for h in self.daylight_hours
-                    if is_value_valid(h.precipitation_probability)]
+    precip_probs = [h.precipitation_probability for h in self.daylight_hours if is_value_valid(h.precipitation_probability)]
     # Convert to list of valid values to fix type error
     valid_probs = [p for p in precip_probs if p is not None]
     self.avg_precip_prob = safe_average(valid_probs)
