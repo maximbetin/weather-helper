@@ -7,7 +7,7 @@ from typing import List, Optional, TypeVar, Union
 
 import pytz
 
-from core.config import TIMEZONE
+from core.config import TIMEZONE, WEATHER_SYMBOLS
 
 T = TypeVar('T')
 
@@ -93,7 +93,6 @@ def get_weather_desc(symbol: str) -> str:
   Returns:
       str: Human-readable weather description
   """
-  from core.config import WEATHER_SYMBOLS
   if not symbol or not isinstance(symbol, str):
     return "Unknown"
   desc, _ = WEATHER_SYMBOLS.get(symbol, (symbol.replace('_', ' ').capitalize(), 0))

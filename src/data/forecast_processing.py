@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Tuple
 from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS
 from core.core_utils import get_current_date, get_timezone
 from data.data_models import DailyReport, HourlyWeather
+from data.locations import LOCATIONS
 from data.scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
 
 
@@ -79,43 +80,6 @@ def extract_blocks(hours, min_block_len=2):
     blocks.append((current_block, current_type))
 
   return blocks
-
-
-def find_best_and_worst_blocks(daylight_hours: List[HourlyWeather]) -> Tuple[Optional[Tuple[List[HourlyWeather], str]], Optional[Tuple[List[HourlyWeather], str]]]:
-  """Find the best and worst time blocks in a day.
-
-  Args:
-      daylight_hours: List of HourlyWeather objects for daylight hours
-
-  Returns:
-      Tuple containing (best_block_info, worst_block_info) where each is either None or
-      a tuple of (hour_block, weather_type)
-  """
-  if not daylight_hours:
-    return None, None
-
-  weather_blocks = extract_blocks(daylight_hours)
-  best_block_info = None
-  worst_block_info = None
-  best_score = float('-inf')
-  worst_score = float('inf')
-
-  for block, weather_type in weather_blocks:
-    if len(block) < 2:
-      continue
-
-    # Calculate block score once and reuse
-    avg_block_score = sum(h.total_score for h in block) / len(block)
-
-    if avg_block_score > best_score and (weather_type in ["sunny", "cloudy"] or avg_block_score >= 0):
-      best_score = avg_block_score
-      best_block_info = (block, weather_type)
-
-    if avg_block_score < worst_score and (weather_type == "rainy" or avg_block_score < 0):
-      worst_score = avg_block_score
-      worst_block_info = (block, weather_type)
-
-  return best_block_info, worst_block_info
 
 
 def process_forecast(forecast_data, location_name):
@@ -305,7 +269,7 @@ def recommend_best_times(all_location_processed_data):
 
       # Take the top 5 blocks for this date
       top_blocks = sorted_blocks[:5]
-      for block in top_blocks:
-        final_recommendations.append(block)
+      for block_entry in top_blocks:  # Renamed 'block' to 'block_entry' to avoid conflict with outer scope
+        final_recommendations.append(block_entry)
 
   return final_recommendations

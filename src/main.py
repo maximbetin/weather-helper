@@ -51,7 +51,7 @@ def main() -> None:
     weather_data = fetch_weather_data(location)
 
     if weather_data:
-      processed_data = process_forecast(weather_data, location.name)
+      processed_data = process_forecast(weather_data, loc_key)
       location_data[loc_key] = processed_data
     else:
       display_error(f"Unable to fetch weather data for {location.name}.")

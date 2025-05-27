@@ -2,6 +2,7 @@
 Core display functions for the application.
 """
 
+import re
 from typing import List, Optional
 
 from core.core_utils import get_value_or_default
@@ -20,21 +21,12 @@ def _format_column(text: str, width: int) -> str:
       Formatted text with proper spacing
   """
   # ANSI color codes don't affect visual width, so we need to handle them specially
-  if '\033[' in text:
-    # Find the visible text (exclude ANSI codes)
-    visible_text = text.replace(RESET, '').replace(LIGHTGREEN, '').replace(GREEN, '')
-    visible_text = visible_text.replace(CYAN, '').replace(YELLOW, '').replace(LIGHTRED, '')
-    visible_text = visible_text.replace(INFO, '')
-
-    # Calculate padding based on visible text length
-    padding = width - len(visible_text)
-    if padding < 0:
-      padding = 0
-
-    return f"{text}{' ' * padding}"
-  else:
-    # Regular text without color codes
-    return f"{text:<{width}}"
+  # Use regex to remove all ANSI escape codes for length calculation
+  visible_text = re.sub(r'\x1b\[[0-9;]*[mK]', '', text)
+  padding = width - len(visible_text)
+  if padding < 0:
+    padding = 0
+  return f"{text}{' ' * padding}"
 
 
 def get_location_display_name(location_key: str) -> str:
