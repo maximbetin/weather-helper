@@ -7,9 +7,10 @@ from typing import Any, Dict, List, Optional
 
 from core.core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
 from data.forecast_processing import recommend_best_times
-from display import colors
-from display.colors import get_rating_info
+from display.colors import colorize, get_rating_info
 from display.display_core import display_heading, display_subheading, display_table_header, display_temperature, get_location_display_name
+
+from . import colors
 
 
 def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: Optional[date] = None) -> None:
@@ -84,7 +85,7 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
 
   # Display sorted locations
   for _, name, _, rating, color, temp_range, weather, rain_prob in location_ratings:
-    print(f"{name:<15} {color}{rating:<12}{colors.RESET} {temp_range:<20} {weather:<20} {rain_prob:<8}")
+    print(f"{name:<15} {colorize(rating, color):<12} {temp_range:<20} {weather:<20} {rain_prob:<8}")
 
 
 def display_best_times_recommendation(all_location_processed_data: Dict[str, Any], location_key: Optional[str] = None) -> None:
@@ -128,15 +129,15 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
     # Display date header
     day_name = date_obj.strftime("%A")
     date_str = format_date(date_obj)
-    print(f"\n{colors.INFO}{day_name}, {date_str}{colors.RESET}")
+    print(f"\n{colorize(f'{day_name}, {date_str}', colors.INFO)}")
 
     # Sort periods by score for this date
-    date_periods.sort(key=lambda x: x["score"], reverse=True)
+    date_periods.sort(key=lambda x: x["final_score"], reverse=True)
 
     for period in date_periods:
       start_time = period["start_time"].strftime("%H:%M")
       end_time = period["end_time"].strftime("%H:%M")
-      score = period["score"]
+      score = period["final_score"]
       rating, color = get_rating_info(score)
       location = period["location"]
 
@@ -144,4 +145,4 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       temp = period.get("avg_temp")
       temp_str = display_temperature(temp)
 
-      print(f"  {color}{location:<12}{colors.RESET} {start_time}-{end_time} [{color}{rating}{colors.RESET}] {temp_str} - {weather_desc}")
+      print(f"  {colorize(location, color):<12} {start_time}-{end_time} [{colorize(rating, color)}] {temp_str} - {weather_desc}")

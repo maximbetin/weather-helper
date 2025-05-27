@@ -4,14 +4,12 @@ Processes raw forecast data, extracts meaningful blocks, and generates recommend
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
 
-import pytz
-
-from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, TIMEZONE
+from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS
 from core.core_utils import get_timezone
 from data.data_models import DailyReport, HourlyWeather
 from data.scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
-from display.display_core import get_location_display_name
 
 
 def extract_base_symbol(symbol_code):
@@ -111,6 +109,43 @@ def extract_blocks(hours, min_block_len=2):
     blocks.append((current_block, current_type))
 
   return blocks
+
+
+def find_best_and_worst_blocks(daylight_hours: List[HourlyWeather]) -> Tuple[Optional[Tuple[List[HourlyWeather], str]], Optional[Tuple[List[HourlyWeather], str]]]:
+  """Find the best and worst time blocks in a day.
+
+  Args:
+      daylight_hours: List of HourlyWeather objects for daylight hours
+
+  Returns:
+      Tuple containing (best_block_info, worst_block_info) where each is either None or
+      a tuple of (hour_block, weather_type)
+  """
+  if not daylight_hours:
+    return None, None
+
+  weather_blocks = extract_blocks(daylight_hours)
+  best_block_info = None
+  worst_block_info = None
+  best_score = float('-inf')
+  worst_score = float('inf')
+
+  for block, weather_type in weather_blocks:
+    if len(block) < 2:
+      continue
+
+    # Calculate block score once and reuse
+    avg_block_score = sum(h.total_score for h in block) / len(block)
+
+    if avg_block_score > best_score and (weather_type in ["sunny", "cloudy"] or avg_block_score >= 0):
+      best_score = avg_block_score
+      best_block_info = (block, weather_type)
+
+    if avg_block_score < worst_score and (weather_type == "rainy" or avg_block_score < 0):
+      worst_score = avg_block_score
+      worst_block_info = (block, weather_type)
+
+  return best_block_info, worst_block_info
 
 
 def process_forecast(forecast_data, location_name):
@@ -226,6 +261,21 @@ def extract_best_blocks(forecast_data, location_name_key):
     end_time = max(h.time for h in block)
     duration = (end_time.hour - start_time.hour) + 1  # Include both start and end hour
 
+    # Find dominant symbol
+    symbol_counts: Dict[str, int] = defaultdict(int)
+    for hour in block:
+      if hour.symbol:
+        symbol_counts[hour.symbol] += 1
+
+    # Find dominant symbol safely
+    dominant_symbol = ""
+    if symbol_counts:
+      dominant_symbol = max(symbol_counts.items(), key=lambda x: x[1])[0]
+
+    # Calculate temperature average
+    avg_temp = sum(h.temp for h in block if h.temp is not None) / \
+        len([h for h in block if h.temp is not None]) if any(h.temp is not None for h in block) else None
+
     # Calculate penalty for shorter blocks
     duration_factor = min(1.0, duration / 4)  # Normalize to max 1.0
     final_score = avg_score * duration_factor
@@ -238,7 +288,9 @@ def extract_best_blocks(forecast_data, location_name_key):
       "duration": duration,
       "avg_score": avg_score,
       "final_score": final_score,
-      "block": block
+      "block": block,
+      "dominant_symbol": dominant_symbol,
+      "avg_temp": avg_temp
     })
 
   # Sort by score (descending)

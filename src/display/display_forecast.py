@@ -6,10 +6,11 @@ from typing import Any, Dict
 
 from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
 from core.core_utils import format_date, format_time, get_current_datetime, get_weather_desc
-from data.forecast_processing import extract_blocks
-from display import colors
-from display.colors import get_rating_info
+from data.forecast_processing import find_best_and_worst_blocks
+from display.colors import colorize, get_rating_info
 from display.display_core import display_heading, display_precipitation_probability, display_table_header, display_temperature, display_warning, display_wind
+
+from . import colors
 
 
 def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -> None:
@@ -68,7 +69,7 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
     rating, color = get_rating_info(hour.total_score)
     score_str = f"{hour.total_score:6.1f}"
 
-    print(f"{time_str:<8} {weather_desc:<15} {temp_str:<8} {wind_str:<8} {precip_prob_str:<8} {color}{score_str}{colors.RESET}")
+    print(f"{time_str:<8} {weather_desc:<15} {temp_str:<8} {wind_str:<8} {precip_prob_str:<8} {colorize(score_str, color)}")
 
 
 def display_forecast(processed_forecast_data: Dict[str, Any], location_display_name: str, compare_mode: bool = False) -> None:
@@ -107,7 +108,7 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
     if daily_report.min_temp is not None and daily_report.max_temp is not None:
       temp_str = f"{daily_report.min_temp:>4.1f}°C - {daily_report.max_temp:>4.1f}°C"
 
-    print(f"{date_str} {color}[{rating}]{colors.RESET} {temp_str} - {weather_desc_display}")
+    print(f"{date_str} {colorize(f'[{rating}]', color)} {temp_str} - {weather_desc_display}")
 
     if not compare_mode:
       # Get daylight HourlyWeather objects for this date
@@ -118,35 +119,17 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
       if not daylight_hourly_weather:
         continue
 
-      weather_blocks = extract_blocks(daylight_hourly_weather)
-      best_block_info = None
-      worst_block_info = None
-      best_score = float('-inf')
-      worst_score = float('inf')
-
-      for block, weather_type in weather_blocks:
-        if len(block) < 2:
-          continue
-
-        # Calculate block score once and reuse
-        avg_block_score = sum(h.total_score for h in block) / len(block)
-
-        if avg_block_score > best_score and (weather_type in ["sunny", "cloudy"] or avg_block_score >= 0):
-          best_score = avg_block_score
-          best_block_info = (block, weather_type)
-
-        if avg_block_score < worst_score and (weather_type == "rainy" or avg_block_score < 0):
-          worst_score = avg_block_score
-          worst_block_info = (block, weather_type)
+      # Use the consolidated function to find best and worst blocks
+      best_block_info, worst_block_info = find_best_and_worst_blocks(daylight_hourly_weather)
 
       if best_block_info:
         block, _ = best_block_info
         start_t = format_time(block[0].time)
         end_t = format_time(block[-1].time)
-        print(f"  Best: {colors.SUCCESS}{start_t}-{end_t}{colors.RESET}")
+        print(f"  Best: {colorize(f'{start_t}-{end_t}', colors.SUCCESS)}")
 
       if worst_block_info and daily_report.avg_score >= 0:  # Only show avoid if day is generally good
         block, _ = worst_block_info
         start_t = format_time(block[0].time)
         end_t = format_time(block[-1].time)
-        print(f"  Avoid: {colors.ERROR}{start_t}-{end_t}{colors.RESET}")
+        print(f"  Avoid: {colorize(f'{start_t}-{end_t}', colors.ERROR)}")

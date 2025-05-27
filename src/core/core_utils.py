@@ -7,7 +7,7 @@ from typing import List, Optional, TypeVar, Union, cast
 
 import pytz
 
-from core.config import TIMEZONE, WEATHER_SYMBOLS
+from core.config import TIMEZONE
 
 T = TypeVar('T')
 
@@ -93,14 +93,16 @@ def get_weather_desc(symbol: str) -> str:
   Returns:
       str: Human-readable weather description
   """
+  from core.config import WEATHER_SYMBOLS
   if not symbol or not isinstance(symbol, str):
     return "Unknown"
   desc, _ = WEATHER_SYMBOLS.get(symbol, (symbol.replace('_', ' ').capitalize(), 0))
   return desc
 
 
+# Consolidated value handling utilities
 def is_value_valid(value: Optional[Union[int, float]]) -> bool:
-  """Check if a numeric value is valid (not None).
+  """Check if a numeric value is valid (not None and is a number).
 
   Args:
       value: The value to check
@@ -111,8 +113,25 @@ def is_value_valid(value: Optional[Union[int, float]]) -> bool:
   return value is not None and isinstance(value, (int, float))
 
 
-def validate_numeric(value: Optional[Union[int, float]], default: Union[int, float, None] = None, min_value: Optional[Union[int, float]] = None, max_value: Optional[Union[int, float]] = None) -> Union[int, float, None]:
-  """Comprehensive validation of numeric values with range checking.
+def get_value_or_default(value: Optional[T], default: T) -> T:
+  """Get a value if it's not None, otherwise return the default.
+  This is a generic utility that works with any type.
+
+  Args:
+      value: The value to check
+      default: Default value to return if value is None
+
+  Returns:
+      The value if not None, otherwise the default
+  """
+  return value if value is not None else default
+
+
+def safe_numeric(value: Optional[Union[int, float]], default: Union[int, float] = 0,
+                 min_value: Optional[Union[int, float]] = None,
+                 max_value: Optional[Union[int, float]] = None) -> Union[int, float]:
+  """Comprehensive validation and retrieval of numeric values with range checking.
+  Combines functionality of validate_numeric and safe_get_numeric.
 
   Args:
       value: The value to validate
@@ -153,35 +172,8 @@ def safe_average(values: List[Union[int, float]]) -> Optional[float]:
   return sum(valid_values) / len(valid_values)
 
 
-def get_or_default(value: Optional[T], default: T) -> T:
-  """Get a value if it's not None, otherwise return the default.
-
-  Args:
-      value: The value to check
-      default: Default value to return if value is None
-
-  Returns:
-      The value if not None, otherwise the default
-  """
-  return value if value is not None else default
-
-
-def safe_get_numeric(value: Optional[Union[int, float]], default: Union[int, float] = 0) -> Union[int, float]:
-  """Safely get a numeric value, returning a default if None.
-
-  Args:
-      value: The numeric value to check
-      default: Default value to return if value is None
-
-  Returns:
-      The value if it's a valid number, otherwise the default
-  """
-  if is_value_valid(value):
-    return value  # type: ignore
-  return default
-
-
-def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int, avg_precip_prob: Optional[float] = None) -> str:
+def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int,
+                                        avg_precip_prob: Optional[float] = None) -> str:
   """Determine overall weather description based on hour counts.
 
   Args:

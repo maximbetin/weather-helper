@@ -4,11 +4,6 @@ Configuration constants for the Weather Helper application.
 
 from typing import Dict, Tuple
 
-from colorama import Fore, Style, init
-
-# Initialize colorama for colored terminal output
-init()
-
 # API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 USER_AGENT = "WeatherHelper/1.0"
@@ -48,20 +43,3 @@ WEATHER_SYMBOLS: Dict[str, Tuple[str, int]] = {
     "fog": ("Foggy", -4),
     "thunderstorm": ("Thunderstorm", -15)
 }
-
-# Color definitions for terminal output
-COLOR_EXCELLENT = Fore.LIGHTGREEN_EX
-COLOR_VERY_GOOD = Fore.GREEN
-COLOR_GOOD = Fore.CYAN
-COLOR_FAIR = Fore.YELLOW
-COLOR_POOR = Fore.LIGHTRED_EX
-COLOR_BAD = Fore.RED
-COLOR_MAGENTA = Fore.MAGENTA
-COLOR_RESET = Style.RESET_ALL
-COLOR_LIGHTMAGENTA_EX = Fore.LIGHTMAGENTA_EX
-COLOR_YELLOW = Fore.YELLOW
-COLOR_RED = Fore.RED
-COLOR_CYAN = Fore.CYAN
-COLOR_GREEN = Fore.GREEN
-COLOR_LIGHTRED_EX = Fore.LIGHTRED_EX
-COLOR_LIGHTGREEN_EX = Fore.LIGHTGREEN_EX

@@ -4,17 +4,18 @@ Core display functions for the application.
 
 from typing import List, Optional
 
-from core.core_utils import get_or_default
+from core.core_utils import get_value_or_default
 from data.locations import LOCATIONS
-from display import colors
 from display.colors import colorize
+
+from . import colors
 
 
 def list_locations() -> None:
   """List all available locations."""
-  print(f"\n{colors.HIGHLIGHT}Available Locations{colors.RESET}")
+  print(colorize("Available Locations", colors.HIGHLIGHT))
   for key, loc in LOCATIONS.items():
-    print(f"  {key} - {colors.EMPHASIS}{loc.name}{colors.RESET}")
+    print(f"  {key} - {colorize(loc.name, colors.EMPHASIS)}")
 
 
 def get_location_display_name(location_key: str) -> str:
@@ -31,7 +32,7 @@ def get_location_display_name(location_key: str) -> str:
 
 def display_loading_message() -> None:
   """Display a loading message."""
-  print(f"{colors.WARNING}Fetching weather data...{colors.RESET}")
+  print(colorize("Fetching weather data...", colors.WARNING))
 
 
 def display_error(message: str) -> None:
@@ -76,7 +77,7 @@ def display_heading(text: str) -> None:
   Args:
       text: Heading text
   """
-  print(f"\n{colors.HIGHLIGHT}{text}{colors.RESET}")
+  print(f"\n{colorize(text, colors.HIGHLIGHT)}")
 
 
 def display_subheading(text: str) -> None:
@@ -85,7 +86,7 @@ def display_subheading(text: str) -> None:
   Args:
       text: Subheading text
   """
-  print(f"{colors.EMPHASIS}{text}{colors.RESET}")
+  print(colorize(text, colors.EMPHASIS))
 
 
 def display_temperature(temp: Optional[float]) -> str:
@@ -97,7 +98,7 @@ def display_temperature(temp: Optional[float]) -> str:
   Returns:
       str: Formatted temperature string
   """
-  return get_or_default(f"{temp:.1f}°C" if temp is not None else None, "N/A")
+  return get_value_or_default(f"{temp:.1f}°C" if temp is not None else None, "N/A")
 
 
 def display_wind(wind: Optional[float]) -> str:
@@ -109,7 +110,7 @@ def display_wind(wind: Optional[float]) -> str:
   Returns:
       str: Formatted wind string
   """
-  return get_or_default(f"{wind:.1f}m/s" if wind is not None else None, "N/A")
+  return get_value_or_default(f"{wind:.1f}m/s" if wind is not None else None, "N/A")
 
 
 def display_precipitation_probability(prob: Optional[float]) -> str:
@@ -121,7 +122,7 @@ def display_precipitation_probability(prob: Optional[float]) -> str:
   Returns:
       str: Formatted probability string
   """
-  return get_or_default(f"{prob:.0f}%" if prob is not None else None, "N/A")
+  return get_value_or_default(f"{prob:.0f}%" if prob is not None else None, "N/A")
 
 
 def display_table_header(headers: List[str], widths: List[int]) -> None:
@@ -138,5 +139,5 @@ def display_table_header(headers: List[str], widths: List[int]) -> None:
     header_row += f"{header:<{width}} "
     separator_row += f"{'-' * width} "
 
-  print(f"{colors.INFO}{header_row.rstrip()}{colors.RESET}")
+  print(colorize(header_row.rstrip(), colors.INFO))
   print(separator_row.rstrip())

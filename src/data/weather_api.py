@@ -9,7 +9,7 @@ import requests
 
 from core.config import API_URL, USER_AGENT
 from data.locations import Location
-from display.colors import ERROR, colorize
+from display.display_core import display_error
 
 # Configure logging
 logging.basicConfig(
@@ -47,13 +47,13 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
   except requests.exceptions.Timeout:
     error_msg = f"Timeout error fetching weather data for {location.name}"
     logger.error(error_msg)
-    print(colorize(f"Error: {error_msg}", ERROR))
+    display_error(error_msg)
     return None
   except requests.exceptions.RequestException as e:
     logger.error(f"Error fetching weather data for {location.name}: {e}")
-    print(colorize(f"Error fetching weather data for {location.name}: {e}", ERROR))
+    display_error(f"Error fetching weather data for {location.name}: {e}")
     return None
   except ValueError as e:  # Handle cases where response is not valid JSON
     logger.error(f"Error parsing JSON response for {location.name}: {e}")
-    print(colorize(f"Error parsing JSON response for {location.name}: {e}", ERROR))
+    display_error(f"Error parsing JSON response for {location.name}: {e}")
     return None

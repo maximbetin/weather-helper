@@ -14,21 +14,25 @@ This is a weather forecasting tool that helps you find the best times and locati
 
 ## Project Structure
 
-The project is organized into three main packages:
+The project's Python code is found in the `src` directory:
 
-- **core/**: Core functionality and utilities
+- **src/**: Source code of the application and main entry point
+  - `main.py`: Main entry point for the application
+
+In addition, the project is organized into the following packages inside the `src` directory:
+
+- **src/core/**: Core functionality and utilities
   - `config.py`: Configuration settings
   - `core_utils.py`: Core utility functions
-  - `main.py`: Main application logic
 
-- **data/**: Data handling and processing
+- **src/data/**: Data handling and processing
   - `data_models.py`: Data models for weather information
   - `locations.py`: Location definitions
   - `weather_api.py`: API interaction with MET Norway
   - `forecast_processing.py`: Process and analyze weather data
   - `scoring_utils.py`: Weather condition scoring algorithms
 
-- **display/**: User interface and presentation
+- **src/display/**: User interface and presentation
   - `colors.py`: Terminal color definitions
   - `display_core.py`: Core display functions
   - `display_forecast.py`: Forecast visualization
@@ -60,7 +64,7 @@ This project has been implemented using the following VSCode extensions:
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd daily-helper
+cd daily-helper/src
 ```
 
 2. Create and activate a virtual environment:
@@ -136,7 +140,7 @@ python main.py --hourly
 
 Show additional debug information:
 ```bash
-python main.py --debug
+python src/main.py --debug
 ```
 
 ## Dependencies
