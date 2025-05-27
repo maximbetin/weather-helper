@@ -14,6 +14,21 @@ from display_core import get_location_display_name
 from scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
 
 
+def extract_base_symbol(symbol_code):
+  """Extract the base symbol from a symbol code.
+
+  Args:
+      symbol_code: The full symbol code (e.g., 'partlycloudy_day')
+
+  Returns:
+      str: Base symbol without time of day suffix
+  """
+  if not symbol_code:
+    return "unknown"
+
+  return symbol_code.split('_')[0] if '_' in symbol_code else symbol_code
+
+
 def calculate_block_statistics(block_list):
   """Calculate statistics for a block of hours.
 
@@ -143,10 +158,8 @@ def process_forecast(forecast_data, location_name):
     symbol_code = next_1h.get("summary", {}).get("symbol_code")
     if not symbol_code and next_6h.get("summary"):
       symbol_code = next_6h["summary"].get("symbol_code")
-    if not symbol_code:
-      symbol_code = "unknown"  # Default if no symbol found
 
-    base_symbol = symbol_code.split('_')[0] if '_' in symbol_code else symbol_code
+    base_symbol = extract_base_symbol(symbol_code)
 
     hourly_weather = HourlyWeather(
         time=local_time,
@@ -252,7 +265,7 @@ def recommend_best_times(all_location_processed_data):
     best_blocks = extract_best_blocks(forecast_data, location_name_key)
     all_periods.extend(best_blocks)
 
-  # If no periods found, use a more lenient approach
+  # If no periods found, use a more lenient approach with lower thresholds
   if not all_periods:
     for location_name_key, forecast_data in all_location_processed_data.items():
       if not forecast_data or not forecast_data.get("day_scores"):
@@ -276,16 +289,15 @@ def recommend_best_times(all_location_processed_data):
           if len(block) < 2:  # Skip single hour blocks
             continue
 
-          avg_block_score = sum(h.total_score for h in block) / len(block)
+          # Calculate block statistics
+          block_stats = calculate_block_statistics(block)
+          avg_block_score = block_stats["avg_score"]
 
           # Skip blocks with extremely bad weather
           if (avg_block_score < block_threshold or
               any(bad in block[0].symbol for bad in extremely_bad_weather
                   if isinstance(block[0].symbol, str))):
             continue
-
-          # Get statistics for the block
-          block_stats = calculate_block_statistics(block)
 
           # Create period dictionary
           start_time = block[0].time
@@ -298,7 +310,7 @@ def recommend_best_times(all_location_processed_data):
               "start_time": start_time,
               "end_time": end_time,
               "duration": len(block),
-              "score": block_stats["avg_score"],
+              "score": avg_block_score,
               "weather_type": weather_type,
               "avg_temp": block_stats["avg_temp"],
               "dominant_symbol": block_stats["dominant_symbol"]

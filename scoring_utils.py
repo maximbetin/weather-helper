@@ -89,7 +89,8 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
     if low <= wind_speed < high:
       return score_value
 
-  return -10  # Default for high wind speeds
+  # If we get here, wind_speed is >= 10
+  return -10
 
 
 def cloud_score(cloud_coverage: Optional[NumericType]) -> int:

@@ -48,8 +48,8 @@ class HourlyWeather:
         self.cloud_score,
         self.precip_prob_score
     ]
-    # Filter valid numeric values and sum them
-    return sum(score for score in score_components if isinstance(score, (int, float)))
+    # Sum valid components (all should be numeric types based on class definition)
+    return sum(score_components)
 
 
 class DailyReport:
@@ -97,14 +97,7 @@ class DailyReport:
 
     # For score calculation
     num_hours = len(self.daylight_hours)
-    self.total_score_sum = 0
-    score_types = ["weather_score", "temp_score", "wind_score", "cloud_score", "precip_prob_score"]
-    available_score_types = []
-
-    # Check which score types are available
-    for score_type in score_types:
-      if any(is_value_valid(getattr(h, score_type, None)) for h in self.daylight_hours):
-        available_score_types.append(score_type)
+    total_score = 0
 
     # Process each hour in a single loop
     for hour in self.daylight_hours:
@@ -128,11 +121,8 @@ class DailyReport:
       if is_value_valid(hour.precipitation_probability):
         valid_precip_probs.append(hour.precipitation_probability)
 
-      # Sum scores
-      for score_type in available_score_types:
-        score_value = getattr(hour, score_type, 0)
-        if is_value_valid(score_value):
-          self.total_score_sum += score_value
+      # Sum the total score directly
+      total_score += hour.total_score
 
     # Calculate temperature stats
     self.min_temp = min(valid_temps) if valid_temps else None
@@ -143,7 +133,7 @@ class DailyReport:
     self.avg_precip_prob = safe_average(valid_precip_probs)
 
     # Calculate average score
-    self.avg_score = self.total_score_sum / (num_hours * len(available_score_types)) if num_hours > 0 and available_score_types else 0
+    self.avg_score = total_score / num_hours if num_hours > 0 else 0
 
   @property
   def weather_description(self) -> str:

@@ -127,6 +127,8 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
       for block, weather_type in weather_blocks:
         if len(block) < 2:
           continue
+
+        # Calculate block score once and reuse
         avg_block_score = sum(h.total_score for h in block) / len(block)
 
         if avg_block_score > best_score and (weather_type in ["sunny", "cloudy"] or avg_block_score >= 0):
