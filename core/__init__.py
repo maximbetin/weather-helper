@@ -1,1 +1,1 @@
-"""Core package for the Daily Helper application."""
+"""Core package for the Weather Helper application."""

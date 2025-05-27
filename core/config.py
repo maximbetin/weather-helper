@@ -1,5 +1,5 @@
 """
-Configuration constants for the Daily Helper application.
+Configuration constants for the Weather Helper application.
 """
 
 from typing import Dict, Tuple
@@ -11,7 +11,7 @@ init()
 
 # API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
-USER_AGENT = "DailyHelper/1.0"
+USER_AGENT = "WeatherHelper/1.0"
 
 # Time zone
 TIMEZONE = "Europe/Madrid"

@@ -1,1 +1,1 @@
-"""Display and UI package for the Daily Helper application."""
+"""Display and UI package for the Weather Helper application."""

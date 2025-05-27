@@ -1,4 +1,4 @@
-# Daily Helper
+# Weather Helper
 
 This is a weather forecasting tool that helps you find the best times and locations for outdoor activities given the coordinates specified in the `locations.py` file. It provides detailed weather forecasts with activity ratings.
 
@@ -33,6 +33,27 @@ The project is organized into three main packages:
   - `display_core.py`: Core display functions
   - `display_forecast.py`: Forecast visualization
   - `display_comparison.py`: Location comparison visualization
+
+## VSCode Extensions
+
+This project has been implemented using the following VSCode extensions:
+
+- [isort](https://marketplace.visualstudio.com/items?itemName=ms-python.isort)
+- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+- [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance)
+- [autopep8](https://marketplace.visualstudio.com/items?itemName=ms-python.autopep8)
+- [gitignore](https://marketplace.visualstudio.com/items?itemName=codezombiech.gitignore)
+- [Sort lines](https://marketplace.visualstudio.com/items?itemName=Tyriar.sort-lines)
+- [Git History](https://marketplace.visualstudio.com/items?itemName=donjayamanne.githistory)
+- [IntelliCode](https://marketplace.visualstudio.com/items?itemName=VisualStudioExptTeam.vscodeintellicode)
+- [indent-rainbow](https://marketplace.visualstudio.com/items?itemName=oderwat.indent-rainbow)
+- [Test Explorer UI](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-test-explorer)
+- [Remove empty lines](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
+- [Markdown All in One](https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one)
+- [Python Test Explorer](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-test-explorer)
+- [Selected Lines Count](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
+- [Test Adapter Converter](https://marketplace.visualstudio.com/items?itemName=ms-vscode.test-adapter-converter)
+- [Coloured Status Bar Problems](https://marketplace.visualstudio.com/items?itemName=bradzacher.vscode-coloured-status-bar-problems)
 
 ## Setup and Installation
 
@@ -135,3 +156,7 @@ This project uses the MET Norway Weather API:
 ## Contributing
 
 Feel free to submit issues and enhancement requests!
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

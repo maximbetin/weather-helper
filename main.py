@@ -1,5 +1,5 @@
 """
-Daily Helper: Weather forecasting tool that helps find the best times and locations for outdoor activities.
+Weather Helper: Weather forecasting tool that helps find the best times and locations for outdoor activities.
 """
 
 import argparse
@@ -17,7 +17,7 @@ from display.display_forecast import display_forecast, display_hourly_forecast
 
 def main() -> None:
   """Process command-line arguments and execute requested operations."""
-  parser = argparse.ArgumentParser(description='Daily Helper: Weather forecast tool for finding the best times for outdoor activities.')
+  parser = argparse.ArgumentParser(description='Weather Helper: Weather forecast tool for finding the best times for outdoor activities.')
 
   parser.add_argument('-l', '--location', help='Specific location to get forecast for')
   parser.add_argument('-d', '--date', help='Date filter for comparison (YYYY-MM-DD format)')

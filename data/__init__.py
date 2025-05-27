@@ -1,1 +1,1 @@
-"""Data handling package for the Daily Helper application."""
+"""Data handling package for the Weather Helper application."""
