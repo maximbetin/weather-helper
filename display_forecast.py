@@ -9,12 +9,12 @@ import colors
 from colors import get_rating_info
 from core_utils import (
     get_current_datetime, format_time, format_date,
-    get_weather_desc, is_value_valid
+    get_weather_desc, is_value_valid, get_weather_description_from_counts
 )
 from display_core import (
     display_heading, display_temperature, display_wind,
     display_precipitation_probability, display_table_header,
-    display_warning
+    display_warning, get_location_display_name
 )
 from config import DAYLIGHT_START_HOUR, DAYLIGHT_END_HOUR
 from forecast_processing import extract_blocks
@@ -108,19 +108,13 @@ def display_forecast(processed_forecast_data: Dict[str, Any], location_display_n
 
     rating, color = get_rating_info(daily_report.avg_score)
 
-    precip_warning = ""
-    if daily_report.avg_precip_prob is not None and daily_report.avg_precip_prob > 40:
-      precip_warning = f" - {daily_report.avg_precip_prob:.0f}% rain"
-
     # Determine overall weather description based on DailyReport stats
-    if daily_report.sunny_hours > daily_report.partly_cloudy_hours and daily_report.sunny_hours > daily_report.rainy_hours:
-      weather_desc_display = "Sunny" + precip_warning
-    elif daily_report.partly_cloudy_hours > daily_report.sunny_hours and daily_report.partly_cloudy_hours > daily_report.rainy_hours:
-      weather_desc_display = "Partly Cloudy" + precip_warning
-    elif daily_report.rainy_hours > 0:
-      weather_desc_display = f"Rain ({daily_report.rainy_hours}h)"
-    else:
-      weather_desc_display = "Mixed" + precip_warning
+    weather_desc_display = get_weather_description_from_counts(
+        daily_report.sunny_hours,
+        daily_report.partly_cloudy_hours,
+        daily_report.rainy_hours,
+        daily_report.avg_precip_prob
+    )
 
     temp_str = "N/A"
     if daily_report.min_temp is not None and daily_report.max_temp is not None:

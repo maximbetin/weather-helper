@@ -151,6 +151,3 @@ def precip_probability_score(probability: Optional[NumericType]) -> int:
       return score_value
 
   return -10  # Default for high precipitation probability
-
-# calc_total_score was part of HourlyWeather and is now its _calculate_total_score method.
-# No need for a separate one here if HourlyWeather handles its own total.

@@ -38,6 +38,19 @@ def get_current_date() -> date:
   return get_current_datetime().date()
 
 
+def format_datetime(dt: Union[datetime, date], format_str: str) -> str:
+  """Format a datetime or date object according to the provided format string.
+
+  Args:
+      dt: The datetime or date to format
+      format_str: The format string to use
+
+  Returns:
+      str: Formatted datetime string
+  """
+  return dt.strftime(format_str)
+
+
 def format_time(dt: datetime) -> str:
   """Format a datetime object to display time.
 
@@ -47,7 +60,7 @@ def format_time(dt: datetime) -> str:
   Returns:
       str: Formatted time string (e.g., "14:30")
   """
-  return dt.strftime("%H:%M")
+  return format_datetime(dt, "%H:%M")
 
 
 def format_date(dt: Union[datetime, date]) -> str:
@@ -61,7 +74,7 @@ def format_date(dt: Union[datetime, date]) -> str:
   """
   if isinstance(dt, datetime):
     dt = dt.date()
-  return dt.strftime("%a, %d %b")
+  return format_datetime(dt, "%a, %d %b")
 
 
 def get_weather_desc(symbol: str) -> str:
@@ -132,3 +145,30 @@ def safe_get_numeric(value: Optional[Union[int, float]], default: Union[int, flo
   if is_value_valid(value):
     return value  # type: ignore
   return default
+
+
+def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int,
+                                        avg_precip_prob: Optional[float] = None) -> str:
+  """Determine overall weather description based on hour counts.
+
+  Args:
+      sunny_hours: Number of sunny hours
+      partly_cloudy_hours: Number of partly cloudy hours
+      rainy_hours: Number of rainy hours
+      avg_precip_prob: Average precipitation probability
+
+  Returns:
+      str: Description of the overall weather
+  """
+  precip_warning = ""
+  if avg_precip_prob is not None and avg_precip_prob > 40:
+    precip_warning = f" - {avg_precip_prob:.0f}% rain"
+
+  if sunny_hours > partly_cloudy_hours and sunny_hours > rainy_hours:
+    return "Sunny" + precip_warning
+  elif partly_cloudy_hours > sunny_hours and partly_cloudy_hours > rainy_hours:
+    return "Partly Cloudy" + precip_warning
+  elif rainy_hours > 0:
+    return f"Rain ({rainy_hours}h)"
+  else:
+    return "Mixed" + precip_warning

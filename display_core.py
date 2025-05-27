@@ -18,6 +18,18 @@ def list_locations() -> None:
     print(f"  {key} - {colors.EMPHASIS}{loc.name}{colors.RESET}")
 
 
+def get_location_display_name(location_key: str) -> str:
+  """Get the display name for a location key.
+
+  Args:
+      location_key: The location key
+
+  Returns:
+      str: The location display name
+  """
+  return LOCATIONS[location_key].name
+
+
 def display_loading_message() -> None:
   """Display a loading message."""
   print(f"{colors.WARNING}Fetching weather data...{colors.RESET}")

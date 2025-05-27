@@ -9,11 +9,12 @@ import colors
 from colors import get_rating_info
 from core_utils import (
     format_date, get_current_date, is_value_valid,
-    get_weather_desc
+    get_weather_desc, get_weather_description_from_counts
 )
 from display_core import (
     display_heading, display_subheading,
-    display_temperature, display_table_header
+    display_temperature, display_table_header,
+    get_location_display_name
 )
 from locations import LOCATIONS
 from forecast_processing import recommend_best_times
@@ -47,7 +48,7 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
   location_ratings = []
 
   for loc_key, forecast_data in all_location_processed_data.items():
-    location_name = LOCATIONS[loc_key].name
+    location_name = get_location_display_name(loc_key)
     day_scores = forecast_data.get("day_scores", {})
 
     if date_filter not in day_scores:
@@ -62,14 +63,11 @@ def compare_locations(all_location_processed_data: Dict[str, Any], date_filter: 
       temp_range = f"{daily_report.min_temp:.1f}°C - {daily_report.max_temp:.1f}°C"
 
     # Determine weather description
-    if daily_report.sunny_hours > daily_report.partly_cloudy_hours and daily_report.sunny_hours > daily_report.rainy_hours:
-      weather_desc = "Sunny"
-    elif daily_report.partly_cloudy_hours > daily_report.sunny_hours and daily_report.partly_cloudy_hours > daily_report.rainy_hours:
-      weather_desc = "Partly Cloudy"
-    elif daily_report.rainy_hours > 0:
-      weather_desc = f"Rain ({daily_report.rainy_hours}h)"
-    else:
-      weather_desc = "Mixed"
+    weather_desc = get_weather_description_from_counts(
+        daily_report.sunny_hours,
+        daily_report.partly_cloudy_hours,
+        daily_report.rainy_hours
+    )
 
     # Rain probability
     rain_prob = "N/A"
@@ -111,7 +109,7 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
     if location_key not in all_location_processed_data:
       return
     location_data = {location_key: all_location_processed_data[location_key]}
-    display_heading(f"Recommended Times for {LOCATIONS[location_key].name}")
+    display_heading(f"Recommended Times for {get_location_display_name(location_key)}")
   else:
     location_data = all_location_processed_data
     display_heading("Best Times This Week")

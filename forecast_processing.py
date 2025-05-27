@@ -11,7 +11,37 @@ from data_models import HourlyWeather, DailyReport
 from scoring_utils import (
     get_weather_score, temp_score, wind_score, cloud_score, precip_probability_score
 )
-from locations import LOCATIONS  # For display names in recommendations
+from display_core import get_location_display_name
+
+
+def calculate_block_statistics(block_list):
+  """Calculate statistics for a block of hours.
+
+  Args:
+      block_list: List of HourlyWeather objects in the block
+
+  Returns:
+      dict: Dictionary containing statistics for the block
+  """
+  # Calculate average temperature for the block
+  temps_in_block = [h.temp for h in block_list if isinstance(h.temp, (int, float))]
+  avg_temp_val = sum(temps_in_block) / len(temps_in_block) if temps_in_block else None
+
+  # Find dominant weather symbol
+  symbols_in_block = [h.symbol for h in block_list if isinstance(h.symbol, str)]
+  symbol_counts = defaultdict(int)
+  for s in symbols_in_block:
+    symbol_counts[s] += 1
+  dominant_sym_str = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
+
+  # Calculate average score
+  avg_block_score = sum(h.total_score for h in block_list) / len(block_list)
+
+  return {
+    "avg_temp": avg_temp_val,
+    "dominant_symbol": dominant_sym_str,
+    "avg_score": avg_block_score
+  }
 
 
 def extract_blocks(hours, min_block_len=2):
@@ -138,7 +168,7 @@ def extract_best_blocks(forecast_data, location_name_key):
 
   extracted_blocks = []
   day_scores_map = forecast_data["day_scores"]
-  location_display_name = LOCATIONS[location_name_key].name
+  location_display_name = get_location_display_name(location_name_key)
 
   for date, daily_report_obj in day_scores_map.items():
     if daily_report_obj.avg_score < -8:  # Skip days with very poor scores
@@ -167,16 +197,8 @@ def extract_best_blocks(forecast_data, location_name_key):
       start_time_dt = block_list[0].time
       end_time_dt = block_list[-1].time
 
-      # Calculate average temperature for the block
-      temps_in_block = [h.temp for h in block_list if isinstance(h.temp, (int, float))]
-      avg_temp_val = sum(temps_in_block) / len(temps_in_block) if temps_in_block else None
-
-      # Find dominant weather symbol
-      symbols_in_block = [h.symbol for h in block_list if isinstance(h.symbol, str)]
-      symbol_counts = defaultdict(int)
-      for s in symbols_in_block:
-        symbol_counts[s] += 1
-      dominant_sym_str = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
+      # Get statistics for the block
+      block_stats = calculate_block_statistics(block_list)
 
       period_dict = {
           "location": location_display_name,
@@ -185,10 +207,10 @@ def extract_best_blocks(forecast_data, location_name_key):
           "start_time": start_time_dt,
           "end_time": end_time_dt,
           "duration": len(block_list),
-          "score": best_score_for_day,
+          "score": block_stats["avg_score"],
           "weather_type": weather_type_str,
-          "avg_temp": avg_temp_val,
-          "dominant_symbol": dominant_sym_str
+          "avg_temp": block_stats["avg_temp"],
+          "dominant_symbol": block_stats["dominant_symbol"]
       }
       extracted_blocks.append(period_dict)
 
@@ -215,7 +237,7 @@ def recommend_best_times(all_location_processed_data):
       if not forecast_data or not forecast_data.get("day_scores"):
         continue
 
-      location_display_name = LOCATIONS[location_name_key].name
+      location_display_name = get_location_display_name(location_name_key)
 
       for date_val, daily_report in sorted(forecast_data["day_scores"].items()):
         if date_val < today or date_val >= end_date or daily_report.avg_score < -15:
@@ -241,18 +263,12 @@ def recommend_best_times(all_location_processed_data):
                   if isinstance(block[0].symbol, str))):
             continue
 
-          # Create period dictionary - similar to extract_best_blocks logic
+          # Get statistics for the block
+          block_stats = calculate_block_statistics(block)
+
+          # Create period dictionary
           start_time = block[0].time
           end_time = block[-1].time
-
-          temps = [h.temp for h in block if isinstance(h.temp, (int, float))]
-          avg_temp = sum(temps) / len(temps) if temps else None
-
-          symbols = [h.symbol for h in block if isinstance(h.symbol, str)]
-          symbol_counts = defaultdict(int)
-          for symbol in symbols:
-            symbol_counts[symbol] += 1
-          dominant_symbol = max(symbol_counts, key=lambda k: symbol_counts[k]) if symbol_counts else ""
 
           period = {
               "location": location_display_name,
@@ -261,10 +277,10 @@ def recommend_best_times(all_location_processed_data):
               "start_time": start_time,
               "end_time": end_time,
               "duration": len(block),
-              "score": avg_block_score,
+              "score": block_stats["avg_score"],
               "weather_type": weather_type,
-              "avg_temp": avg_temp,
-              "dominant_symbol": dominant_symbol
+              "avg_temp": block_stats["avg_temp"],
+              "dominant_symbol": block_stats["dominant_symbol"]
           }
           all_periods.append(period)
 
