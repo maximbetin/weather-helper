@@ -26,7 +26,7 @@ def get_weather_score(symbol: Optional[str]) -> int:
 
 
 def temp_score(temp: Optional[NumericType]) -> int:
-  """Rate temperature for outdoor comfort on a scale of -10 to 10.
+  """Rate temperature for outdoor comfort on a scale of -10 to 8.
 
   Args:
       temp: Temperature in Celsius
@@ -39,16 +39,18 @@ def temp_score(temp: Optional[NumericType]) -> int:
 
   # Temperature ranges and their scores
   temp_ranges = [
-      ((18, 24), 10),   # Ideal temperature
-      ((15, 18), 8),    # Slightly cool but pleasant
-      ((24, 28), 8),    # Slightly warm but pleasant
-      ((10, 15), 5),    # Cool
-      ((28, 32), 5),    # Warm
+      ((18, 23), 8),    # Ideal temperature
+      ((15, 18), 6),    # Slightly cool but pleasant
+      ((23, 26), 6),    # Slightly warm but pleasant
+      ((10, 15), 4),    # Cool
+      ((26, 30), 3),    # Warm
       ((5, 10), 0),     # Cold
-      ((32, 35), 0),    # Hot
+      ((30, 33), -2),   # Hot
       ((0, 5), -5),     # Very cold
-      ((35, 38), -5),   # Very hot
-      (None, -10)       # Extreme temperatures
+      ((33, 36), -5),   # Very hot
+      ((-5, 0), -8),    # Extremely cold
+      ((36, 40), -8),   # Extremely hot
+      (None, -10)       # Beyond extreme temperatures
   ]
 
   for (range_tuple, score_value) in temp_ranges:
@@ -75,11 +77,15 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
 
   # Wind speed ranges and their scores
   wind_ranges = [
-      ((0, 2), 0),      # Calm to light air
-      ((2, 4), -2),     # Light breeze
-      ((4, 6), -4),     # Gentle breeze
-      ((6, 10), -6),    # Moderate to fresh breeze
-      (None, -10)       # Strong breeze and above
+      ((0, 1), 0),      # Calm
+      ((1, 2), -1),     # Light air
+      ((2, 3.5), -2),   # Light breeze
+      ((3.5, 5), -3),   # Gentle breeze
+      ((5, 8), -5),     # Moderate breeze
+      ((8, 10.5), -7),  # Fresh breeze
+      ((10.5, 13), -8),  # Strong breeze
+      ((13, 15.5), -9),  # Near gale
+      (None, -10)       # Gale and above
   ]
 
   for (range_tuple, score_value) in wind_ranges:
@@ -89,7 +95,7 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
     if low <= wind_speed < high:
       return score_value
 
-  # If we get here, wind_speed is >= 10
+  # If we get here, wind_speed is >= 15.5
   return -10
 
 
@@ -107,10 +113,11 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
 
   # Cloud coverage ranges and their scores
   cloud_ranges = [
-      ((0, 20), 5),     # Clear to mostly clear
-      ((20, 40), 3),    # Few clouds
-      ((40, 60), 1),    # Partly cloudy
-      ((60, 80), -2),   # Mostly cloudy
+      ((0, 10), 5),     # Clear
+      ((10, 25), 3),    # Few clouds
+      ((25, 50), 1),    # Partly cloudy
+      ((50, 75), -2),   # Mostly cloudy
+      ((75, 90), -3),   # Very cloudy
       (None, -5)        # Overcast
   ]
 
@@ -138,11 +145,13 @@ def precip_probability_score(probability: Optional[NumericType]) -> int:
 
   # Precipitation probability ranges and their scores
   precip_ranges = [
-      ((0, 10), 0),     # Very unlikely
-      ((10, 30), -2),   # Slight chance
+      ((0, 5), 0),      # Very unlikely
+      ((5, 15), -1),    # Unlikely
+      ((15, 30), -3),   # Slight chance
       ((30, 50), -5),   # Moderate chance
       ((50, 70), -7),   # Likely
-      (None, -10)       # Very likely
+      ((70, 85), -9),   # Very likely
+      (None, -10)       # Almost certain
   ]
 
   for (range_tuple, score_value) in precip_ranges:

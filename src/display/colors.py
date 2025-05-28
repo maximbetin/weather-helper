@@ -53,11 +53,11 @@ def get_rating_info(score: Union[int, float, None]) -> Tuple[str, str]:
   if score is None:
     return "N/A", RESET
 
-  if score >= 7.0:
+  if score >= 15.0:
     return "Excellent", RATING_COLORS["Excellent"]
-  elif score >= 4.5:
+  elif score >= 10.0:
     return "Very Good", RATING_COLORS["Very Good"]
-  elif score >= 2.0:
+  elif score >= 5.0:
     return "Good", RATING_COLORS["Good"]
   elif score >= 0.0:
     return "Fair", RATING_COLORS["Fair"]
