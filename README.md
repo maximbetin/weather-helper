@@ -30,9 +30,10 @@ The project's Python code is found in the `src` directory:
 
 Additional project files:
 - `requirements.txt`: Project dependencies
-- `setup.py`: Package installation configuration
 - `pytest.ini`: Test configuration
 - `tests/`: Test suite directory
+- `LICENSE`: MIT License file
+- `.gitignore`: Git ignore rules
 
 ## VSCode Extensions
 
@@ -60,7 +61,7 @@ This project has been implemented using the following VSCode extensions:
 1. Clone the repository:
 ```bash
 git clone https://github.com/maximbetin/weather-helper.git
-cd weather-helper/src
+cd weather-helper
 ```
 
 2. Create and activate a virtual environment:
@@ -74,47 +75,34 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-3. Install the package using one of these methods:
-
-   a. Using pip and requirements.txt:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   b. Using setup.py (recommended for development):
-   ```bash
-   # Install in development mode
-   pip install -e .
-
-   # Or install normally
-   pip install .
-   ```
-
-   The setup.py installation will automatically handle all dependencies and make the package available in your Python environment.
+3. Install the dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 ## Usage
 
 ### Basic Usage
 Run the weather forecast for the first location in the `locations.py` file:
 ```bash
-python main.py
+python src/main.py
 ```
 
 ### Command-line Arguments
 
 Check a specific location:
 ```bash
-python main.py -l gijon
+python src/main.py -l gijon
 ```
 
 Show forecasts for all available locations:
 ```bash
-python main.py -a
+python src/main.py -a
 ```
 
 Get direct recommendations for when and where to go out this week:
 ```bash
-python main.py -r
+python src/main.py -r
 ```
 
 ## Testing
