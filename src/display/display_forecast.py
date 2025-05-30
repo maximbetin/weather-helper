@@ -4,9 +4,9 @@ Functions for displaying weather forecasts.
 
 from typing import Any, Dict
 
-from core.core_utils import format_time, get_current_datetime, get_weather_desc, is_value_valid
-from display.colors import INFO, LIGHTMAGENTA, colorize, get_rating_info
-from display.display_core import _format_column, display_temperature, display_warning
+from src.config import INFO, LIGHTMAGENTA
+from src.utils import (colorize, display_temperature, display_warning, format_column, format_time, get_current_datetime, get_rating_info, get_weather_desc,
+                       is_value_valid)
 
 
 def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -> None:
@@ -56,10 +56,10 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
   weather_width = 24
 
   # Print table headers using _format_column for consistent alignment - omitting Rank
-  time_header = _format_column(colorize("Time", INFO), time_width)
-  rating_header = _format_column(colorize("Rating", INFO), rating_width)
-  temp_header = _format_column(colorize("Temperature", INFO), temp_width)
-  weather_header = _format_column(colorize("Weather", INFO), weather_width)
+  time_header = format_column(colorize("Time", INFO), time_width)
+  rating_header = format_column(colorize("Rating", INFO), rating_width)
+  temp_header = format_column(colorize("Temperature", INFO), temp_width)
+  weather_header = format_column(colorize("Weather", INFO), weather_width)
 
   print(f"  {time_header} {rating_header} {temp_header} {weather_header}")
   print(f"  {'-' * time_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -86,9 +86,9 @@ def display_hourly_forecast(forecast_data: Dict[str, Any], location_name: str) -
     rating_score = f"[{rating} - {score_formatted}]"
 
     # Format columns with proper alignment and color - omitting rank column
-    time_col = _format_column(colorize(time_str, color), time_width)
-    rating_col = _format_column(colorize(rating_score, color), rating_width)
-    temp_col = _format_column(temp_str, temp_width)
-    weather_col = _format_column(weather_desc, weather_width)
+    time_col = format_column(colorize(time_str, color), time_width)
+    rating_col = format_column(colorize(rating_score, color), rating_width)
+    temp_col = format_column(temp_str, temp_width)
+    weather_col = format_column(weather_desc, weather_width)
 
     print(f"  {time_col} {rating_col} {temp_col} {weather_col}")

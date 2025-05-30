@@ -7,12 +7,12 @@ import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-from data.forecast_processing import process_forecast
-from data.locations import LOCATIONS
-from data.weather_api import fetch_weather_data
-from display.display_comparison import display_best_times_recommendation
-from display.display_core import display_error, display_info, display_loading_message
-from display.display_forecast import display_hourly_forecast
+from src.data.forecast_processing import process_forecast
+from src.data.locations import LOCATIONS
+from src.data.weather_api import fetch_weather_data
+from src.display.display_comparison import display_best_times_recommendation
+from src.display.display_forecast import display_hourly_forecast
+from src.utils import display_error, display_info, display_loading_message
 
 
 def main() -> None:

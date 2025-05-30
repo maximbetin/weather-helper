@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional, Union
 
-from core.core_utils import get_weather_description_from_counts, is_value_valid, safe_average
+from src.utils import get_weather_description_from_counts, is_value_valid, safe_average
 
 NumericType = Union[int, float]
 

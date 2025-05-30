@@ -5,10 +5,10 @@ Functions for comparing and recommending locations based on weather forecasts.
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from core.core_utils import format_date, get_current_date, get_weather_desc, get_weather_description_from_counts, is_value_valid
-from data.forecast_processing import recommend_best_times
-from display.colors import HIGHLIGHT, INFO, colorize, get_rating_info
-from display.display_core import _format_column, display_temperature, get_location_display_name
+from src.config import HIGHLIGHT, INFO
+from src.data.forecast_processing import recommend_best_times
+from src.utils import (colorize, display_temperature, format_column, format_date, get_location_display_name, get_rating_info, get_weather_desc,
+                       get_weather_description_from_counts, is_value_valid)
 
 
 def display_best_times_recommendation(all_location_processed_data: Dict[str, Any],
@@ -76,11 +76,11 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       print(f"\n{colorize(f'{day_name}, {date_str}', HIGHLIGHT)}")
 
     # Print table headers
-    loc_header = _format_column(colorize("Location", INFO), location_width)
-    time_header = _format_column(colorize("Time", INFO), time_width)
-    rating_header = _format_column(colorize("Rating", INFO), rating_width)
-    temp_header = _format_column(colorize("Temperature", INFO), temp_width)
-    weather_header = _format_column(colorize("Weather", INFO), weather_width)
+    loc_header = format_column(colorize("Location", INFO), location_width)
+    time_header = format_column(colorize("Time", INFO), time_width)
+    rating_header = format_column(colorize("Rating", INFO), rating_width)
+    temp_header = format_column(colorize("Temperature", INFO), temp_width)
+    weather_header = format_column(colorize("Weather", INFO), weather_width)
 
     print(f"  {loc_header} {time_header} {rating_header} {temp_header} {weather_header}")
     print(f"  {'-' * location_width} {'-' * time_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -113,11 +113,11 @@ def display_best_times_recommendation(all_location_processed_data: Dict[str, Any
       temp_str = display_temperature(temp)
 
       # Format columns with proper alignment and color
-      loc_col = _format_column(colorize(location_name, color), location_width)
-      time_col = _format_column(colorize(time_range, color), time_width)
-      rating_col = _format_column(colorize(rating_score, color), rating_width)
-      temp_col = _format_column(temp_str, temp_width)
-      weather_col = _format_column(weather_desc, weather_width)
+      loc_col = format_column(colorize(location_name, color), location_width)
+      time_col = format_column(colorize(time_range, color), time_width)
+      rating_col = format_column(colorize(rating_score, color), rating_width)
+      temp_col = format_column(temp_str, temp_width)
+      weather_col = format_column(weather_desc, weather_width)
 
       # Print each row with proper spacing and colors
       print(f"  {loc_col} {time_col} {rating_col} {temp_col} {weather_col}")
@@ -192,10 +192,10 @@ def _display_location_rankings_by_date(all_location_processed_data: Dict[str, An
     location_ratings.sort(key=lambda x: x[2], reverse=True)
 
     # Print table headers
-    loc_header = _format_column(colorize("Location", INFO), location_width)
-    rating_header = _format_column(colorize("Rating", INFO), rating_width)
-    temp_header = _format_column(colorize("Temperature", INFO), temp_width)
-    weather_header = _format_column(colorize("Weather", INFO), weather_width)
+    loc_header = format_column(colorize("Location", INFO), location_width)
+    rating_header = format_column(colorize("Rating", INFO), rating_width)
+    temp_header = format_column(colorize("Temperature", INFO), temp_width)
+    weather_header = format_column(colorize("Weather", INFO), weather_width)
 
     print(f"  {loc_header} {rating_header} {temp_header} {weather_header}")
     print(f"  {'-' * location_width} {'-' * rating_width} {'-' * temp_width} {'-' * weather_width}")
@@ -207,10 +207,10 @@ def _display_location_rankings_by_date(all_location_processed_data: Dict[str, An
       rating_score = f"[{rating} - {score_formatted}]"
 
       # Create properly aligned columns with color handling
-      name_col = _format_column(colorize(name, color), location_width)
-      rating_col = _format_column(colorize(rating_score, color), rating_width)
-      temp_col = _format_column(temp_range, temp_width)
-      weather_col = _format_column(weather, weather_width)
+      name_col = format_column(colorize(name, color), location_width)
+      rating_col = format_column(colorize(rating_score, color), rating_width)
+      temp_col = format_column(temp_range, temp_width)
+      weather_col = format_column(weather, weather_width)
 
       # Print each row with proper spacing and colors
       print(f"  {name_col} {rating_col} {temp_col} {weather_col}")

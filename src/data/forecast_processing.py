@@ -4,13 +4,11 @@ Processes raw forecast data, extracts meaningful blocks, and generates recommend
 
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
-from core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS
-from core.core_utils import get_current_date, get_timezone
-from data.data_models import DailyReport, HourlyWeather
-from data.locations import LOCATIONS
-from data.scoring_utils import cloud_score, get_weather_score, precip_probability_score, temp_score, wind_score
+from src.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS
+from src.data.data_models import DailyReport, HourlyWeather
+from src.utils import cloud_score, get_current_date, get_timezone, get_weather_score, precip_probability_score, temp_score, wind_score
 
 
 def extract_base_symbol(symbol_code):
