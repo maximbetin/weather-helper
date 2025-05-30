@@ -17,5 +17,5 @@ setup(
         "typing-extensions >= 4.4.0",
         "charset-normalizer == 3.4.2",
     ],
-    python_requires=">=3.10",
+    python_requires=">=3.8",
 )
