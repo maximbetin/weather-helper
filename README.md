@@ -91,53 +91,53 @@ python main.py
 
 Check a specific location:
 ```bash
-python main.py --location gijon
-# or shorter form
 python main.py -l gijon
 ```
 
 Show forecasts for all available locations:
 ```bash
-python main.py --all
-# or shorter form
 python main.py -a
 ```
 
-Compare all locations to find the best place for outdoor activities:
+Get direct recommendations for when and where to go out this week:
 ```bash
-python main.py --compare
-# or shorter form
-python main.py -c
-```
-
-Compare all locations for a specific date:
-```bash
-python main.py --compare --date 2024-07-15
-# or shorter form
-python main.py -c -d 2024-07-15
-```
-
-Get direct recommendations for when to go out this week:
-```bash
-python main.py --recommend
-# or shorter form
 python main.py -r
 ```
 
-List all available locations:
+## Testing
+
+The project uses pytest for testing. To run the tests:
+
+1. Make sure you have all dependencies installed:
 ```bash
-python main.py --list
+pip install -r requirements.txt
 ```
 
-Show hourly forecast instead of daily:
+2. Run all tests:
 ```bash
-python main.py --hourly
+pytest
 ```
 
-Show additional debug information:
+3. Run tests with coverage report:
 ```bash
-python main.py --debug
+pytest --cov=src
 ```
+
+4. Run a specific test file:
+```bash
+pytest tests/test_weather_api.py
+```
+
+5. Run tests with verbose output:
+```bash
+pytest -v
+```
+
+The test suite includes:
+- `test_weather_api.py`: Tests for the MET Norway API integration
+- `test_locations.py`: Tests for location handling
+- `test_hourly_weather.py`: Tests for hourly weather data processing
+- `test_config.py`: Tests for configuration management
 
 ## Dependencies
 
