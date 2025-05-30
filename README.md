@@ -26,6 +26,7 @@ The project's Python code is found in the `src` directory:
   - `locations.py`: Location definitions
   - `daily_report.py`: Daily weather report generation
   - `hourly_weather.py`: Hourly weather data handling
+  - `__init__.py`: Package initialization file
 
 Additional project files:
 - `requirements.txt`: Project dependencies
@@ -140,13 +141,29 @@ python main.py --debug
 
 ## Dependencies
 
-The project requires the following main dependencies:
+The project requires the following dependencies:
+
+Core dependencies:
 - `requests>=2.31.0`: For making HTTP requests to the weather API
+- `urllib3>=2.0.7`: HTTP client
+- `certifi>=2024.2.2`: SSL certificates
+- `charset-normalizer>=3.3.2`: Character encoding handling
+- `idna>=3.6`: Internationalized Domain Names support
+
+Date and time handling:
 - `pytz>=2024.1`: For timezone handling
+
+Testing:
+- `pytest>=7.4.3`: Testing framework
+- `pytest-cov>=4.1.0`: Test coverage reporting
+
+Development tools:
+- `setuptools>=69.0.3`: Package management
+- `typing-extensions>=4.9.0`: Type hint support
+
+CLI and display:
 - `colorama>=0.4.6`: For terminal color output
 - `argparse>=1.4.0`: For command-line argument parsing
-
-Additional dependencies are listed in the `requirements.txt` file.
 
 Requirements:
 - Python 3.8 or higher (due to the use of type hints and f-strings)
