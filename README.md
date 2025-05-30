@@ -18,27 +18,20 @@ This is a weather forecasting tool that helps you find the best times and locati
 
 The project's Python code is found in the `src` directory:
 
-- **src/**: Source code of the application and main entry point
-  - `main.py`: Main entry point for the application
-
-In addition, the project is organized into the following packages inside the `src` directory:
-
-- **src/core/**: Core functionality and utilities
+- **src/**: Source code of the application
+  - `main.py`: Main entry point and CLI interface
   - `config.py`: Configuration settings
-  - `core_utils.py`: Core utility functions
-
-- **src/data/**: Data handling and processing
-  - `data_models.py`: Data models for weather information
-  - `locations.py`: Location definitions
+  - `utils.py`: Utility functions
   - `weather_api.py`: API interaction with MET Norway
-  - `forecast_processing.py`: Process and analyze weather data
-  - `scoring_utils.py`: Weather condition scoring algorithms
+  - `locations.py`: Location definitions
+  - `daily_report.py`: Daily weather report generation
+  - `hourly_weather.py`: Hourly weather data handling
 
-- **src/display/**: User interface and presentation
-  - `colors.py`: Terminal color definitions
-  - `display_core.py`: Core display functions
-  - `display_forecast.py`: Forecast visualization
-  - `display_comparison.py`: Location comparison visualization
+Additional project files:
+- `requirements.txt`: Project dependencies
+- `setup.py`: Package installation configuration
+- `pytest.ini`: Test configuration
+- `tests/`: Test suite directory
 
 ## VSCode Extensions
 
@@ -60,7 +53,6 @@ This project has been implemented using the following VSCode extensions:
 - [Selected Lines Count](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
 - [Test Adapter Converter](https://marketplace.visualstudio.com/items?itemName=ms-vscode.test-adapter-converter)
 - [Coloured Status Bar Problems](https://marketplace.visualstudio.com/items?itemName=bradzacher.vscode-coloured-status-bar-problems)
-- [pytest](https://marketplace.visualstudio.com/items?itemName=ms-python.pytest)
 
 ## Setup and Installation
 
@@ -148,10 +140,18 @@ python main.py --debug
 
 ## Dependencies
 
-- The necessary dependencies are listed in the `requirements.txt` file.
-- Python 3.8 or higher is required (due to the use of type hints and f-strings).
-- `pip` package manager for installing dependencies.
-- The code runs on Windows, Linux and MacOS.
+The project requires the following main dependencies:
+- `requests>=2.31.0`: For making HTTP requests to the weather API
+- `pytz>=2024.1`: For timezone handling
+- `colorama>=0.4.6`: For terminal color output
+- `argparse>=1.4.0`: For command-line argument parsing
+
+Additional dependencies are listed in the `requirements.txt` file.
+
+Requirements:
+- Python 3.8 or higher (due to the use of type hints and f-strings)
+- `pip` package manager for installing dependencies
+- The code runs on Windows, Linux and MacOS
 
 ## API Information
 
