@@ -20,7 +20,10 @@ class Location(NamedTuple):
 
 
 # Define locations (only Spanish locations have been tested so far)
-LOCATIONS: Dict[str, Location] = {
+LOCATIONS: Dict[str, Location] = \
+  {
+    "valencia": Location("valencia", "Valencia", 39.4738, 0.3756),
+    "alicante": Location("alicante", "Alicante", 38.3458, 0.4909),
     "gijon": Location("gijon", "Gijón", 43.5322, -5.6610),
     "oviedo": Location("oviedo", "Oviedo", 43.3623, -5.8485),
     "llanes": Location("llanes", "Llanes", 43.4211, -4.7562),
@@ -38,4 +41,4 @@ LOCATIONS: Dict[str, Location] = {
     "lagos_covadonga": Location("lagos_covadonga", "Lagos de Covadonga", 43.1600, -4.5900),
     "cangas_del_narcea": Location("cangas_del_narcea", "Cangas del Narcea", 43.1774, -6.5498),
     "tapia_de_casariego": Location("tapia_de_casariego", "Tapia de Casariego", 43.5702, -6.9439),
-}
+  }
