@@ -11,6 +11,8 @@ This is a weather forecasting tool that helps you find the best times and locati
 - Activity rating system that scores weather conditions
 - Customizable viewing options (daily/hourly forecasts)
 - Command-line interface with various filtering options
+- Support for multiple locations with easy configuration
+- Detailed weather metrics including temperature, wind speed, and precipitation
 
 ## Project Structure
 
@@ -58,6 +60,7 @@ This project has been implemented using the following VSCode extensions:
 - [Selected Lines Count](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
 - [Test Adapter Converter](https://marketplace.visualstudio.com/items?itemName=ms-vscode.test-adapter-converter)
 - [Coloured Status Bar Problems](https://marketplace.visualstudio.com/items?itemName=bradzacher.vscode-coloured-status-bar-problems)
+- [pytest](https://marketplace.visualstudio.com/items?itemName=ms-python.pytest)
 
 ## Setup and Installation
 
@@ -146,8 +149,8 @@ python main.py --debug
 ## Dependencies
 
 - The necessary dependencies are listed in the `requirements.txt` file.
-- Aside from that, you need to have Python 3.10 or higher installed (due to the use of f-strings).
-- As well as `pip` to install the dependencies themselves.
+- Python 3.8 or higher is required (due to the use of type hints and f-strings).
+- `pip` package manager for installing dependencies.
 - The code runs on Windows, Linux and MacOS.
 
 ## API Information
@@ -156,6 +159,8 @@ This project uses the MET Norway Weather API:
 - Base URL: https://api.met.no/weatherapi/locationforecast/2.0
 - Documentation: https://api.met.no/weatherapi/locationforecast/2.0/documentation
 - Rate limiting: Please respect the API's rate limits and terms of use
+- The API is free to use and doesn't require authentication
+- Data is updated every hour
 
 ## Contributing
 

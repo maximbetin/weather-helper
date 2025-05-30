@@ -7,8 +7,8 @@ from typing import List, Optional, Tuple, TypeVar, Union
 
 import pytz
 
-from config import ERROR, INFO, RATING_COLORS, RESET, TIMEZONE, WARNING, WEATHER_SYMBOLS
-from locations import LOCATIONS
+from src.config import ERROR, INFO, RATING_COLORS, RESET, TIMEZONE, WARNING, WEATHER_SYMBOLS
+from src.locations import LOCATIONS
 
 T = TypeVar('T')
 
