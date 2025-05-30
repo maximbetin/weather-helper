@@ -74,10 +74,23 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+3. Install the package using one of these methods:
+
+   a. Using pip and requirements.txt:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   b. Using setup.py (recommended for development):
+   ```bash
+   # Install in development mode
+   pip install -e .
+
+   # Or install normally
+   pip install .
+   ```
+
+   The setup.py installation will automatically handle all dependencies and make the package available in your Python environment.
 
 ## Usage
 
