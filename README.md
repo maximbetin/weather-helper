@@ -126,61 +126,36 @@ The project uses pytest for testing. To run the tests:
 pip install -r requirements.txt
 ```
 
-2. Run all tests:
+2. For coverage reporting, install pytest-cov:
+```bash
+pip install pytest-cov
+```
+
+3. Run all tests:
 ```bash
 pytest
 ```
 
-3. Run tests with coverage report:
+4. Run tests with coverage report:
 ```bash
 pytest --cov=src
 ```
 
-4. Run a specific test file:
+5. Run a specific test file:
 ```bash
 pytest tests/test_weather_api.py
 ```
 
-5. Run tests with verbose output:
+6. Run tests with verbose output:
 ```bash
 pytest -v
 ```
 
-The test suite includes:
-- `test_weather_api.py`: Tests for the MET Norway API integration
-- `test_locations.py`: Tests for location handling
-- `test_hourly_weather.py`: Tests for hourly weather data processing
-- `test_config.py`: Tests for configuration management
-
 ## Dependencies
 
-The project requires the following dependencies:
-
-Core dependencies:
-- `requests>=2.31.0`: For making HTTP requests to the weather API
-- `urllib3>=2.0.7`: HTTP client
-- `certifi>=2024.2.2`: SSL certificates
-- `charset-normalizer>=3.3.2`: Character encoding handling
-- `idna>=3.6`: Internationalized Domain Names support
-
-Date and time handling:
-- `pytz>=2024.1`: For timezone handling
-
-Testing:
-- `pytest>=7.4.3`: Testing framework
-- `pytest-cov>=4.1.0`: Test coverage reporting
-
-Development tools:
-- `setuptools>=69.0.3`: Package management
-- `typing-extensions>=4.9.0`: Type hint support
-
-CLI and display:
-- `colorama>=0.4.6`: For terminal color output
-- `argparse>=1.4.0`: For command-line argument parsing
-
-Requirements:
 - Python 3.8 or higher (due to the use of type hints and f-strings)
 - `pip` package manager for installing dependencies
+- Dependencies are listed in the `requirements.txt` file
 - The code runs on Windows, Linux and MacOS
 
 ## API Information
