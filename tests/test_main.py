@@ -280,8 +280,12 @@ def test_display_best_times_recommendation_with_filters(mock_print, mock_locatio
 @patch('src.main.display_warning')
 def test_display_hourly_forecast_no_data(mock_display_warning):
   """Test display of hourly forecast with no data."""
-  # The function just returns without calling display_warning when data is None
-  display_hourly_forecast(None, "Test Location")
+  # Test with None input
+  display_hourly_forecast(None, "Test Location")  # type: ignore
+  assert not mock_display_warning.called
+
+  # Test with empty dict
+  display_hourly_forecast({}, "Test Location")
   assert not mock_display_warning.called
 
   # With daily_forecasts dict but no data for today
@@ -487,7 +491,7 @@ def test_main_with_rank_flag(mock_parse_args, mock_display_info, mock_process_fo
 @patch('src.main.process_forecast')
 @patch('src.main.display_info')
 @patch('src.main.argparse.ArgumentParser.parse_args')
-def test_main_with_debug_flag(mock_parse_args, mock_display_info, mock_process_forecast, mock_fetch_weather, mock_loading, mock_display_error, mock_display_hourly, mock_display_best_times):
+def test_main_with_debug_flag(mock_parse_args, mock_process_forecast, mock_fetch_weather, mock_loading, mock_display_error, mock_display_hourly, mock_display_info, mock_display_best_times):
   """Test main function with --debug flag."""
   # Setup mock for args
   mock_args = MagicMock()
@@ -861,6 +865,7 @@ def test_process_forecast_with_non_daylight_hours():
 
       # Process the forecast
       result = process_forecast(test_data, "test_location")
+      assert result is not None, "process_forecast should not return None for valid input"
 
       # Verify all hours are in daily_forecasts (in this case, 2 hours)
       assert len(result["daily_forecasts"][today.date()]) == 2
@@ -939,6 +944,7 @@ def test_process_forecast_with_next_6_hours():
 
       # Process the forecast
       result = process_forecast(test_data, "test_location")
+      assert result is not None, "process_forecast should not return None for valid input"
 
       # Verify the data was processed correctly
       assert len(result["daily_forecasts"][today.date()]) == 1

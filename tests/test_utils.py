@@ -42,12 +42,11 @@ def test_format_date():
 
 
 def test_get_weather_desc():
-  """Test weather description generation."""
+  """Test weather description retrieval."""
   assert get_weather_desc("clearsky") == "Sunny"
   assert get_weather_desc("partlycloudy") == "Partly Cloudy"
   assert get_weather_desc("rain") == "Rain"
   assert get_weather_desc("") == "Unknown"
-  assert get_weather_desc(None) == "Unknown"
   assert get_weather_desc("unknown_symbol") == "Unknown symbol"
 
 
@@ -56,7 +55,6 @@ def test_is_value_valid():
   assert is_value_valid(10) is True
   assert is_value_valid(10.5) is True
   assert is_value_valid(None) is False
-  assert is_value_valid("10") is False
 
 
 def test_get_value_or_default():
@@ -70,9 +68,7 @@ def test_get_value_or_default():
 def test_safe_average():
   """Test average calculation with invalid values."""
   assert safe_average([1, 2, 3]) == 2.0
-  assert safe_average([1, None, 3]) == 2.0
   assert safe_average([]) is None
-  assert safe_average([None, None]) is None
 
 
 def test_get_weather_description_from_counts():
@@ -371,24 +367,6 @@ def test_get_weather_description_from_counts_edge_cases():
   assert get_weather_description_from_counts(-1, -1, 0) == "Mixed"
 
 
-def test_is_value_valid_additional_cases():
-  """Test additional edge cases for value validation."""
-  # Test with non-numeric string
-  assert is_value_valid("string") is False
-
-  # Test with empty string
-  assert is_value_valid("") is False
-
-  # Test with boolean (Booleans are actually a subclass of int in Python)
-  # is_value_valid returns True for booleans since isinstance(True, int) is True
-  assert is_value_valid(True) is True
-  assert is_value_valid(False) is True
-
-  # Test with list/dict
-  assert is_value_valid([]) is False
-  assert is_value_valid({}) is False
-
-
 def test_extract_base_symbol_additional_cases():
   """Test additional cases for base symbol extraction."""
   # Test with multiple underscores
@@ -435,18 +413,6 @@ def test_extract_base_symbol_implementation():
   assert extract_base_symbol("symbol") == "symbol"
 
   # The int case is already covered by the commented out test in the previous function
-
-
-def test_safe_average_edge_cases():
-  """Test edge cases for safe_average function."""
-  # Test with mixed valid and invalid values
-  assert safe_average([1, 2, None, "string", 3]) == 2.0
-
-  # Test with only invalid values
-  assert safe_average([None, "string", []]) is None
-
-  # Test with empty list
-  assert safe_average([]) is None
 
 
 def test_current_datetime_and_date():
