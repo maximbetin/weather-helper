@@ -4,10 +4,11 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils import (cloud_score, colorize, display_error, display_info, display_loading_message, display_temperature, display_warning, extract_base_symbol,
-                       extract_blocks, format_column, format_date, format_datetime, format_time, get_block_type, get_current_date, get_current_datetime,
-                       get_location_display_name, get_rating_info, get_timezone, get_value_or_default, get_weather_desc, get_weather_description_from_counts,
-                       get_weather_score, is_value_valid, precip_probability_score, safe_average, temp_score, wind_score)
+from src.utils.misc import (cloud_score, colorize, display_error, display_info, display_loading_message, display_temperature, display_warning,
+                            extract_base_symbol, extract_blocks, format_column, format_date, format_datetime, format_time, get_block_type, get_current_date,
+                            get_current_datetime, get_location_display_name, get_rating_info, get_timezone, get_value_or_default, get_weather_desc,
+                            get_weather_description_from_counts, get_weather_score, is_value_valid, precip_probability_score, safe_average, temp_score,
+                            wind_score)
 
 
 def test_get_timezone():
@@ -287,8 +288,8 @@ def test_extract_blocks():
 def test_get_timezone_cache():
   """Test timezone caching mechanism."""
   # Reset the cache
-  import src.utils
-  src.utils._TIMEZONE_CACHE = None
+  import src.utils.misc
+  src.utils.misc._TIMEZONE_CACHE = None
 
   # First call should create the cache
   tz1 = get_timezone()
@@ -299,7 +300,7 @@ def test_get_timezone_cache():
   assert tz1 is tz2
 
   # Verify the cache was set
-  assert src.utils._TIMEZONE_CACHE is not None
+  assert src.utils.misc._TIMEZONE_CACHE is not None
 
 
 def test_edge_cases_for_scoring_functions():
@@ -427,7 +428,7 @@ def test_current_datetime_and_date():
   assert isinstance(current_d, date)
 
   # Test relationship between the two functions
-  with patch('src.utils.get_current_datetime') as mock_current_dt:
+  with patch('src.utils.misc.get_current_datetime') as mock_current_dt:
     mock_dt = datetime(2024, 3, 20, 12, 0, tzinfo=get_timezone())
     mock_current_dt.return_value = mock_dt
 

@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from config import API_URL, USER_AGENT
-from locations import Location
-from utils import display_error
+from src.config import API_URL, USER_AGENT
+from src.locations import Location
+from src.utils.misc import display_error
 
 # Configure logging
 logging.basicConfig(
