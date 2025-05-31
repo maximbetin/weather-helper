@@ -9,7 +9,7 @@ import requests
 
 from src.config import API_URL, USER_AGENT
 from src.locations import Location
-from src.utils import display_error
+from src.utils.misc import display_error
 
 # Configure logging
 logging.basicConfig(

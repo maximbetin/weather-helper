@@ -17,7 +17,7 @@ from src.main import (display_best_times_recommendation, display_hourly_forecast
 @pytest.fixture
 def mock_locations():
   """Mock the LOCATIONS dictionary for testing."""
-  with patch('src.utils.LOCATIONS', {
+  with patch('src.utils.misc.LOCATIONS', {
       'location1': MagicMock(name='Test Location 1'),
       'location2': MagicMock(name='Test Location 2')
   }):

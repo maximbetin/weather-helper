@@ -7,7 +7,7 @@ from typing import List, Optional, Union
 
 from src.hourly_weather import HourlyWeather
 from src.locations import Location
-from src.utils import get_weather_description_from_counts, is_value_valid, safe_average
+from src.utils.misc import get_weather_description_from_counts, is_value_valid, safe_average
 
 
 class DailyReport:

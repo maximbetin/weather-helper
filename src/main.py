@@ -12,7 +12,7 @@ from src.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, HI
 from src.daily_report import DailyReport
 from src.hourly_weather import HourlyWeather
 from src.locations import LOCATIONS
-from src.utils import *
+from src.utils.misc import *
 from src.weather_api import fetch_weather_data
 
 
