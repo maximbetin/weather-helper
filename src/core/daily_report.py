@@ -5,7 +5,8 @@ Defines the data models for HourlyWeather and DailyReport.
 from datetime import datetime
 from typing import List, Optional
 
-from src.core.hourly_weather import HourlyWeather
+from src.hourly_weather import HourlyWeather
+from src.locations import Location
 from src.utils.misc import get_weather_description_from_counts, is_value_valid, safe_average
 
 
