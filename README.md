@@ -16,24 +16,62 @@ This is a weather forecasting tool that helps you find the best times and locati
 
 ## Project Structure
 
-The project's Python code is found in the `src` directory:
+This project follows a modular layout under the `src/` directory to maintain a clean separation between source code, tests, and configuration files.
 
-- **src/**: Source code of the application
-  - `main.py`: Main entry point and CLI interface
-  - `config.py`: Configuration settings
-  - `utils.py`: Utility functions
-  - `weather_api.py`: API interaction with MET Norway
-  - `locations.py`: Location definitions
-  - `daily_report.py`: Daily weather report generation
-  - `hourly_weather.py`: Hourly weather data handling
-  - `__init__.py`: Package initialization file
-
-Additional project files:
-- `requirements.txt`: Project dependencies
-- `pytest.ini`: Test configuration
-- `tests/`: Test suite directory
-- `LICENSE`: MIT License file
-- `.gitignore`: Git ignore rules
+```markdown
+weather-helper/
+│
+├── src/                          # All source code for the application
+│   │
+│   ├── main.py                   # App entry point: initializes and runs the Tkinter GUI
+│   │
+│   ├── gui/                      # GUI layer (Tkinter code only — no logic!)
+│   │   ├── \_\_init\_\_.py           # Marks this as a Python package
+│   │   ├── app.py                # Main GUI class (subclass of tk.Tk), sets up window, widgets
+│   │   ├── widgets.py            # Custom/reusable Tkinter components (e.g., input panels, layout frames)
+│   │   └── themes.py             # Optional: Tkinter styles, themes, fonts, icons
+│   │
+│   ├── core/                     # ⚙ Business logic and core functionality (no UI code!)
+│   │   ├── \_\_init\_\_.py           # Marks this as a Python package
+│   │   ├── weather_api.py        # Handles HTTP requests and parses weather data from websites/APIs
+│   │   ├── daily_report.py       # Generates daily summary from weather data
+│   │   ├── hourly_weather.py     # Handles parsing and formatting of hourly forecast data
+│   │   ├── locations.py          # Manages saved/favorite locations, location validation
+│   │   └── config.py             # Configuration values (e.g., base URLs, headers, constants)
+│   │
+│   ├── utils/                    # General-purpose helper functions not tied to core logic
+│   │   ├── \_\_init\_\_.py
+│   │   └── misc.py               # String formatters, error handlers, date utilities, etc.
+│
+├── tests/                        # Automated tests for all modules
+│   │
+│   ├── \_\_init\_\_.py
+│   ├── test_main.py              # Basic test for app startup / entry point
+│   │
+│   ├── gui/                      # GUI-specific unit/integration tests (if any)
+│   │   ├── test_app.py           # Tests for GUI logic, widget loading, etc.
+│   │   └── test_widgets.py       # Tests for any custom GUI widgets
+│   │
+│   ├── core/                     # Unit tests for the core logic layer
+│   │   ├── test_weather_api.py
+│   │   ├── test_daily_report.py
+│   │   ├── test_hourly_weather.py
+│   │   ├── test_locations.py
+│   │   └── test_config.py
+│   │
+│   └── utils/                    # Tests for utility functions
+│       └── test_misc.py
+│
+├── assets/                       # Static assets used by the GUI (icons, images, splash screens)
+│   └── app_icon.png
+│
+├── requirements.txt              # List of dependencies (`pip install -r requirements.txt`)
+├── README.md                     # Project documentation: how to install, run, develop
+├── LICENSE                       # Open-source license file
+├── .gitignore                    # Files/folders to exclude from git tracking (e.g., \_\_pycache\_\_)
+├── pytest.ini                    # Pytest configuration (e.g., addopts, test paths)
+└── .coverage                     # Code coverage report file (generated after running tests)
+```
 
 ## VSCode Extensions
 
