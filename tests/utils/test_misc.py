@@ -211,7 +211,7 @@ def test_get_block_type():
   """Test weather block type determination."""
   from datetime import datetime
 
-  from src.hourly_weather import HourlyWeather
+  from src.core.hourly_weather import HourlyWeather
 
   # Test sunny types
   hour_sunny = HourlyWeather(time=datetime.now(), symbol="clearsky")
@@ -239,7 +239,7 @@ def test_extract_blocks():
   """Test finding consecutive weather blocks."""
   from datetime import datetime, timedelta
 
-  from src.hourly_weather import HourlyWeather
+  from src.core.hourly_weather import HourlyWeather
 
   base_time = datetime(2024, 3, 20, 8, 0)
 
@@ -321,7 +321,7 @@ def test_edge_cases_for_scoring_functions():
 
 def test_colorize_with_different_colors():
   """Test colorization with different color codes."""
-  from src.config import BLUE, GREEN, RED, RESET, YELLOW
+  from src.core.config import BLUE, GREEN, RED, RESET, YELLOW
 
   # Test various colors
   assert colorize("test", GREEN) == f"{GREEN}test{RESET}"
@@ -345,7 +345,7 @@ def test_format_column_edge_cases():
   assert format_column("", 5) == "     "
 
   # Test with ANSI codes and width exactly matching visible text
-  from src.config import GREEN, RESET
+  from src.core.config import GREEN, RESET
   colored_text = f"{GREEN}test{RESET}"
   assert "test" in format_column(colored_text, 4)
 

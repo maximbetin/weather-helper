@@ -3,8 +3,8 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from src.locations import Location
-from src.weather_api import fetch_weather_data
+from src.core.locations import Location
+from src.core.weather_api import fetch_weather_data
 
 
 @pytest.fixture

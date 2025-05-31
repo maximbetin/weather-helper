@@ -2,8 +2,8 @@ from datetime import datetime
 
 import pytest
 
-from src.daily_report import DailyReport
-from src.hourly_weather import HourlyWeather
+from src.core.daily_report import DailyReport
+from src.core.hourly_weather import HourlyWeather
 
 
 @pytest.fixture

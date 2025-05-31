@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from src.hourly_weather import HourlyWeather
+from src.core.hourly_weather import HourlyWeather
 
 
 @pytest.fixture

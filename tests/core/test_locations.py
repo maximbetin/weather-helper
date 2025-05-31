@@ -1,6 +1,6 @@
 import pytest
 
-from src.locations import LOCATIONS, Location
+from src.core.locations import LOCATIONS, Location
 
 
 def test_location_creation():

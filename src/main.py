@@ -8,12 +8,12 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from src.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, HIGHLIGHT, INFO, LIGHTMAGENTA
-from src.daily_report import DailyReport
-from src.hourly_weather import HourlyWeather
-from src.locations import LOCATIONS
+from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, HIGHLIGHT, INFO, LIGHTMAGENTA
+from src.core.daily_report import DailyReport
+from src.core.hourly_weather import HourlyWeather
+from src.core.locations import LOCATIONS
+from src.core.weather_api import fetch_weather_data
 from src.utils.misc import *
-from src.weather_api import fetch_weather_data
 
 
 def display_best_times_recommendation(all_location_processed_data: Dict[str, Any],
