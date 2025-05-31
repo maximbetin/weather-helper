@@ -1,6 +1,6 @@
 import pytest
 
-from src.locations import Location
+from src.core.locations import Location
 
 
 @pytest.fixture

@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 
 import src.main
-from src.daily_report import DailyReport
-from src.hourly_weather import HourlyWeather
-from src.locations import LOCATIONS
+from src.core.daily_report import DailyReport
+from src.core.hourly_weather import HourlyWeather
+from src.core.locations import LOCATIONS
 from src.main import (display_best_times_recommendation, display_hourly_forecast, display_location_rankings_by_date, display_warning, extract_best_blocks, main,
                       process_forecast, recommend_best_times)
 
@@ -587,7 +587,7 @@ def test_extract_blocks_function():
   """Test the extract_blocks function with a custom implementation."""
   from datetime import datetime, timedelta
 
-  from src.hourly_weather import HourlyWeather
+  from src.core.hourly_weather import HourlyWeather
 
   # Create a mock implementation of extract_blocks
   def mock_extract_blocks(hours, min_block_len=2):
