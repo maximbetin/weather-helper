@@ -553,13 +553,12 @@ def main() -> None:
 
   # Handle different display modes
   if args.rank:
-    # Get today, tomorrow, and day after tomorrow's dates
+    # Get dates for the next 7 days
     today = datetime.now().date()
-    tomorrow = today + timedelta(days=1)
-    day_after = today + timedelta(days=2)
+    dates = [today + timedelta(days=i) for i in range(FORECAST_DAYS)]
 
     # Display rankings for each day
-    display_best_times_recommendation(location_data, None, [today, tomorrow, day_after])
+    display_best_times_recommendation(location_data, None, dates)
   elif args.all:
     # Display forecast for all locations
     for i, loc_key in enumerate(sorted(location_data.keys())):

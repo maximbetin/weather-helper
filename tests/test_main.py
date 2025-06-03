@@ -479,8 +479,8 @@ def test_main_with_rank_flag(mock_parse_args, mock_display_info, mock_process_fo
   assert mock_fetch_weather.call_count == 2
   # Verify display_best_times_recommendation is called with dates
   mock_display_best_times.assert_called_once()
-  # Verify the third argument (dates) has 3 dates
-  assert len(mock_display_best_times.call_args[0][2]) == 3
+  # Verify the third argument (dates) has 7 dates (FORECAST_DAYS)
+  assert len(mock_display_best_times.call_args[0][2]) == 7
 
 
 @patch('src.main.display_best_times_recommendation')
@@ -491,7 +491,7 @@ def test_main_with_rank_flag(mock_parse_args, mock_display_info, mock_process_fo
 @patch('src.main.process_forecast')
 @patch('src.main.display_info')
 @patch('src.main.argparse.ArgumentParser.parse_args')
-def test_main_with_debug_flag(mock_parse_args, mock_process_forecast, mock_fetch_weather, mock_loading, mock_display_error, mock_display_hourly, mock_display_info, mock_display_best_times):
+def test_main_with_debug_flag(mock_parse_args, mock_display_info, mock_process_forecast, mock_fetch_weather, mock_loading, mock_display_error, mock_display_hourly, mock_display_best_times):
   """Test main function with --debug flag."""
   # Setup mock for args
   mock_args = MagicMock()
