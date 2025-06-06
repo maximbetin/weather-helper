@@ -54,6 +54,7 @@ jobs:
           git tag -a "v${{ github.event.pull_request.number }}" -m "Release v${{ github.event.pull_request.number }}"
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git push origin "v${{ github.event.pull_request.number }}"
+          git fetch --tags
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
