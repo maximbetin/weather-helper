@@ -1,78 +1,93 @@
 # Weather Helper
 
-A Python-based weather application that provides weather information through a graphical user interface.
+A desktop application that helps users find the best weather conditions across multiple locations.
+
+## Features
+
+- View weather forecasts for multiple locations
+- Compare weather conditions across different locations
+- Get recommendations for the best locations based on weather conditions
+- Simple and intuitive GUI interface
+
+## Development Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/weather-helper.git
+   cd weather-helper
+   ```
+
+2. Create a virtual environment (recommended):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run the application:
+   ```bash
+   python weather_helper.py
+   ```
+
+## Testing
+
+The project uses pytest for testing. To run the tests:
+
+```bash
+pytest
+```
+
+The test suite includes:
+- Unit tests for core functionality
+- API integration tests (mocked)
+- Data processing tests
+
+## Building Executables
+
+The application can be built into standalone executables using PyInstaller:
+
+```bash
+pyinstaller --onefile --windowed weather_helper.py
+```
+
+The executable will be created in the `dist` directory.
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration and deployment:
+
+- Tests are run on every PR
+- When a PR is merged to main:
+  - Tests are run on Windows, Linux, and macOS
+  - Executables are built for each platform
+  - A new release is created with the executables
 
 ## Project Structure
 
 ```
 weather-helper/
 ├── src/
-│   ├── core/       # Core weather functionality
-│   ├── gui/        # GUI implementation
-│   └── utils/      # Utility functions
-├── .github/
-│   └── workflows/  # CI/CD workflows
-├── weather_helper.py    # Main entry point
-├── requirements.txt     # Python dependencies
-└── setup.py             # Package setup
+│   ├── core/           # Core business logic
+│   ├── gui/            # GUI components
+│   └── utils/          # Utility functions
+├── tests/              # Test suite
+├── .github/            # GitHub Actions workflows
+├── requirements.txt    # Python dependencies
+└── README.md          # This file
 ```
 
-## Prerequisites
+## Contributing
 
-- Python 3.13.4 or higher
-- pip (Python package installer)
-
-## Installation
-
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/maximbetin/weather-helper.git
-   cd weather-helper
-   ```
-
-2. Install dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-## Running the Application
-
-To run the application in development mode:
-```sh
-python weather_helper.py
-```
-
-## Building an Executable
-
-To create a standalone executable for this application:
-
-1. Install dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-2. Build the executable:
-   ```sh
-   pyinstaller --onefile --windowed weather_helper.py
-   ```
-   The executable will be located in the `dist` folder as `WeatherHelper.exe`.
-
-## Development
-
-### Running Tests
-
-Run the test suite using pytest:
-```sh
-pytest
-```
-
-### GitHub Actions Workflows
-
-This project uses GitHub Actions for continuous integration and deployment:
-
-- **Build Workflow**: Tests the code and builds the executable on every merge to the `main` branch.
-
-The workflows are defined in the `.github/workflows` directory.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run the tests
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
