@@ -14,7 +14,7 @@ A quick overview of what the app offers.
 How the code is organized for clarity and easy maintenance.
 ```
 weather-helper/
-├── run_gui.py         # Launches the GUI
+├── weather_helper.py  # Launches the GUI
 ├── src/
 │   ├── gui/           # Tkinter GUI code
 │   ├── core/          # Weather logic, API, evaluation
@@ -45,7 +45,7 @@ python -m venv venv # or python3 -m venv venv
 pip install -r requirements.txt
 
 # Run the app
-python run_gui.py
+python weather_helper.py
 ```
 
 ## API
@@ -54,3 +54,26 @@ The external weather data source used by the app.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Building an Executable
+
+To create a standalone executable for this application:
+
+1. Install dependencies:
+   ```sh
+   pip install -r requirements.txt
+   ```
+2. Build the executable:
+   ```sh
+   pyinstaller --onefile --windowed weather_helper.py
+   ```
+   The executable will be located in the `dist` folder.
+
+## GitHub Actions Workflows
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+- **Test Workflow**: Runs unit tests on every push to the `dev` branch.
+- **Build Workflow**: Builds the executable on every merge to the `main` branch.
+
+The workflows are defined in the `.github/workflows` directory.
