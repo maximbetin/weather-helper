@@ -2,6 +2,7 @@
 Main GUI application class for the weather helper.
 Handles window setup and main widget initialization.
 """
+import re
 
 import tkinter as tk
 from tkinter import ttk
@@ -11,7 +12,6 @@ from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date
 from src.utils.misc import get_rating_info
-import re
 
 
 class WeatherHelperApp:

@@ -207,6 +207,7 @@ def get_location_display_name(location_key: str) -> str:
   """
   return LOCATIONS[location_key].name
 
+
 # Type alias for numeric types
 NumericType = Union[int, float]
 
@@ -432,3 +433,26 @@ def extract_blocks(hours, min_block_len=2):
     blocks.append((current_block, current_type))
 
   return blocks
+
+
+def get_rating_info(score: Union[int, float, None]) -> str:
+  """Return standardized rating description based on score.
+
+  Args:
+      score: Numeric score to convert to rating
+
+  Returns:
+      Rating text (e.g., 'Excellent', 'Good', etc.)
+  """
+  if score is None:
+    return "N/A"
+  if score >= 15.0:
+    return "Excellent"
+  elif score >= 10.0:
+    return "Very Good"
+  elif score >= 5.0:
+    return "Good"
+  elif score >= 0.0:
+    return "Fair"
+  else:
+    return "Poor"
