@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     if: github.event.pull_request.merged == true
-    runs-on: ubuntu-24.04
+    runs-on: windows-2022
 
     steps:
       - name: Checkout code
@@ -25,7 +25,7 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      # TODO: Add unit tests
+      # Uncomment this block once tests are added
       # - name: Run unit tests
       #   run: |
       #     pytest
