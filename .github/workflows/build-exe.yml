@@ -1,4 +1,4 @@
-name: Build Executable on PR Merge
+name: Test and Build Executable on PR Merge
 
 on:
   pull_request:
