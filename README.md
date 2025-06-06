@@ -20,10 +20,9 @@ This project follows a modular layout under the `src/` directory to maintain a c
 
 ```graphql
 weather-helper/
+├── main.py                        # App entry point: initializes and runs the Tkinter GUI
 │
 ├── src/                           # All source code for the application
-│   │
-│   ├── main.py                    # App entry point: initializes and runs the Tkinter GUI
 │   │
 │   ├── gui/                       # GUI layer (Tkinter code only — no logic!)
 │   │   ├── __init__.py            # Marks this as a Python package
@@ -39,28 +38,9 @@ weather-helper/
 │   │   ├── locations.py           # Manages saved/favorite locations, location validation
 │   │   └── config.py              # Configuration values (e.g., base URLs, headers, constants)
 │   │
-│   ├── utils/                     # General-purpose helper functions not tied to core logic
-│   │   ├── __init__.py
-│   │   └── misc.py                # String formatters, error handlers, date utilities, etc.
-│
-├── tests/                         # Automated tests for all modules
-│   │
-│   ├── __init__.py
-│   ├── test_main.py               # Basic test for app startup / entry point
-│   │
-│   ├── gui/                       # GUI-specific unit/integration tests (if any)
-│   │   ├── test_app.py            # Tests for GUI logic, widget loading, etc.
-│   │   └── test_widgets.py        # Tests for any custom GUI widgets
-│   │
-│   ├── core/                      # Unit tests for the core logic layer
-│   │   ├── test_weather_api.py
-│   │   ├── test_daily_report.py
-│   │   ├── test_hourly_weather.py
-│   │   ├── test_locations.py
-│   │   └── test_config.py
-│   │
-│   └── utils/                     # Tests for utility functions
-│       └── test_misc.py
+│   └── utils/                     # General-purpose helper functions not tied to core logic
+│      ├── __init__.py
+│      └── misc.py                # String formatters, error handlers, date utilities, etc.
 │
 ├── assets/                        # Static assets used by the GUI (icons, images, splash screens)
 │   └── app_icon.png
@@ -68,9 +48,7 @@ weather-helper/
 ├── requirements.txt               # List of dependencies (`pip install -r requirements.txt`)
 ├── README.md                      # Project documentation: how to install, run, develop
 ├── LICENSE                        # Open-source license file
-├── .gitignore                     # Files/folders to exclude from git tracking (e.g., \_\_pycache\_\_)
-├── pytest.ini                     # Pytest configuration (e.g., addopts, test paths)
-└── .coverage                      # Code coverage report file (generated after running tests)
+└── .gitignore                     # Files/folders to exclude from git tracking (e.g., \_\_pycache\_\_)
 ```
 
 ## VSCode Extensions
