@@ -45,11 +45,20 @@ jobs:
         run: |
           pyinstaller --onefile --windowed weather_helper.py
 
+      - name: Create Tag
+        if: matrix.os == 'windows-2022'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "v${{ github.event.pull_request.number }}" -m "Release v${{ github.event.pull_request.number }}"
+          git push origin "v${{ github.event.pull_request.number }}"
+
       - name: Create Release
         id: create_release
         if: matrix.os == 'windows-2022'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v${{ github.event.pull_request.number }}
           name: Release v${{ github.event.pull_request.number }}
           body: |
             Release from PR #${{ github.event.pull_request.number }}
