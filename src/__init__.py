@@ -1,0 +1,3 @@
+"""
+Weather Helper package.
+"""

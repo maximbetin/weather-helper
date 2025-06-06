@@ -1,0 +1,60 @@
+import pytest
+from datetime import datetime, date
+from src.core.hourly_weather import HourlyWeather
+
+
+@pytest.fixture
+def sample_hourly_weather():
+  """Fixture providing a sample HourlyWeather object for testing."""
+  return HourlyWeather(
+      time=datetime(2024, 3, 15, 12),
+      temp=20,
+      wind=5,
+      humidity=60,
+      cloud_coverage=20,
+      fog=0,
+      wind_direction=180,
+      wind_gust=10,
+      precipitation_amount=0,
+      precipitation_probability=0,
+      symbol="clearsky",
+      weather_score=10,
+      temp_score=8,
+      wind_score=9,
+      cloud_score=10,
+      precip_prob_score=10
+  )
+
+
+@pytest.fixture
+def sample_forecast_data():
+  """Fixture providing sample forecast data for testing."""
+  test_date = date(2024, 3, 15)
+  return {
+      "properties": {
+          "timeseries": [
+              {
+                  "time": "2024-03-15T12:00:00Z",
+                  "data": {
+                      "instant": {
+                          "details": {
+                              "air_temperature": 20,
+                              "wind_speed": 5,
+                              "relative_humidity": 60,
+                              "cloud_area_fraction": 20
+                          }
+                      },
+                      "next_1_hours": {
+                          "summary": {
+                              "symbol_code": "clearsky"
+                          },
+                          "details": {
+                              "precipitation_amount": 0,
+                              "probability_of_precipitation": 0
+                          }
+                      }
+                  }
+              }
+          ]
+      }
+  }
