@@ -9,7 +9,6 @@ import requests
 
 from src.core.config import API_URL, USER_AGENT
 from src.core.locations import Location
-from src.utils.misc import display_error
 
 # Configure logging
 logging.basicConfig(
@@ -47,13 +46,10 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
   except requests.exceptions.Timeout:
     error_msg = f"Timeout error fetching weather data for {location.name}"
     logger.error(error_msg)
-    display_error(error_msg)
     return None
   except requests.exceptions.RequestException as e:
     logger.error(f"Error fetching weather data for {location.name}: {e}")
-    display_error(f"Error fetching weather data for {location.name}: {e}")
     return None
   except ValueError as e:  # Handle cases where response is not valid JSON
     logger.error(f"Error parsing JSON response for {location.name}: {e}")
-    display_error(f"Error parsing JSON response for {location.name}: {e}")
     return None

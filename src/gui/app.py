@@ -201,7 +201,6 @@ class WeatherHelperApp:
     self.selected_date = self.date_map.get(selected_str)
     self.update_side_panel()
     self.update_main_table()
-    print(f"Selected: {self.selected_location_key}, {self.selected_date}")
 
   def format_weather(self, s):
     # Mapping for common weather codes
@@ -245,7 +244,7 @@ class WeatherHelperApp:
       if i < len(top_locs):
         loc = top_locs[i]
         score = loc['avg_score']
-        rating, _ = get_rating_info(score)
+        rating = get_rating_info(score)
         if score >= 15:
           fg = '#228B22'
         elif score >= 10:
@@ -286,7 +285,7 @@ class WeatherHelperApp:
       time_blocks = [h for h in time_blocks if h.time.hour >= now.hour]
     for hour in time_blocks:
       time_str = hour.time.strftime('%H:%M')
-      rating, _ = get_rating_info(hour.total_score)
+      rating = get_rating_info(hour.total_score)
       score = f"{rating} ({hour.total_score:.1f})"
       temp = f"{hour.temp:.1f}°C" if hour.temp is not None else "N/A"
       weather = self.format_weather(hour.symbol) if hour.symbol else "N/A"
