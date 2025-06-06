@@ -12,7 +12,7 @@ jobs:
     if: github.event.pull_request.merged == true
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-22.04, macos-12]
+        os: [windows-2022]
         include:
           - os: windows-2022
             executable_name: weather_helper.exe
