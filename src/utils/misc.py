@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple, TypeVar, Union
 
 import pytz
 
-from src.core.config import ERROR, INFO, RATING_COLORS, RESET, TIMEZONE, WARNING, WEATHER_SYMBOLS
+from src.core.config import TIMEZONE, WEATHER_SYMBOLS
 from src.core.locations import LOCATIONS
 
 T = TypeVar('T')
@@ -206,87 +206,6 @@ def get_location_display_name(location_key: str) -> str:
       str: The location display name
   """
   return LOCATIONS[location_key].name
-
-
-def display_loading_message() -> None:
-  """Display a loading message."""
-  print(colorize("Fetching weather data...", WARNING))
-
-
-def display_error(message: str) -> None:
-  """Display an error message.
-
-  Args:
-      message: Error message to display
-  """
-  print(colorize(message, ERROR))
-
-
-def display_info(message: str) -> None:
-  """Display an informational message.
-
-  Args:
-      message: Information to display
-  """
-  print(colorize(message, INFO))
-
-
-def display_warning(message: str) -> None:
-  """Display a warning message.
-
-  Args:
-      message: Warning message to display
-  """
-  print(colorize(message, WARNING))
-
-
-def display_temperature(temp: Optional[float]) -> str:
-  """Format temperature for display.
-
-  Args:
-      temp: Temperature in Celsius
-
-  Returns:
-      str: Formatted temperature string
-  """
-  return get_value_or_default(f"{temp:.1f}°C" if temp is not None else None, "N/A")
-
-
-def get_rating_info(score: Union[int, float, None]) -> Tuple[str, str]:
-  """Return standardized rating description and color based on score.
-
-  Args:
-      score: Numeric score to convert to rating
-
-  Returns:
-      Tuple containing (rating_text, color_code)
-  """
-  if score is None:
-    return "N/A", RESET
-
-  if score >= 15.0:
-    return "Excellent", RATING_COLORS["Excellent"]
-  elif score >= 10.0:
-    return "Very Good", RATING_COLORS["Very Good"]
-  elif score >= 5.0:
-    return "Good", RATING_COLORS["Good"]
-  elif score >= 0.0:
-    return "Fair", RATING_COLORS["Fair"]
-  else:
-    return "Poor", RATING_COLORS["Poor"]
-
-
-def colorize(text: str, color: str) -> str:
-  """Wrap text in the specified color.
-
-  Args:
-      text: Text to colorize
-      color: Color code from this module
-
-  Returns:
-      Colorized text string
-  """
-  return f"{color}{text}{RESET}"
 
 
 # Type alias for numeric types
@@ -514,3 +433,26 @@ def extract_blocks(hours, min_block_len=2):
     blocks.append((current_block, current_type))
 
   return blocks
+
+
+def get_rating_info(score: Union[int, float, None]) -> str:
+  """Return standardized rating description based on score.
+
+  Args:
+      score: Numeric score to convert to rating
+
+  Returns:
+      Rating text (e.g., 'Excellent', 'Good', etc.)
+  """
+  if score is None:
+    return "N/A"
+  if score >= 15.0:
+    return "Excellent"
+  elif score >= 10.0:
+    return "Very Good"
+  elif score >= 5.0:
+    return "Good"
+  elif score >= 0.0:
+    return "Fair"
+  else:
+    return "Poor"
