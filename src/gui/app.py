@@ -7,7 +7,6 @@ import tkinter as tk
 from tkinter import ttk
 from datetime import datetime
 from src.gui.themes import apply_theme, FONTS, PADDING
-from src.gui.widgets import WeatherCard
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date

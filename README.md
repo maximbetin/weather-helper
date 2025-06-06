@@ -1,18 +1,18 @@
 # Weather Helper
 
-This is a weather forecasting tool that helps you find the best times and locations for outdoor activities given the coordinates specified in the `locations.py` file. It provides detailed weather forecasts with activity ratings.
+This is a weather forecasting tool that helps you find the best times and locations for outdoor activities given the coordinates specified in the `locations.py` file. It provides detailed weather forecasts with activity ratings in a modern graphical user interface (GUI).
 
 ## Features
 
 - Weather forecasts for multiple locations
 - Location comparison to find the best place for outdoor activities
 - Time recommendations for the best weather periods
-- Hourly weather details including temperature, wind, and precipitation probability
+- Hourly weather details including temperature, wind, and humidity
 - Activity rating system that scores weather conditions
+- Modern, interactive GUI (no command-line interface)
 - Customizable viewing options (daily/hourly forecasts)
-- Command-line interface with various filtering options
 - Support for multiple locations with easy configuration
-- Detailed weather metrics including temperature, wind speed, and precipitation
+- Detailed weather metrics including temperature, wind speed, and more
 
 ## Project Structure
 
@@ -20,57 +20,36 @@ This project follows a modular layout under the `src/` directory to maintain a c
 
 ```graphql
 weather-helper/
-├── main.py                        # App entry point: initializes and runs the Tkinter GUI
+├── run_gui.py                    # App entry point: launches the Tkinter GUI
 │
-├── src/                           # All source code for the application
+├── src/                          # All source code for the application
 │   │
-│   ├── gui/                       # GUI layer (Tkinter code only — no logic!)
-│   │   ├── __init__.py            # Marks this as a Python package
-│   │   ├── app.py                 # Main GUI class (subclass of tk.Tk), sets up window, widgets
-│   │   ├── widgets.py             # Custom/reusable Tkinter components (e.g., input panels, layout frames)
-│   │   └── themes.py              # Optional: Tkinter styles, themes, fonts, icons
+│   ├── gui/                      # GUI layer (Tkinter code only — no logic!)
+│   │   ├── __init__.py
+│   │   ├── app.py                # Main GUI class (subclass of tk.Tk), sets up window, widgets
+│   │   └── themes.py             # Tkinter styles, themes, fonts, icons
 │   │
-│   ├── core/                      # Business logic and core functionality (no UI code!)
-│   │   ├── __init__.py            # Marks this as a Python package
-│   │   ├── weather_api.py         # Handles HTTP requests and parses weather data from websites/APIs
-│   │   ├── daily_report.py        # Generates daily summary from weather data
-│   │   ├── hourly_weather.py      # Handles parsing and formatting of hourly forecast data
-│   │   ├── locations.py           # Manages saved/favorite locations, location validation
-│   │   └── config.py              # Configuration values (e.g., base URLs, headers, constants)
+│   ├── core/                     # Business logic and core functionality (no UI code!)
+│   │   ├── __init__.py
+│   │   ├── weather_api.py        # Handles HTTP requests and parses weather data from APIs
+│   │   ├── daily_report.py       # Generates daily summary from weather data
+│   │   ├── hourly_weather.py     # Handles parsing and formatting of hourly forecast data
+│   │   ├── locations.py          # Manages saved/favorite locations, location validation
+│   │   ├── config.py             # Configuration values (e.g., base URLs, headers, constants)
+│   │   └── evaluation.py         # Forecast evaluation, scoring, and ranking logic
 │   │
-│   └── utils/                     # General-purpose helper functions not tied to core logic
+│   └── utils/                    # General-purpose helper functions not tied to core logic
 │      ├── __init__.py
 │      └── misc.py                # String formatters, error handlers, date utilities, etc.
 │
-├── assets/                        # Static assets used by the GUI (icons, images, splash screens)
+├── assets/                       # Static assets used by the GUI (icons, images, splash screens)
 │   └── app_icon.png
 │
-├── requirements.txt               # List of dependencies (`pip install -r requirements.txt`)
-├── README.md                      # Project documentation: how to install, run, develop
-├── LICENSE                        # Open-source license file
-└── .gitignore                     # Files/folders to exclude from git tracking (e.g., \_\_pycache\_\_)
+├── requirements.txt              # List of dependencies (`pip install -r requirements.txt`)
+├── README.md                     # Project documentation: how to install, run, develop
+├── LICENSE                       # Open-source license file
+└── .gitignore                    # Files/folders to exclude from git tracking (e.g., __pycache__)
 ```
-
-## VSCode Extensions
-
-This project has been implemented using the following VSCode extensions:
-
-- [isort](https://marketplace.visualstudio.com/items?itemName=ms-python.isort)
-- [Python](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
-- [Pylance](https://marketplace.visualstudio.com/items?itemName=ms-python.vscode-pylance)
-- [autopep8](https://marketplace.visualstudio.com/items?itemName=ms-python.autopep8)
-- [gitignore](https://marketplace.visualstudio.com/items?itemName=codezombiech.gitignore)
-- [Sort lines](https://marketplace.visualstudio.com/items?itemName=Tyriar.sort-lines)
-- [Git History](https://marketplace.visualstudio.com/items?itemName=donjayamanne.githistory)
-- [IntelliCode](https://marketplace.visualstudio.com/items?itemName=VisualStudioExptTeam.vscodeintellicode)
-- [indent-rainbow](https://marketplace.visualstudio.com/items?itemName=oderwat.indent-rainbow)
-- [Test Explorer UI](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-test-explorer)
-- [Remove empty lines](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
-- [Markdown All in One](https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one)
-- [Python Test Explorer](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-test-explorer)
-- [Selected Lines Count](https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments)
-- [Test Adapter Converter](https://marketplace.visualstudio.com/items?itemName=ms-vscode.test-adapter-converter)
-- [Coloured Status Bar Problems](https://marketplace.visualstudio.com/items?itemName=bradzacher.vscode-coloured-status-bar-problems)
 
 ## Setup and Installation
 
@@ -98,28 +77,18 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Basic Usage
-Run the weather forecast for the first location in the `locations.py` file:
+### Run the GUI
+To launch the Weather Helper GUI, run:
 ```bash
-python src/main.py
+python run_gui.py
 ```
 
-### Command-line Arguments
+- The GUI will open and allow you to select a location and date, view hourly forecasts, and see the top 5 recommended locations for each day.
+- All evaluation and display logic is handled in the GUI.
 
-Check a specific location:
-```bash
-python src/main.py -l gijon
-```
+### Screenshot
 
-Show forecasts for all available locations:
-```bash
-python src/main.py -a
-```
-
-Get direct recommendations for when and where to go out this week:
-```bash
-python src/main.py -r
-```
+![Weather Helper GUI Screenshot](assets/app_screenshot.png)
 
 ## Testing
 
@@ -143,16 +112,6 @@ pytest
 4. Run tests with coverage report:
 ```bash
 pytest --cov=src
-```
-
-5. Run a specific test file:
-```bash
-pytest tests/test_weather_api.py
-```
-
-6. Run tests with verbose output:
-```bash
-pytest -v
 ```
 
 ## Dependencies
