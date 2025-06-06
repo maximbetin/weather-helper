@@ -19,8 +19,6 @@ from src.utils.misc import (
     extract_base_symbol
 )
 
-# --- Forecast Processing ---
-
 
 def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
   """Process weather forecast data into daily summaries and hourly blocks."""
@@ -88,11 +86,9 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
     day_report = DailyReport(date, daylight_h, location_name)
     day_scores_reports[date] = day_report
   return {
-      "daily_forecasts": daily_forecasts,  # dict of date -> list of HourlyWeather
-      "day_scores": day_scores_reports    # dict of date -> DailyReport
+      "daily_forecasts": daily_forecasts,
+      "day_scores": day_scores_reports
   }
-
-# --- Utility Functions ---
 
 
 def get_available_dates(processed_forecast: dict) -> List[date]:
