@@ -13,7 +13,7 @@ A desktop application that helps users find the best weather conditions across m
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/weather-helper.git
+   git clone https://github.com/maximbetin/weather-helper.git
    cd weather-helper
    ```
 
@@ -62,8 +62,8 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 - Tests are run on every PR
 - When a PR is merged to main:
-  - Tests are run on Windows, Linux, and macOS
-  - Executables are built for each platform
+  - Tests are run on Windows
+  - Executables are built for Windows
   - A new release is created with the executables
 
 ## Project Structure
