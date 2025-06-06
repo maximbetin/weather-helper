@@ -16,10 +16,6 @@ jobs:
         include:
           - os: windows-2022
             executable_name: weather_helper.exe
-          - os: ubuntu-22.04
-            executable_name: weather_helper
-          - os: macos-12
-            executable_name: weather_helper
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -64,10 +60,8 @@ jobs:
             Release from PR #${{ github.event.pull_request.number }}
             ${{ github.event.pull_request.title }}
 
-            This release includes executables for:
+            This release includes an executable for:
             - Windows
-            - Linux
-            - macOS
           draft: false
           prerelease: false
         env:
