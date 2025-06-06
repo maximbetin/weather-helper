@@ -58,8 +58,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create Release
-        id: create_release
+      - name: Create Release and Upload Executable
         if: matrix.os == 'windows-2022'
         uses: softprops/action-gh-release@v1
         with:
@@ -71,14 +70,8 @@ jobs:
 
             This release includes an executable for:
             - Windows
+          files: dist/${{ matrix.executable_name }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: dist/${{ matrix.executable_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
