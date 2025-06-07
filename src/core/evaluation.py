@@ -257,24 +257,6 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Dict[str, Any]:
   # Sort hours by time
   sorted_hours = sorted(hours, key=lambda x: x.time)
 
-  # Find continuous blocks with good scores (positive scores)
-  good_blocks = []
-  current_block = []
-
-  for hour in sorted_hours:
-    # Consider positive scores as good for outdoor activities
-    if hour.total_score >= 0:
-      current_block.append(hour)
-    else:
-      # End of a good block
-      if current_block:
-        good_blocks.append(current_block)
-        current_block = []
-
-  # Don't forget the last block
-  if current_block:
-    good_blocks.append(current_block)
-
   # Identify time ranges to avoid (very poor weather blocks)
   avoid_ranges = []
   current_avoid = []
@@ -302,80 +284,49 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Dict[str, Any]:
     }
     avoid_ranges.append(avoid_range)
 
-  # Score the good blocks based on quality and duration
-  scored_blocks = []
-  for block in good_blocks:
-    if len(block) >= 2:  # Only consider blocks of at least 2 hours
+  # Find the best block of any length
+  best_block = None
+  max_score = -float('inf')
+
+  for i in range(len(sorted_hours)):
+    for j in range(i, len(sorted_hours)):
+      block = sorted_hours[i:j + 1]
+      if not block:
+        continue
+
       avg_score = sum(h.total_score for h in block) / len(block)
       duration = len(block)
 
+      # Skip blocks that are not "good"
+      if avg_score < 0:
+        continue
+
       # Calculate a combined score that favors both quality and duration
-      # Use a more balanced approach to avoid inflating scores too much
-      # Scale by log of duration to give diminishing returns for longer durations
-      duration_factor = 1 + math.log(duration) / 2.5  # Gentler scaling
+      duration_factor = 1 + math.log(duration) / 2.5 if duration > 1 else 1
       combined_score = avg_score * duration_factor
+      combined_score = min(combined_score, avg_score * 1.8)  # Cap the score
 
-      # Cap the combined score to avoid unrealistic ratings
-      combined_score = min(combined_score, avg_score * 1.8)
+      if combined_score > max_score:
+        max_score = combined_score
+        avg_temp = sum(h.temp for h in block if h.temp is not None) / len(block) if any(h.temp is not None for h in block) else None
+        avg_wind = sum(h.wind for h in block if h.wind is not None) / len(block) if any(h.wind is not None for h in block) else None
+        symbols = [h.symbol for h in block if h.symbol]
+        weather_type = max(set(symbols), key=symbols.count) if symbols else ""
 
-      # Calculate average temperature and wind for the block
-      avg_temp = sum(h.temp for h in block if h.temp is not None) / \
-          len([h for h in block if h.temp is not None]) if any(h.temp is not None for h in block) else None
-      avg_wind = sum(h.wind for h in block if h.wind is not None) / \
-          len([h for h in block if h.wind is not None]) if any(h.wind is not None for h in block) else None
-
-      # Get the most common weather type
-      symbols = [h.symbol for h in block]
-      weather_type = ""
-      if symbols:
-        symbol_counts = {}
-        for s in symbols:
-          if s:
-            symbol_counts[s] = symbol_counts.get(s, 0) + 1
-        weather_type = max(symbol_counts.items(), key=lambda x: x[1])[0]
-
-      scored_blocks.append({
-        'block': block,
-        'start': block[0].time,
-        'end': block[-1].time,
-        'avg_score': avg_score,
-        'duration': duration,
-        'combined_score': combined_score,
-        'weather': weather_type,
-        'temp': avg_temp,
-        'wind': avg_wind
-      })
-
-  # Find the optimal block
-  optimal_block = None
-  if scored_blocks:
-    # Sort by combined score (higher is better)
-    scored_blocks.sort(key=lambda x: x['combined_score'], reverse=True)
-    optimal_block = scored_blocks[0]
-  else:
-    # If no 2+ hour good blocks found, find the single best hour (score >= 0)
-    best_single_hour = None
-    if sorted_hours:  # Check if there are any hours at all
-      # Filter for hours with positive total_score
-      positive_score_hours = [h for h in sorted_hours if h.total_score >= 0]
-      if positive_score_hours:
-        best_single_hour = max(positive_score_hours, key=lambda h: h.total_score)
-
-    if best_single_hour:
-      optimal_block = {
-        'block': [best_single_hour],
-        'start': best_single_hour.time,
-        'end': best_single_hour.time,  # End is the same as start for a single hour
-        'avg_score': best_single_hour.total_score,
-        'duration': 1,
-        'combined_score': best_single_hour.total_score,  # Combined score for single hour is just its total score
-        'weather': best_single_hour.symbol,
-        'temp': best_single_hour.temp,
-        'wind': best_single_hour.wind
-      }
+        best_block = {
+          'block': block,
+          'start': block[0].time,
+          'end': block[-1].time,
+          'avg_score': avg_score,
+          'duration': duration,
+          'combined_score': combined_score,
+          'weather': weather_type,
+          'temp': avg_temp,
+          'wind': avg_wind
+        }
 
   return {
-    'optimal_block': optimal_block,
+    'optimal_block': best_block,
     'avoid_ranges': avoid_ranges
   }
 
