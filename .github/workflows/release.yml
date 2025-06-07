@@ -11,6 +11,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: windows-latest
     defaults:
@@ -38,9 +40,27 @@ jobs:
 
       - name: Determine Next Version
         id: semver
-        uses: bitshifted/git-auto-semver@v1.1.0
-        with:
-          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        shell: pwsh
+        run: |
+          git fetch --tags
+          $latestTag = git describe --tags --abbrev=0 2>$null
+          if (-not $latestTag) {
+            $newVersion = "1.0.0"
+          } else {
+            $version = $latestTag.TrimStart('v')
+            $parts = $version -split '\.'
+            if ($parts.Length -ne 3) {
+              Write-Error "Tag format invalid. Expected semantic version like v1.2.3"
+              exit 1
+            }
+            $major = [int]$parts[0]
+            $minor = [int]$parts[1]
+            $patch = [int]$parts[2]
+            $patch++
+            $newVersion = "$major.$minor.$patch"
+          }
+          Write-Host "New version: $newVersion"
+          Write-Output "::set-output name=version::$newVersion"
 
       - name: Build Executable
         run: |
@@ -57,15 +77,15 @@ jobs:
 
       - name: Create Git Tag
         run: |
-          git tag -a "${{ steps.semver.outputs.version }}" -m "Release ${{ steps.semver.outputs.version }}"
-          git remote set-url origin https://x-access-token:${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}
-          git push origin "${{ steps.semver.outputs.version }}"
+          git tag -a "v${{ steps.semver.outputs.version }}" -m "Release v${{ steps.semver.outputs.version }}"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          git push origin "v${{ steps.semver.outputs.version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.semver.outputs.version }}
-          name: Release ${{ steps.semver.outputs.version }}
+          tag_name: "v${{ steps.semver.outputs.version }}"
+          name: "Release v${{ steps.semver.outputs.version }}"
           body: |
             Release from PR #${{ github.event.pull_request.number }}
             ${{ github.event.pull_request.title }}
@@ -75,11 +95,11 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
           files: dist/weather_helper.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
