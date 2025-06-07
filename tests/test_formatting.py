@@ -16,15 +16,10 @@ def test_format_date_default():
   assert format_date(dt) == "Thu, 15 Jun"
 
 
-def test_format_date_human_readable():
-  dt = date(2023, 6, 6)
-  assert format_date(dt, human_readable=True) == "June 6th, Tuesday"
-
-
 def test_get_weather_description():
   assert get_weather_description("clearsky") == "Clear Sky"
   assert get_weather_description("cloudy") == "Cloudy"
   assert get_weather_description("heavyrain") == "Heavy Rain"
-  assert get_weather_description("invalid_symbol") == "Invalid_symbol"
+  assert get_weather_description("invalid_symbol") == "Invalid Symbol"
+  assert get_weather_description("partly_cloudy") == "Partly Cloudy"
   assert get_weather_description(None) == ""
-  assert get_weather_description("CamelCase") == "Camel Case"

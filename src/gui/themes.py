@@ -33,22 +33,6 @@ PADDING = {
     'large': 20,
 }
 
-# Widget styles
-STYLES = {
-    'button': {
-        'padding': (10, 5),
-        'font': FONTS['body'],
-    },
-    'label': {
-        'font': FONTS['body'],
-        'padding': PADDING['small'],
-    },
-    'entry': {
-        'font': FONTS['body'],
-        'padding': PADDING['small'],
-    },
-}
-
 
 def apply_theme(root):
   """Apply the theme to the root window and its widgets."""
@@ -64,11 +48,11 @@ def apply_theme(root):
                   background=COLORS['secondary'],
                   foreground='white',
                   font=FONTS['body'],
-                  padding=STYLES['button']['padding'])
+                  padding=(PADDING['medium'], PADDING['small']))
   style.configure('TEntry',
                   fieldbackground='white',
                   font=FONTS['body'],
-                  padding=STYLES['entry']['padding'])
+                  padding=PADDING['small'])
 
   # Configure the root window
   root.configure(background=COLORS['background'])

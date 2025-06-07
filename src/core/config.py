@@ -6,6 +6,7 @@ from typing import Dict, Tuple
 
 # API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
+API_URL_COMPACT = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 USER_AGENT = "WeatherHelper/1.0"
 
 # Time zone
