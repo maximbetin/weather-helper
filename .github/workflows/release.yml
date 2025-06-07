@@ -89,7 +89,9 @@ jobs:
       - name: Create Git Tag (if not exists)
         run: |
           $tag = "${{ steps.semver.outputs.tag }}"
-          if (-not (git rev-parse $tag 2>$null)) {
+
+          $tagExists = git tag --list $tag
+          if (-not $tagExists) {
             git tag -a $tag -m "Release $tag"
             git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
             git push origin $tag
