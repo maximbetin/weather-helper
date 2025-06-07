@@ -17,6 +17,25 @@ from src.core.daily_report import DailyReport
 NumericType = Union[int, float]
 
 
+def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
+  """Helper to calculate score based on a value and a list of ranges."""
+  if value is None or not isinstance(value, (int, float)):
+    return 0
+
+  for (range_tuple, score_value) in ranges:
+    if range_tuple is None:  # Default case
+      return score_value
+    low, high = range_tuple
+    if inclusive:
+      if low <= value <= high:
+        return score_value
+    else:
+      if low <= value < high:
+        return score_value
+  # Return the score of the last entry if it's a default, otherwise a fallback.
+  return ranges[-1][1] if ranges and ranges[-1][0] is None else 0
+
+
 def get_weather_score(symbol: Optional[str]) -> int:
   """Return weather score from symbol code.
 
@@ -41,10 +60,6 @@ def temp_score(temp: Optional[NumericType]) -> int:
   Returns:
       Integer score representing temperature comfort
   """
-  if temp is None or not isinstance(temp, (int, float)):
-    return 0
-
-  # Temperature ranges and their scores
   temp_ranges = [
       ((18, 23), 8),    # Ideal temperature
       ((15, 18), 6),    # Slightly cool but pleasant
@@ -59,15 +74,7 @@ def temp_score(temp: Optional[NumericType]) -> int:
       ((36, 40), -8),   # Extremely hot
       (None, -10)       # Beyond extreme temperatures
   ]
-
-  for (range_tuple, score_value) in temp_ranges:
-    if range_tuple is None:  # Default case
-      return score_value
-    low, high = range_tuple
-    if low <= temp <= high:
-      return score_value
-
-  return -10  # Default for extreme temperatures
+  return _calculate_score(temp, temp_ranges, inclusive=True)
 
 
 def wind_score(wind_speed: Optional[NumericType]) -> int:
@@ -79,10 +86,6 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
   Returns:
       Integer score representing wind comfort
   """
-  if wind_speed is None or not isinstance(wind_speed, (int, float)):
-    return 0
-
-  # Wind speed ranges and their scores
   wind_ranges = [
       ((0, 1), 0),      # Calm
       ((1, 2), -1),     # Light air
@@ -94,16 +97,7 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
       ((13, 15.5), -9),  # Near gale
       (None, -10)       # Gale and above
   ]
-
-  for (range_tuple, score_value) in wind_ranges:
-    if range_tuple is None:  # Default case
-      return score_value
-    low, high = range_tuple
-    if low <= wind_speed < high:
-      return score_value
-
-  # If we get here, wind_speed is >= 15.5
-  return -10
+  return _calculate_score(wind_speed, wind_ranges)
 
 
 def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
@@ -115,10 +109,6 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
   Returns:
       Integer score representing cloud cover impact
   """
-  if cloud_coverage is None or not isinstance(cloud_coverage, (int, float)):
-    return 0
-
-  # Cloud coverage ranges and their scores
   cloud_ranges = [
       ((0, 10), 5),     # Clear
       ((10, 25), 3),    # Few clouds
@@ -127,15 +117,7 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
       ((75, 90), -3),   # Very cloudy
       (None, -5)        # Overcast
   ]
-
-  for (range_tuple, score_value) in cloud_ranges:
-    if range_tuple is None:  # Default case
-      return score_value
-    low, high = range_tuple
-    if low <= cloud_coverage < high:
-      return score_value
-
-  return -5  # Default for high cloud coverage
+  return _calculate_score(cloud_coverage, cloud_ranges)
 
 
 def precip_probability_score(probability: Optional[NumericType]) -> int:
@@ -147,10 +129,6 @@ def precip_probability_score(probability: Optional[NumericType]) -> int:
   Returns:
       Integer score representing precipitation probability impact
   """
-  if probability is None or not isinstance(probability, (int, float)):
-    return 0
-
-  # Precipitation probability ranges and their scores
   precip_ranges = [
       ((0, 5), 0),      # Very unlikely
       ((5, 15), -1),    # Unlikely
@@ -160,15 +138,7 @@ def precip_probability_score(probability: Optional[NumericType]) -> int:
       ((70, 85), -9),   # Very likely
       (None, -10)       # Almost certain
   ]
-
-  for (range_tuple, score_value) in precip_ranges:
-    if range_tuple is None:  # Default case
-      return score_value
-    low, high = range_tuple
-    if low <= probability < high:
-      return score_value
-
-  return -10  # Default for high precipitation probability
+  return _calculate_score(probability, precip_ranges)
 
 
 def extract_base_symbol(symbol_code: str) -> str:
