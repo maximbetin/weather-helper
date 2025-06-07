@@ -84,7 +84,7 @@ class WeatherHelperApp:
     self.main_frame.grid(row=0, column=0, sticky="nsew")
 
     # Configure grid weights for proper resizing
-    self.main_frame.columnconfigure(0, weight=0, minsize=350)  # Side panel
+    self.main_frame.columnconfigure(0, weight=0, minsize=380)  # Side panel - wider for better text fit
     self.main_frame.columnconfigure(1, weight=1)  # Main content
 
     # Row configuration
@@ -212,10 +212,13 @@ class WeatherHelperApp:
     self.side_panel_entries = []
 
     for i in range(5):
-      # Create container frame for each location
-      loc_frame = ttk.Frame(self.side_panel, padding=PADDING['small'])
-      loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['tiny'])
+      # Create container frame for each location with proper sizing
+      loc_frame = ttk.Frame(self.side_panel, style='Card.TFrame', padding=PADDING['medium'])
+      loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['small'])
       loc_frame.columnconfigure(1, weight=1)
+      loc_frame.rowconfigure(0, weight=0)
+      loc_frame.rowconfigure(1, weight=0)
+      loc_frame.rowconfigure(2, weight=1)
 
       self.location_frames.append(loc_frame)
 
@@ -229,26 +232,37 @@ class WeatherHelperApp:
       )
       rank_label.grid(row=0, column=0, sticky="w")
 
-      # Location name and score
-      name_score_label = ttk.Label(
+      # Location name (larger text)
+      name_label = ttk.Label(
           loc_frame,
           text="",
-          font=FONTS['body'],
+          font=FONTS['subheading'],
           anchor="w"
       )
-      name_score_label.grid(row=0, column=1, sticky="ew", padx=(PADDING['small'], 0))
+      name_label.grid(row=0, column=1, sticky="ew", padx=(PADDING['small'], 0))
 
-      # Best time details
+      # Score (smaller text)
+      score_label = ttk.Label(
+          loc_frame,
+          text="",
+          font=FONTS['small'],
+          anchor="w"
+      )
+      score_label.grid(row=1, column=1, sticky="ew", padx=(PADDING['small'], 0))
+
+      # Best time details with proper wrapping and height control
       details_label = ttk.Label(
           loc_frame,
           text="",
           font=FONTS['small'],
           foreground=COLORS['text_secondary'],
-          anchor="w"
+          anchor="nw",
+          justify="left",
+          wraplength=250  # Reduced to prevent overflow
       )
-      details_label.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(PADDING['tiny'], 0))
+      details_label.grid(row=2, column=0, columnspan=2, sticky="nw", pady=(PADDING['tiny'], 0), ipady=2)
 
-      self.side_panel_entries.append((rank_label, name_score_label, details_label))
+      self.side_panel_entries.append((rank_label, name_label, score_label, details_label))
 
   def _setup_main_table(self):
     """Setup the enhanced main table with better styling."""
@@ -268,14 +282,14 @@ class WeatherHelperApp:
     )
     self.main_table.grid(row=0, column=0, sticky="nsew")
 
-    # Enhanced column configuration
+    # Enhanced column configuration with better weather alignment
     col_configs = {
-        "Time": {"width": 80, "anchor": "center"},
-        "Score": {"width": 130, "anchor": "center"},
-        "Temperature": {"width": 100, "anchor": "center"},
-        "Weather": {"width": 140, "anchor": "w"},
-        "Wind": {"width": 90, "anchor": "center"},
-        "Humidity": {"width": 90, "anchor": "center"}
+        "Time": {"width": 70, "anchor": "center"},
+        "Score": {"width": 150, "anchor": "center"},
+        "Temperature": {"width": 90, "anchor": "center"},
+        "Weather": {"width": 180, "anchor": "w"},  # Wider for emoji + text
+        "Wind": {"width": 80, "anchor": "center"},
+        "Humidity": {"width": 80, "anchor": "center"}
     }
 
     for col in columns:
@@ -479,9 +493,10 @@ class WeatherHelperApp:
   def _update_side_panel(self):
     """Update the side panel with enhanced visual design."""
     # Clear existing entries
-    for rank_label, name_score_label, details_label in self.side_panel_entries:
+    for rank_label, name_label, score_label, details_label in self.side_panel_entries:
       rank_label.config(text="")
-      name_score_label.config(text="")
+      name_label.config(text="")
+      score_label.config(text="")
       details_label.config(text="")
 
     if not self.selected_date:
@@ -494,15 +509,15 @@ class WeatherHelperApp:
           top_n=5
       )
 
-      for i, (rank_label, name_score_label, details_label) in enumerate(self.side_panel_entries):
+      for i, (rank_label, name_label, score_label, details_label) in enumerate(self.side_panel_entries):
         if i < len(top_locs):
           loc_data = top_locs[i]
-          self._populate_location_entry(i + 1, loc_data, rank_label, name_score_label, details_label)
+          self._populate_location_entry(i + 1, loc_data, rank_label, name_label, score_label, details_label)
 
     except Exception as e:
       self._update_status(f"Error updating rankings: {str(e)}")
 
-  def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label, name_score_label, details_label):
+  def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label, name_label, score_label, details_label):
     """Populate a single location entry with enhanced formatting."""
     try:
       score = loc_data.get('combined_score', 0)
@@ -513,12 +528,10 @@ class WeatherHelperApp:
       rank_text = f"🥇" if rank == 1 else f"🥈" if rank == 2 else f"🥉" if rank == 3 else f"{rank}."
       rank_label.config(text=rank_text)
 
-      # Set location name and score with color coding
+      # Set location name and score with separate labels and color coding
       score_color = get_rating_color(rating)
-      name_score_label.config(
-          text=f"{location_name}: {rating} ({score:.1f})",
-          foreground=score_color
-      )
+      name_label.config(text=location_name, foreground=score_color)
+      score_label.config(text=f"{rating} ({score:.1f})", foreground=score_color)
 
       # Get detailed information
       details_text = self._get_location_details(loc_data)
@@ -526,7 +539,8 @@ class WeatherHelperApp:
 
     except Exception as e:
       rank_label.config(text=f"{rank}.")
-      name_score_label.config(text="Error loading data")
+      name_label.config(text="Error loading data")
+      score_label.config(text="")
       details_label.config(text="")
 
   def _get_location_details(self, loc_data: Dict) -> str:
@@ -564,14 +578,12 @@ class WeatherHelperApp:
         duration = optimal_block["duration"]
         weather = get_weather_description(optimal_block["weather"])
         temp = optimal_block.get("temp")
-        wind = optimal_block.get("wind")
 
-        details = f"⏰ {start_time}-{end_time} ({duration}h)\n🌤️ {weather}"
-
+        # Compact format to prevent overflow
+        details = f"⏰ {start_time}-{end_time} ({duration}h)"
+        details += f"\n🌤️ {weather}"
         if temp is not None:
           details += f"\n🌡️ {temp:.1f}°C"
-        if wind is not None:
-          details += f" | 💨 {wind:.1f}m/s"
 
       else:
         # Fall back to best single hour
@@ -579,16 +591,11 @@ class WeatherHelperApp:
         time_str = best_hour.time.strftime('%H:%M')
         weather = get_weather_description(best_hour.symbol)
 
-        details = f"⏰ {time_str} (1h)\n🌤️ {weather}"
-
+        # Compact format
+        details = f"⏰ {time_str} (1h)"
+        details += f"\n🌤️ {weather}"
         if best_hour.temp is not None:
           details += f"\n🌡️ {best_hour.temp:.1f}°C"
-        if best_hour.wind is not None:
-          details += f" | 💨 {best_hour.wind:.1f}m/s"
-
-      # Add data limitation warning if needed
-      if len(filtered_hours) < 3:
-        details += "\n⚠️ Limited data"
 
       return details
 
@@ -627,12 +634,22 @@ class WeatherHelperApp:
       for hour in filtered_blocks:
         self._add_table_row(hour)
 
-      # Configure rating-based row colors with updated thresholds
-      self.main_table.tag_configure('Excellent', foreground=COLORS['excellent'])
-      self.main_table.tag_configure('VeryGood', foreground=COLORS['very_good'])
-      self.main_table.tag_configure('Good', foreground=COLORS['good'])
-      self.main_table.tag_configure('Fair', foreground=COLORS['fair'])
-      self.main_table.tag_configure('Poor', foreground=COLORS['poor'])
+      # Configure rating-based row colors with better contrast
+      self.main_table.tag_configure('Excellent',
+                                    foreground=COLORS['excellent'],
+                                    background='#f0f9f0')  # Light green background
+      self.main_table.tag_configure('VeryGood',
+                                    foreground=COLORS['very_good'],
+                                    background='#f0f7ff')  # Light blue background
+      self.main_table.tag_configure('Good',
+                                    foreground=COLORS['good'],
+                                    background='#f5f3ff')  # Light purple background
+      self.main_table.tag_configure('Fair',
+                                    foreground=COLORS['fair'],
+                                    background='#fff7ed')  # Light orange background
+      self.main_table.tag_configure('Poor',
+                                    foreground=COLORS['poor'],
+                                    background='#fef2f2')  # Light red background
 
     except Exception as e:
       self._update_status(f"Error updating table: {str(e)}")
@@ -644,10 +661,12 @@ class WeatherHelperApp:
       rating = get_rating_info(hour.total_score)
       score = f"{rating} ({hour.total_score:.1f})"
 
-      # Format values with enhanced utilities
+      # Format values with enhanced utilities and proper alignment
       temp = format_temperature(hour.temp)
       weather_emoji = get_weather_emoji(hour.symbol)
-      weather = f"{weather_emoji} {get_weather_description(hour.symbol)}" if hour.symbol else "Unknown"
+      weather_desc = get_weather_description(hour.symbol) if hour.symbol else "Unknown"
+      # Better spacing for consistent alignment
+      weather = f"{weather_emoji}  {weather_desc}"  # Two spaces for better alignment
       wind = format_wind_speed(hour.wind)
       humidity = format_percentage(hour.humidity)
 
