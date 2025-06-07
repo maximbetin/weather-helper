@@ -267,7 +267,6 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str,
 def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
   """Create an HourlyWeather object from a forecast timeseries entry."""
   time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-  local_time = time_utc
 
   instant_details = entry["data"]["instant"]["details"]
   temp = instant_details.get("air_temperature")
@@ -299,7 +298,7 @@ def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
   base_symbol = extract_base_symbol(symbol_code) if symbol_code else ""
 
   return HourlyWeather(
-      time=local_time,
+      time=time_utc,
       temp=temp,
       wind=wind,
       humidity=humidity,

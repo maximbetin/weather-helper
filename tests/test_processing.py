@@ -1,17 +1,19 @@
 import pytest
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from src.core.evaluation import process_forecast, get_top_locations_for_date
 
 # Mock forecast data for testing
 
 
 def create_mock_forecast(air_temp):
-  now = datetime.now(timezone.utc)
+  # Use tomorrow's date at 12:00 UTC to ensure it's within the forecast range and daylight hours
+  tomorrow = datetime.now(timezone.utc).date() + timedelta(days=1)
+  test_time = datetime.combine(tomorrow, datetime.min.time().replace(hour=12, tzinfo=timezone.utc))
   return {
       "properties": {
           "timeseries": [
               {
-                  "time": now.isoformat().replace("+00:00", "Z"),
+                  "time": test_time.isoformat().replace("+00:00", "Z"),
                   "data": {
                       "instant": {
                           "details": {
@@ -53,7 +55,9 @@ def test_get_top_locations_for_date():
   }
   # Filter out None values before passing to the function
   processed_data = {k: v for k, v in all_locations_processed.items() if v is not None}
-  top_locations = get_top_locations_for_date(processed_data, date.today())
+  # Use tomorrow's date to match the mock data
+  test_date = datetime.now(timezone.utc).date() + timedelta(days=1)
+  top_locations = get_top_locations_for_date(processed_data, test_date)
   assert len(top_locations) == 2
   assert top_locations[0]["location_name"] == "Location 1"
   assert top_locations[1]["location_name"] == "Location 2"
@@ -69,7 +73,9 @@ def test_get_top_locations_for_date_less_than_n():
       "loc1": process_forecast(create_mock_forecast(25), "Location 1"),
   }
   processed_data = {k: v for k, v in all_locations_processed.items() if v is not None}
-  top_locations = get_top_locations_for_date(processed_data, date.today(), top_n=5)
+  # Use tomorrow's date to match the mock data
+  test_date = datetime.now(timezone.utc).date() + timedelta(days=1)
+  top_locations = get_top_locations_for_date(processed_data, test_date, top_n=5)
   assert len(top_locations) == 1
 
 

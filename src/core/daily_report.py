@@ -43,10 +43,8 @@ class DailyReport:
       return "Mixed" + precip_warning
     elif self.sunny_hours == max_hours:
       return "Sunny" + precip_warning
-    elif self.partly_cloudy_hours == max_hours:
-      return "Partly Cloudy" + precip_warning
     else:
-      return "Mixed" + precip_warning
+      return "Partly Cloudy" + precip_warning
 
   def _initialize_empty_report(self) -> None:
     """Initialize default values for an empty report (no daylight hours)."""

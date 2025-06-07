@@ -337,11 +337,6 @@ class WeatherHelperApp:
       else:
         tag = 'Poor'
       self.main_table.insert("", "end", values=(time_str, score, temp, weather, wind, humidity), tags=(tag,))
-    self.main_table.tag_configure('Excellent', foreground='#228B22')
-    self.main_table.tag_configure('VeryGood', foreground='#388e3c')
-    self.main_table.tag_configure('Good', foreground='#7e8c3b')
-    self.main_table.tag_configure('Fair', foreground='#ffb300')
-    self.main_table.tag_configure('Poor', foreground='#b22222')
 
   def run(self):
     """Start the application main loop."""
