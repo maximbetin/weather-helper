@@ -45,22 +45,28 @@ jobs:
           $latestTag = git describe --tags --abbrev=0 2>$null
 
           if (-not $latestTag) {
-            $newVersion = "1.0.0"
+            $major = 1; $minor = 0; $patch = 0
           } else {
             $version = $latestTag.TrimStart('v')
             $parts = $version -split '\.'
-            if ($parts.Length -ne 3) {
-              Write-Host "Tag format invalid. Expected semantic version like v1.2.3"
-              $newVersion = "1.0.0"
-            } else {
-              $major = [int]$parts[0]
-              $minor = [int]$parts[1]
-              $patch = [int]$parts[2]
-              $patch++
-              $newVersion = "$major.$minor.$patch"
-            }
+            $major = [int]$parts[0]
+            $minor = [int]$parts[1]
+            $patch = [int]$parts[2]
           }
 
+          $prTitle = "${{ github.event.pull_request.title }}"
+
+          if ($prTitle -like "BREAKING:*" -or "${{ github.event.pull_request.labels }}" -match "major") {
+            $major++
+            $minor = 0; $patch = 0
+          } elseif ($prTitle -like "feat:*") {
+            $minor++
+            $patch = 0
+          } else {
+            $patch++
+          }
+
+          $newVersion = "$major.$minor.$patch"
           Write-Host "New version: $newVersion"
           "version=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
