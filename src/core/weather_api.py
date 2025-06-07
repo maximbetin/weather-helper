@@ -27,6 +27,18 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
   Returns:
       JSON response from API or None if request failed
   """
+  return fetch_weather_data_with_fallback(location)
+
+
+def fetch_weather_data_with_fallback(location: Location) -> Optional[Dict[str, Any]]:
+  """Fetch weather data for a specific location, falling back to compact endpoint if complete returns insufficient data.
+
+  Args:
+      location: Location object containing lat/lon coordinates
+
+  Returns:
+      JSON response from API or None if request failed
+  """
   lat = location.lat
   lon = location.lon
 
@@ -35,21 +47,24 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
       "User-Agent": USER_AGENT
   }
 
-  # Construct API URL
+  # First try the complete endpoint
   url = f"{API_URL}?lat={lat}&lon={lon}"
-
-  # Fetch data with error handling
   try:
     response = requests.get(url, headers=headers, timeout=10)
-    response.raise_for_status()  # Raise an exception for HTTP errors
+    response.raise_for_status()
+    data = response.json()
+    # Check if the timeseries has at least 5 entries
+    if data.get("properties", {}).get("timeseries", []) and len(data["properties"]["timeseries"]) >= 5:
+      return data
+  except (requests.exceptions.RequestException, ValueError) as e:
+    logger.error(f"Error fetching complete forecast for {location.name}: {e}")
+
+  # Fallback to compact endpoint
+  compact_url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={lat}&lon={lon}"
+  try:
+    response = requests.get(compact_url, headers=headers, timeout=10)
+    response.raise_for_status()
     return response.json()
-  except requests.exceptions.Timeout:
-    error_msg = f"Timeout error fetching weather data for {location.name}"
-    logger.error(error_msg)
-    return None
-  except requests.exceptions.RequestException as e:
-    logger.error(f"Error fetching weather data for {location.name}: {e}")
-    return None
-  except ValueError as e:  # Handle cases where response is not valid JSON
-    logger.error(f"Error parsing JSON response for {location.name}: {e}")
+  except (requests.exceptions.RequestException, ValueError) as e:
+    logger.error(f"Error fetching compact forecast for {location.name}: {e}")
     return None
