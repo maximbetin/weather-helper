@@ -6,7 +6,42 @@ from datetime import datetime
 from typing import List, Optional
 
 from src.core.hourly_weather import HourlyWeather
-from src.utils.misc import get_weather_description_from_counts, is_value_valid, safe_average
+from src.utils.misc import is_value_valid, safe_average
+
+
+def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int,
+                                        avg_precip_prob: Optional[float] = None) -> str:
+  """Determine overall weather description based on hour counts.
+
+  Args:
+      sunny_hours: Number of sunny hours
+      partly_cloudy_hours: Number of partly cloudy hours
+      rainy_hours: Number of rainy hours
+      avg_precip_prob: Average precipitation probability
+
+  Returns:
+      str: Description of the overall weather
+  """
+  # First check if there's significant rain
+  if rainy_hours > 0:
+    return f"Rain ({rainy_hours}h)"
+
+  # Determine the dominant condition
+  max_hours = max(sunny_hours, partly_cloudy_hours, 0)  # Ensure non-negative
+
+  # Format precipitation warning if needed
+  precip_warning = ""
+  if avg_precip_prob is not None and avg_precip_prob > 40:
+    precip_warning = f" - {avg_precip_prob:.0f}% rain"
+
+  if max_hours == 0:
+    return "Mixed" + precip_warning
+  elif sunny_hours == max_hours:
+    return "Sunny" + precip_warning
+  elif partly_cloudy_hours == max_hours:
+    return "Partly Cloudy" + precip_warning
+  else:
+    return "Mixed" + precip_warning
 
 
 class DailyReport:

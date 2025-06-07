@@ -1,15 +1,9 @@
-"""
-Entry point for running the Weather Helper GUI application.
-"""
-
 from src.gui.app import main
 import sys
-from pathlib import Path
+import os
 
-# Add the project root to Python path
-project_root = str(Path(__file__).parent)
-if project_root not in sys.path:
-  sys.path.append(project_root)
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 
 if __name__ == "__main__":

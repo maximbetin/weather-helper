@@ -40,3 +40,15 @@ LOCATIONS: Dict[str, Location] = \
     "cangas_del_narcea": Location("cangas_del_narcea", "Cangas del Narcea", 43.1774, -6.5498),
     "tapia_de_casariego": Location("tapia_de_casariego", "Tapia de Casariego", 43.5702, -6.9439),
   }
+
+
+def get_location_display_name(location_key: str) -> str:
+  """Get the display name for a location key.
+
+  Args:
+      location_key: The location key
+
+  Returns:
+      str: The location display name
+  """
+  return LOCATIONS[location_key].name

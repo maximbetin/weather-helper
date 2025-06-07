@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 from src.gui.themes import apply_theme, FONTS, PADDING
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
-from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date
-from src.utils.misc import get_rating_info, find_optimal_weather_block, format_human_date, get_weather_description
+from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date, get_rating_info, find_optimal_weather_block
+from src.gui.formatting import format_human_date, get_weather_description
 
 
 class WeatherHelperApp:

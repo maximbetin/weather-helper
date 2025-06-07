@@ -1,13 +1,63 @@
 # Weather Helper
 
-A desktop application that helps users find the best weather conditions across multiple locations.
+## Overview
+
+The Weather Helper is a desktop application that provides detailed weather forecasts for various locations. It allows users to compare weather conditions across multiple locations and find the best time for outdoor activities.
 
 ## Features
 
-- View weather forecasts for multiple locations
-- Compare weather conditions across different locations
-- Get recommendations for the best locations based on weather conditions
-- Simple and intuitive GUI interface
+- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature, wind speed, humidity, and precipitation probability.
+- **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
+- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a scoring system.
+- **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
+
+## Project Structure
+
+The project is organized into the following directories:
+
+- `src/`: Contains the main source code for the application.
+  - `core/`: Core logic, including weather data processing, evaluation, and data models.
+  - `gui/`: GUI components, including the main application window and custom themes.
+  - `utils/`: Utility functions used across the application.
+- `tests/`: Contains all the unit tests for the project.
+
+## Installation
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/your-username/weather-helper.git
+   cd weather-helper
+   ```
+
+2. **Create a virtual environment:**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+   ```
+
+3. **Install the dependencies:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Usage
+
+To run the application, execute the following command from the root directory:
+
+```bash
+python main.py
+```
+
+## Running the Tests
+
+To run the unit tests, use `pytest`:
+
+```bash
+pytest
+```
 
 ## Development Setup
 
