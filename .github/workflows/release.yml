@@ -65,6 +65,8 @@ jobs:
           Write-Host "New version: $newVersion"
           "$([System.Uri]::EscapeDataString('version'))=$newVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
+          exit 0
+
       - name: Build Executable
         run: |
           pyinstaller --onefile --windowed weather_helper.py
