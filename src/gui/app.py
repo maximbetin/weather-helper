@@ -2,7 +2,6 @@
 Main GUI application class for the weather helper.
 Handles window setup and main widget initialization.
 """
-import re
 
 import tkinter as tk
 from tkinter import ttk
@@ -11,7 +10,7 @@ from src.gui.themes import apply_theme, FONTS, PADDING
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date
-from src.utils.misc import get_rating_info, find_optimal_weather_block
+from src.utils.misc import get_rating_info, find_optimal_weather_block, format_human_date, get_weather_description
 
 
 class WeatherHelperApp:
@@ -196,12 +195,6 @@ class WeatherHelperApp:
       self.update_side_panel()
       self.update_main_table()
 
-  def format_human_date(self, d):
-    # Returns e.g. 'June 6th (Friday)'
-    day = d.day
-    suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
-    return d.strftime(f"%B {day}{suffix}, %A")
-
   def populate_date_selector(self):
     if not self.selected_location_key:
       self.date_dropdown['values'] = []
@@ -214,7 +207,7 @@ class WeatherHelperApp:
       return
     available_dates = get_available_dates(processed)
     # Map human-readable string to date object
-    self.date_map = {self.format_human_date(d): d for d in available_dates}
+    self.date_map = {format_human_date(d): d for d in available_dates}
     date_strs = list(self.date_map.keys())
     self.date_dropdown['values'] = date_strs
     if date_strs:
@@ -227,36 +220,6 @@ class WeatherHelperApp:
     self.selected_date = self.date_map.get(selected_str)
     self.update_side_panel()
     self.update_main_table()
-
-  def format_weather(self, s):
-    # Mapping for common weather codes
-    weather_map = {
-        'clearsky': 'Clear Sky',
-        'fair': 'Fair',
-        'partlycloudy': 'Partly Cloudy',
-        'cloudy': 'Cloudy',
-        'lightrain': 'Light Rain',
-        'lightrainshowers': 'Light Rain Showers',
-        'rain': 'Rain',
-        'rainshowers': 'Rain Showers',
-        'heavyrain': 'Heavy Rain',
-        'heavyrainshowers': 'Heavy Rain Showers',
-        'lightsnow': 'Light Snow',
-        'snow': 'Snow',
-        'fog': 'Fog',
-        'thunderstorm': 'Thunderstorm',
-        'sleet': 'Sleet',
-        'lightsleet': 'Light Sleet',
-        'sleetshowers': 'Sleet Showers',
-        'lightsleetshowers': 'Light Sleet Showers',
-        'heavysnow': 'Heavy Snow',
-        'heavysnowshowers': 'Heavy Snow Showers',
-    }
-    s = s.lower() if s else ''
-    if s in weather_map:
-      return weather_map[s]
-    # Fallback: Insert space before uppercase letters (except the first)
-    return re.sub(r'(?<!^)(?=[A-Z])', ' ', s).replace('  ', ' ').strip().capitalize()
 
   def update_side_panel(self):
     if not self.selected_date:
@@ -289,7 +252,7 @@ class WeatherHelperApp:
             best_score = best_hour.total_score
             start_time = end_time = best_hour.time.strftime('%H:%M')
             duration = 1
-            weather_type = self.format_weather(best_hour.symbol)
+            weather_type = get_weather_description(best_hour.symbol)
             best_text = f"Best: {start_time}-{end_time} ({weather_type} - {duration}h)\n"
             conditions = []
             if best_hour.temp is not None:
@@ -303,7 +266,7 @@ class WeatherHelperApp:
             start_time = optimal_block["start"].strftime('%H:%M')
             end_time = optimal_block["end"].strftime('%H:%M')
             duration = optimal_block["duration"]
-            weather_type = self.format_weather(optimal_block["weather"])
+            weather_type = get_weather_description(optimal_block["weather"])
             best_text = f"Best: {start_time}-{end_time} ({weather_type} - {duration}h)\n"
             conditions = []
             if optimal_block["temp"] is not None:
@@ -357,7 +320,7 @@ class WeatherHelperApp:
       rating = get_rating_info(hour.total_score)
       score = f"{rating} ({hour.total_score:.1f})"
       temp = f"{hour.temp:.1f}°C" if hour.temp is not None else "N/A"
-      weather = self.format_weather(hour.symbol) if hour.symbol else "N/A"
+      weather = get_weather_description(hour.symbol) if hour.symbol else "N/A"
       wind = f"{hour.wind:.1f} m/s" if hour.wind is not None else "N/A"
       humidity = f"{hour.humidity:.0f}%" if hour.humidity is not None else "N/A"
       if hour.total_score >= 18:

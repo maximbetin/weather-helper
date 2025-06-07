@@ -33,7 +33,7 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
 
   for entry in forecast_timeseries:
     time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-    local_time = time_utc  # Assume already local or adjust as needed
+    local_time = time_utc
     forecast_date = local_time.date()
     if not (today <= forecast_date < end_date):
       continue

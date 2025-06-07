@@ -2,7 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 from src.utils.misc import (
     get_weather_score,
-    get_weather_desc,
+    get_weather_description,
     get_weather_description_from_counts,
     get_block_type,
     extract_blocks
@@ -26,19 +26,20 @@ def test_get_weather_score():
   assert get_weather_score("invalid_symbol") == 0
 
 
-def test_get_weather_desc():
+def test_get_weather_description():
   # Test valid weather symbols
-  assert get_weather_desc("clearsky") == "Sunny"
-  assert get_weather_desc("fair") == "Mostly Sunny"
-  assert get_weather_desc("partlycloudy") == "Partly Cloudy"
-  assert get_weather_desc("cloudy") == "Cloudy"
-  assert get_weather_desc("lightrain") == "Light Rain"
-  assert get_weather_desc("heavyrain") == "Heavy Rain"
-  assert get_weather_desc("thunderstorm") == "Thunderstorm"
+  assert get_weather_description("clearsky") == "Clear Sky"
+  assert get_weather_description("fair") == "Fair"
+  assert get_weather_description("partlycloudy") == "Partly Cloudy"
+  assert get_weather_description("cloudy") == "Cloudy"
+  assert get_weather_description("lightrain") == "Light Rain"
+  assert get_weather_description("heavyrain") == "Heavy Rain"
+  assert get_weather_description("thunderstorm") == "Thunderstorm"
 
   # Test invalid inputs
-  assert get_weather_desc("") == "Unknown"
-  assert get_weather_desc("invalid_symbol") == "Invalid symbol"
+  assert get_weather_description("") == ""
+  assert get_weather_description("invalid_symbol") == "Invalid_symbol"
+  assert get_weather_description("partly_cloudy") == "Partly_cloudy"
 
 
 def test_get_weather_description_from_counts():

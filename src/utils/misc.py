@@ -86,19 +86,61 @@ def format_date(dt: Union[datetime, date]) -> str:
   return format_datetime(dt, "%a, %d %b")
 
 
-def get_weather_desc(symbol: str) -> str:
-  """Return standardized weather description from symbol code.
+def format_human_date(d: date) -> str:
+  """Format a date object into a human-readable string.
 
   Args:
-      symbol: Weather symbol code
+      d: The date to format.
 
   Returns:
-      str: Human-readable weather description
+      A string in the format 'Month Day (Weekday)', e.g., 'June 6th (Friday)'.
   """
-  if not symbol or not isinstance(symbol, str):
-    return "Unknown"
-  desc, _ = WEATHER_SYMBOLS.get(symbol, (symbol.replace('_', ' ').capitalize(), 0))
-  return desc
+  day = d.day
+  suffix = 'th' if 11 <= day <= 13 else {
+      1: 'st',
+      2: 'nd',
+      3: 'rd'
+  }.get(day % 10, 'th')
+  return d.strftime(f"%B {day}{suffix}, %A")
+
+
+def get_weather_description(symbol: str) -> str:
+  """Return a human-readable weather description from a symbol code.
+
+  Args:
+      symbol: The weather symbol code.
+
+  Returns:
+      A human-readable weather description.
+  """
+  weather_map = {
+      'clearsky': 'Clear Sky',
+      'fair': 'Fair',
+      'partlycloudy': 'Partly Cloudy',
+      'cloudy': 'Cloudy',
+      'lightrain': 'Light Rain',
+      'lightrainshowers': 'Light Rain Showers',
+      'rain': 'Rain',
+      'rainshowers': 'Rain Showers',
+      'heavyrain': 'Heavy Rain',
+      'heavyrainshowers': 'Heavy Rain Showers',
+      'lightsnow': 'Light Snow',
+      'snow': 'Snow',
+      'fog': 'Fog',
+      'thunderstorm': 'Thunderstorm',
+      'sleet': 'Sleet',
+      'lightsleet': 'Light Sleet',
+      'sleetshowers': 'Sleet Showers',
+      'lightsleetshowers': 'Light Sleet Showers',
+      'heavysnow': 'Heavy Snow',
+      'heavysnowshowers': 'Heavy Snow Showers',
+  }
+  s = symbol.lower() if symbol else ''
+  if s in weather_map:
+    return weather_map[s]
+  # Fallback: Insert space before uppercase letters (except the first)
+  return re.sub(r'(?<!^)(?=[A-Z])', ' ',
+                s).replace('  ', ' ').strip().capitalize()
 
 
 # Consolidated value handling utilities
