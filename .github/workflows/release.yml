@@ -87,24 +87,24 @@ jobs:
           git push origin "v${{ steps.semver.outputs.version }}"
 
       - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: "v${{ steps.semver.outputs.version }}"
-          name: "Release v${{ steps.semver.outputs.version }}"
+          tag_name: ${{ steps.semver.outputs.version }}
+          name: Release ${{ steps.semver.outputs.version }}
           body: |
             Release from PR #${{ github.event.pull_request.number }}
             ${{ github.event.pull_request.title }}
 
             This release includes:
             - Windows Executable
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.create_release.outputs.tag_name }}
           files: dist/weather_helper.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
