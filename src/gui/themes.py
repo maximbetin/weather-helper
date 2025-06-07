@@ -33,7 +33,7 @@ COLORS = {
 
 # Enhanced font configurations with better hierarchy
 FONTS = {
-    'title': ('Segoe UI', 28, 'bold'),
+    'title': ('Segoe UI', 22, 'bold'),  # Reduced from 28 to 22
     'heading': ('Segoe UI', 18, 'bold'),
     'subheading': ('Segoe UI', 14, 'bold'),
     'body': ('Segoe UI', 11),
@@ -76,11 +76,12 @@ def apply_theme(root):
   # Configure root window
   root.configure(background=COLORS['background'])
 
-  # Configure ttk styles with modern appearance
+  # Configure ttk styles with modern appearance - FORCE NO BORDERS ANYWHERE
   style.configure('TFrame',
-                  background=COLORS['background'],
+                  background=COLORS['surface'],  # Use surface color to match sidebar
                   relief='flat',
-                  borderwidth=0)
+                  borderwidth=0,
+                  highlightthickness=0)
 
   style.configure('Card.TFrame',
                   background=COLORS['surface'],
@@ -88,10 +89,26 @@ def apply_theme(root):
                   borderwidth=1,
                   padding=2)
 
+  # Sidebar content frame with unified background - ABSOLUTELY NO BORDERS
+  style.configure('Sidebar.TFrame',
+                  background=COLORS['surface'],
+                  relief='flat',
+                  borderwidth=0,
+                  highlightthickness=0)
+
   style.configure('TLabel',
                   background=COLORS['background'],
                   foreground=COLORS['text'],
                   font=FONTS['body'])
+
+  # Sidebar label styling for unified appearance - NO BORDERS
+  style.configure('Sidebar.TLabel',
+                  background=COLORS['surface'],
+                  foreground=COLORS['text'],
+                  font=FONTS['body'],
+                  relief='flat',
+                  borderwidth=0,
+                  highlightthickness=0)
 
   style.configure('Title.TLabel',
                   background=COLORS['background'],
