@@ -12,10 +12,10 @@ from src.core.enums import WeatherBlockType
 
 def test_get_weather_score():
   # Test valid weather symbols
-  assert get_weather_score("clearsky") == 7
-  assert get_weather_score("fair") == 5
-  assert get_weather_score("partlycloudy") == 3
-  assert get_weather_score("cloudy") == 1
+  assert get_weather_score("clearsky") == 5
+  assert get_weather_score("fair") == 3
+  assert get_weather_score("partlycloudy") == 1
+  assert get_weather_score("cloudy") == -1
   assert get_weather_score("lightrain") == -3
   assert get_weather_score("heavyrain") == -10
   assert get_weather_score("thunderstorm") == -15
@@ -31,7 +31,7 @@ def test_get_block_type():
   sunny_hour = HourlyWeather(
       time=datetime.now(),
       symbol="clearsky",
-      weather_score=7,
+      weather_score=5,
       temp_score=0,
       wind_score=0,
       cloud_score=0,
@@ -51,7 +51,7 @@ def test_get_block_type():
   cloudy_hour = HourlyWeather(
       time=datetime.now(),
       symbol="cloudy",
-      weather_score=1,
+      weather_score=-1,
       temp_score=0,
       wind_score=0,
       cloud_score=0,

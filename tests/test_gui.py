@@ -47,11 +47,11 @@ def test_main_table_setup(app):
 
 
 def test_get_rating_info():
-  assert get_rating_info(20) == "Excellent"
-  assert get_rating_info(15) == "Very Good"
-  assert get_rating_info(10) == "Good"
-  assert get_rating_info(5) == "Fair"
-  assert get_rating_info(0) == "Poor"
+  assert get_rating_info(15) == "Excellent"  # Above 12.0
+  assert get_rating_info(10) == "Very Good"  # 8.0-12.0
+  assert get_rating_info(6) == "Good"        # 4.0-8.0
+  assert get_rating_info(2) == "Fair"        # 1.0-4.0
+  assert get_rating_info(0) == "Poor"        # Below 1.0
   assert get_rating_info(None) == "N/A"
 
 

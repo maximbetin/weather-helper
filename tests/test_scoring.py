@@ -10,18 +10,18 @@ from src.core.evaluation import (
 
 
 @pytest.mark.parametrize("temp, expected_score", [
-    (20, 8),   # Ideal
-    (17, 6),   # Slightly cool
-    (25, 6),   # Slightly warm
-    (12, 4),   # Cool
-    (28, 3),   # Warm
-    (8, 0),    # Cold
-    (32, -2),  # Hot
-    (2, -5),   # Very cold
-    (35, -5),  # Very hot
-    (-2, -8),  # Extremely cold
-    (38, -8),  # Extremely hot
-    (50, -10),  # Beyond extreme
+    (20, 6),   # Ideal
+    (17, 4),   # Slightly cool
+    (25, 4),   # Slightly warm
+    (12, 2),   # Cool
+    (28, 1),   # Warm
+    (8, -1),   # Cold
+    (32, -3),  # Hot
+    (2, -6),   # Very cold
+    (35, -6),  # Very hot
+    (-2, -9),  # Extremely cold
+    (38, -9),  # Extremely hot
+    (50, -12),  # Beyond extreme
     (None, 0),  # No value
 ])
 def test_temp_score(temp, expected_score):
@@ -49,12 +49,12 @@ def test_wind_score(wind, expected_score):
 
 
 @pytest.mark.parametrize("clouds, expected_score", [
-    (5, 5),    # Clear
-    (15, 3),   # Few clouds
-    (30, 1),   # Partly cloudy
+    (5, 4),    # Clear
+    (15, 2),   # Few clouds
+    (30, 0),   # Partly cloudy
     (60, -2),  # Mostly cloudy
-    (80, -3),  # Very cloudy
-    (95, -5),  # Overcast
+    (80, -4),  # Very cloudy
+    (95, -6),  # Overcast
     (None, 0),  # No value
 ])
 def test_cloud_score(clouds, expected_score):

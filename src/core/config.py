@@ -19,10 +19,10 @@ FORECAST_DAYS = 7  # Max days for forecast processing
 
 # Weather rating system - positive scores for good outdoor conditions
 WEATHER_SYMBOLS: Dict[str, Tuple[str, int]] = {
-    "clearsky": ("Sunny", 7),
-    "fair": ("Mostly Sunny", 5),
-    "partlycloudy": ("Partly Cloudy", 3),
-    "cloudy": ("Cloudy", 1),
+    "clearsky": ("Sunny", 5),
+    "fair": ("Mostly Sunny", 3),
+    "partlycloudy": ("Partly Cloudy", 1),
+    "cloudy": ("Cloudy", -1),
     "lightrain": ("Light Rain", -3),
     "lightrainshowers": ("Light Rain", -3),
     "lightsleet": ("Light Sleet", -4),

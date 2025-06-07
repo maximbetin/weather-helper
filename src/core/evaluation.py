@@ -59,7 +59,7 @@ def get_weather_score(symbol: Optional[str]) -> int:
 
 
 def temp_score(temp: Optional[NumericType]) -> int:
-  """Rate temperature for outdoor comfort on a scale of -10 to 8.
+  """Rate temperature for outdoor comfort on a scale of -12 to 6.
 
   Args:
       temp: Temperature in Celsius
@@ -68,18 +68,18 @@ def temp_score(temp: Optional[NumericType]) -> int:
       Integer score representing temperature comfort
   """
   temp_ranges = [
-      ((18, 23), 8),    # Ideal temperature
-      ((15, 18), 6),    # Slightly cool but pleasant
-      ((23, 26), 6),    # Slightly warm but pleasant
-      ((10, 15), 4),    # Cool
-      ((26, 30), 3),    # Warm
-      ((5, 10), 0),     # Cold
-      ((30, 33), -2),   # Hot
-      ((0, 5), -5),     # Very cold
-      ((33, 36), -5),   # Very hot
-      ((-5, 0), -8),    # Extremely cold
-      ((36, 40), -8),   # Extremely hot
-      (None, -10)       # Beyond extreme temperatures
+      ((18, 23), 6),    # Ideal temperature (reduced from 8)
+      ((15, 18), 4),    # Slightly cool but pleasant (reduced from 6)
+      ((23, 26), 4),    # Slightly warm but pleasant (reduced from 6)
+      ((10, 15), 2),    # Cool (reduced from 4)
+      ((26, 30), 1),    # Warm (reduced from 3)
+      ((5, 10), -1),    # Cold (reduced from 0)
+      ((30, 33), -3),   # Hot (reduced from -2)
+      ((0, 5), -6),     # Very cold (reduced from -5)
+      ((33, 36), -6),   # Very hot (reduced from -5)
+      ((-5, 0), -9),    # Extremely cold (reduced from -8)
+      ((36, 40), -9),   # Extremely hot (reduced from -8)
+      (None, -12)       # Beyond extreme temperatures (reduced from -10)
   ]
   return _calculate_score(temp, temp_ranges, inclusive=True)
 
@@ -108,7 +108,7 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
 
 
 def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
-  """Rate cloud coverage for outdoor activities on a scale of -5 to 5.
+  """Rate cloud coverage for outdoor activities on a scale of -6 to 4.
 
   Args:
       cloud_coverage: Cloud coverage percentage (0-100)
@@ -117,12 +117,12 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
       Integer score representing cloud cover impact
   """
   cloud_ranges = [
-      ((0, 10), 5),     # Clear
-      ((10, 25), 3),    # Few clouds
-      ((25, 50), 1),    # Partly cloudy
-      ((50, 75), -2),   # Mostly cloudy
-      ((75, 90), -3),   # Very cloudy
-      (None, -5)        # Overcast
+      ((0, 10), 4),     # Clear (reduced from 5)
+      ((10, 25), 2),    # Few clouds (reduced from 3)
+      ((25, 50), 0),    # Partly cloudy (reduced from 1)
+      ((50, 75), -2),   # Mostly cloudy (unchanged)
+      ((75, 90), -4),   # Very cloudy (reduced from -3)
+      (None, -6)        # Overcast (reduced from -5)
   ]
   return _calculate_score(cloud_coverage, cloud_ranges)
 
@@ -193,11 +193,11 @@ def get_rating_info(score: Union[int, float, None]) -> str:
     return "N/A"
 
   rating_ranges = [
-      ((18.0, float('inf')), "Excellent"),
-      ((13.0, 18.0), "Very Good"),
-      ((8.0, 13.0), "Good"),
-      ((3.0, 8.0), "Fair"),
-      (None, "Poor")
+      ((12.0, float('inf')), "Excellent"),   # 80% of new max (15 points)
+      ((8.0, 12.0), "Very Good"),            # 53-80% of max - more selective
+      ((4.0, 8.0), "Good"),                  # 27-53% of max - reasonable threshold
+      ((1.0, 4.0), "Fair"),                  # 7-27% of max - low but positive
+      (None, "Poor")                         # Below 1.0 is poor
   ]
   return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
@@ -219,9 +219,9 @@ def _find_best_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, An
       if avg_score < 0:
         continue
 
-      duration_factor = 1 + math.log(duration) / 2.5 if duration > 1 else 1
+      duration_factor = 1 + math.log(duration) / 4.0 if duration > 1 else 1
       combined_score = avg_score * duration_factor
-      combined_score = min(combined_score, avg_score * 1.8)
+      combined_score = min(combined_score, avg_score * 1.5)
 
       if combined_score > max_score:
         max_score = combined_score
