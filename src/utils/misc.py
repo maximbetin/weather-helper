@@ -3,9 +3,10 @@ Utility functions used across the application.
 """
 import re
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple, TypeVar, Union
+from typing import List, Optional, Tuple, TypeVar, Union, Dict, Any
 
 import pytz
+import math
 
 from src.core.config import TIMEZONE, WEATHER_SYMBOLS
 from src.core.locations import LOCATIONS
@@ -446,13 +447,163 @@ def get_rating_info(score: Union[int, float, None]) -> str:
   """
   if score is None:
     return "N/A"
-  if score >= 15.0:
+  if score >= 18.0:
     return "Excellent"
-  elif score >= 10.0:
+  elif score >= 13.0:
     return "Very Good"
-  elif score >= 5.0:
+  elif score >= 8.0:
     return "Good"
-  elif score >= 0.0:
+  elif score >= 3.0:
     return "Fair"
   else:
     return "Poor"
+
+
+def find_optimal_weather_block(hours: List[Any]) -> Dict[str, Any]:
+  """Find the optimal weather block for outdoor activities.
+
+  This function identifies the highest scoring continuous block of weather,
+  considering both quality and duration. It also identifies time ranges to avoid
+  due to poor weather conditions.
+
+  Args:
+      hours: List of HourlyWeather objects for a given date
+
+  Returns:
+      Dict containing:
+          - 'optimal_block': Dict with 'start', 'end', 'avg_score', 'duration', 'weather', 'temp', 'wind'
+          - 'avoid_ranges': List of Dict with 'start', 'end', 'reason'
+  """
+  if not hours:
+    return {
+      'optimal_block': None,
+      'avoid_ranges': []
+    }
+
+  # Sort hours by time
+  sorted_hours = sorted(hours, key=lambda x: x.time)
+
+  # Find continuous blocks with good scores (positive scores)
+  good_blocks = []
+  current_block = []
+
+  for hour in sorted_hours:
+    # Consider positive scores as good for outdoor activities
+    if hour.total_score >= 0:
+      current_block.append(hour)
+    else:
+      # End of a good block
+      if current_block:
+        good_blocks.append(current_block)
+        current_block = []
+
+  # Don't forget the last block
+  if current_block:
+    good_blocks.append(current_block)
+
+  # Identify time ranges to avoid (very poor weather blocks)
+  avoid_ranges = []
+  current_avoid = []
+  for hour in sorted_hours:
+    if hour.total_score < -3:
+      current_avoid.append(hour)
+    else:
+      if current_avoid:
+        avoid_range = {
+          'start': current_avoid[0].time,
+          'end': current_avoid[-1].time,
+          'reason': current_avoid[0].symbol,
+          'duration': len(current_avoid),
+          'worst_score': min(h.total_score for h in current_avoid)
+        }
+        avoid_ranges.append(avoid_range)
+        current_avoid = []
+  if current_avoid:
+    avoid_range = {
+      'start': current_avoid[0].time,
+      'end': current_avoid[-1].time,
+      'reason': current_avoid[0].symbol,
+      'duration': len(current_avoid),
+      'worst_score': min(h.total_score for h in current_avoid)
+    }
+    avoid_ranges.append(avoid_range)
+
+  # Score the good blocks based on quality and duration
+  scored_blocks = []
+  for block in good_blocks:
+    if len(block) >= 2:  # Only consider blocks of at least 2 hours
+      avg_score = sum(h.total_score for h in block) / len(block)
+      duration = len(block)
+
+      # Calculate a combined score that favors both quality and duration
+      # Use a more balanced approach to avoid inflating scores too much
+      # Scale by log of duration to give diminishing returns for longer durations
+      duration_factor = 1 + math.log(duration) / 2.5  # Gentler scaling
+      combined_score = avg_score * duration_factor
+
+      # Cap the combined score to avoid unrealistic ratings
+      combined_score = min(combined_score, avg_score * 1.8)
+
+      # Calculate average temperature and wind for the block
+      avg_temp = sum(h.temp for h in block if h.temp is not None) / \
+          len([h for h in block if h.temp is not None]) if any(h.temp is not None for h in block) else None
+      avg_wind = sum(h.wind for h in block if h.wind is not None) / \
+          len([h for h in block if h.wind is not None]) if any(h.wind is not None for h in block) else None
+
+      # Get the most common weather type
+      symbols = [h.symbol for h in block]
+      weather_type = ""
+      if symbols:
+        symbol_counts = {}
+        for s in symbols:
+          if s:
+            symbol_counts[s] = symbol_counts.get(s, 0) + 1
+        weather_type = max(symbol_counts.items(), key=lambda x: x[1])[0]
+
+      scored_blocks.append({
+        'block': block,
+        'start': block[0].time,
+        'end': block[-1].time,
+        'avg_score': avg_score,
+        'duration': duration,
+        'combined_score': combined_score,
+        'weather': weather_type,
+        'temp': avg_temp,
+        'wind': avg_wind
+      })
+
+  # Find the optimal block
+  optimal_block = None
+  if scored_blocks:
+    # Sort by combined score (higher is better)
+    scored_blocks.sort(key=lambda x: x['combined_score'], reverse=True)
+    optimal_block = scored_blocks[0]
+  else:
+    # If no 2+ hour good blocks found, find the single best hour (score >= 0)
+    best_single_hour = None
+    if sorted_hours:  # Check if there are any hours at all
+      # Filter for hours with positive total_score
+      positive_score_hours = [h for h in sorted_hours if h.total_score >= 0]
+      if positive_score_hours:
+        best_single_hour = max(positive_score_hours, key=lambda h: h.total_score)
+
+    if best_single_hour:
+      optimal_block = {
+        'block': [best_single_hour],
+        'start': best_single_hour.time,
+        'end': best_single_hour.time,  # End is the same as start for a single hour
+        'avg_score': best_single_hour.total_score,
+        'duration': 1,
+        'combined_score': best_single_hour.total_score,  # Combined score for single hour is just its total score
+        'weather': best_single_hour.symbol,
+        'temp': best_single_hour.temp,
+        'wind': best_single_hour.wind
+      }
+
+  print(f"Find optimal weather block: Optimal block found: {optimal_block is not None}, Details: {optimal_block}")
+  print(f"Find optimal weather block: Avoid ranges found: {len(avoid_ranges)}")
+
+  return {
+    'optimal_block': optimal_block,
+    'avoid_ranges': avoid_ranges
+  }

@@ -16,7 +16,8 @@ from src.utils.misc import (
     wind_score,
     cloud_score,
     precip_probability_score,
-    extract_base_symbol
+    extract_base_symbol,
+    find_optimal_weather_block
 )
 
 
@@ -106,19 +107,52 @@ def get_time_blocks_for_date(processed_forecast: dict, d: date) -> List[HourlyWe
 
 
 def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date, top_n: int = 5) -> List[dict]:
-  """Return the top N locations for a given date, sorted by daily score."""
+  """Return the top N locations for a given date, sorted by daily score and optimal weather blocks."""
   results = []
   for loc_key, processed in all_location_processed.items():
     day_scores = processed.get("day_scores", {})
+    daily_forecasts = processed.get("daily_forecasts", {})
+
     if d in day_scores:
       report = day_scores[d]
+
+      # Get hourly data for the day to analyze optimal blocks
+      hours_for_day = daily_forecasts.get(d, [])
+
+      # Find optimal weather blocks and times to avoid
+      weather_blocks_info = find_optimal_weather_block(hours_for_day)
+      optimal_block = weather_blocks_info.get('optimal_block')
+      avoid_ranges = weather_blocks_info.get('avoid_ranges', [])
+
+      # Use combined score (quality + duration) if available, otherwise use avg_score
+      # Start with the basic average score
+      base_score = getattr(report, "avg_score", 0)
+      combined_score = base_score
+
+      # If we have an optimal block, use it to calculate a more refined score
+      if optimal_block:
+        # For very short optimal blocks (less than 3 hours), reduce the score enhancement
+        if optimal_block['duration'] < 3:
+          combined_score = optimal_block['combined_score'] * 0.85
+        else:
+          combined_score = optimal_block['combined_score']
+
+        # If there are times to avoid, slightly reduce the score
+        if avoid_ranges:
+          combined_score = combined_score * 0.95
+
       results.append({
           "location_key": loc_key,
           "location_name": getattr(report, "location_name", loc_key),
           "avg_score": getattr(report, "avg_score", 0),
+          "combined_score": combined_score,
           "min_temp": getattr(report, "min_temp", None),
           "max_temp": getattr(report, "max_temp", None),
-          "weather_description": getattr(report, "weather_description", "")
+          "weather_description": getattr(report, "weather_description", ""),
+          "optimal_block": optimal_block,
+          "avoid_ranges": avoid_ranges
       })
-  results.sort(key=lambda x: x["avg_score"], reverse=True)
+
+  # Sort by combined score to prioritize both quality and duration
+  results.sort(key=lambda x: x["combined_score"], reverse=True)
   return results[:top_n]

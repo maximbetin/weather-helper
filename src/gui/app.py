@@ -6,12 +6,12 @@ import re
 
 import tkinter as tk
 from tkinter import ttk
-from datetime import datetime
+from datetime import datetime, timezone
 from src.gui.themes import apply_theme, FONTS, PADDING
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import process_forecast, get_available_dates, get_top_locations_for_date, get_time_blocks_for_date
-from src.utils.misc import get_rating_info
+from src.utils.misc import get_rating_info, find_optimal_weather_block
 
 
 class WeatherHelperApp:
@@ -55,7 +55,7 @@ class WeatherHelperApp:
     """Configure the main window settings."""
     screen_width = self.root.winfo_screenwidth()
     screen_height = self.root.winfo_screenheight()
-    window_width = 1100  # Increased width to fit all columns
+    window_width = 1200  # Increased width to better fit side panel
     window_height = 700
     x = (screen_width - window_width) // 2
     y = (screen_height - window_height) // 2
@@ -95,19 +95,35 @@ class WeatherHelperApp:
     selector_frame.columnconfigure(3, weight=1)
 
   def setup_side_panel(self):
-    # Place the side panel content to align with the table headers
     self.side_panel = ttk.Frame(self.main_frame, padding=PADDING['medium'])
-    self.side_panel.grid(row=2, column=0, rowspan=3, sticky="nsw", padx=(0, PADDING['large']))
+    self.side_panel.grid(row=1, column=0, rowspan=5, sticky="nsew", padx=(0, PADDING['large']))
     self.side_panel.columnconfigure(0, weight=1)
-    self.side_panel_title = ttk.Label(self.side_panel, text="Top 5 Locations", font=FONTS['heading'])
-    self.side_panel_title.grid(row=0, column=0, pady=(0, PADDING['medium']))
+    self.side_panel.rowconfigure(0, weight=0)  # Header row
+    # Distribute location frames evenly
+    for i in range(1, 6):
+      self.side_panel.rowconfigure(i, weight=1)
+    self.side_panel.config(width=320)
+    heading_color = '#222'
+    self.side_panel_title = ttk.Label(self.side_panel, text="Top 5 Locations", font=FONTS['heading'], anchor="w", justify="left", foreground=heading_color)
+    self.side_panel_title.grid(row=0, column=0, sticky="w", pady=(6, PADDING['medium']))
+
+    self.location_frames = []
     self.side_panel_entries = []
+
     for i in range(5):
-      name_label = ttk.Label(self.side_panel, text="", font=FONTS['body'], anchor="w", justify="left")
-      name_label.grid(row=1 + i * 2, column=0, sticky="ew", pady=(0, 0), padx=(4, 4))
-      param_label = ttk.Label(self.side_panel, text="", font=FONTS['small'], anchor="w", justify="left")
-      param_label.grid(row=2 + i * 2, column=0, sticky="ew", pady=(0, 8), padx=(12, 4))
-      self.side_panel_entries.append((name_label, param_label))
+      loc_frame = ttk.Frame(self.side_panel)
+      # Use sticky="nsew" to expand vertically, and fill available space
+      loc_frame.grid(row=i + 1, column=0, sticky="nsew", pady=(8 if i > 0 else 0, 4))
+      self.location_frames.append(loc_frame)
+      loc_frame.columnconfigure(0, weight=0)
+      loc_frame.columnconfigure(1, weight=1)
+      number_label = ttk.Label(loc_frame, text="", font=FONTS['body'], anchor="w", justify="left", foreground=heading_color)
+      number_label.grid(row=0, column=0, sticky="w", pady=(0, 2))
+      name_score_label = ttk.Label(loc_frame, text="", font=FONTS['body'], anchor="w", justify="left", wraplength=300)
+      name_score_label.grid(row=0, column=1, sticky="w", pady=(0, 2))
+      best_label = ttk.Label(loc_frame, text="", font=FONTS['small'], anchor="w", justify="left", wraplength=300)
+      best_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 0), padx=(24, 4))
+      self.side_panel_entries.append((number_label, name_score_label, best_label))
     style = ttk.Style()
     style.configure('SidePanelName.TLabel', font=FONTS['body'])
     style.configure('SidePanelParam.TLabel', font=FONTS['small'])
@@ -234,41 +250,74 @@ class WeatherHelperApp:
 
   def update_side_panel(self):
     if not self.selected_date:
-      for name_label, param_label in self.side_panel_entries:
-        name_label.config(text="", style='SidePanelName.TLabel')
-        param_label.config(text="", style='SidePanelParam.TLabel')
+      for number_label, name_score_label, best_label in self.side_panel_entries:
+        number_label.config(text="")
+        name_score_label.config(text="")
+        best_label.config(text="")
       return
     date_obj = self.selected_date
+    now = datetime.now(timezone.utc)
     top_locs = get_top_locations_for_date(self.all_location_processed, date_obj, top_n=5)
-    for i, (name_label, param_label) in enumerate(self.side_panel_entries):
+    for i, (number_label, name_score_label, best_label) in enumerate(self.side_panel_entries):
       if i < len(top_locs):
         loc = top_locs[i]
-        score = loc['avg_score']
+        score = loc.get('combined_score', 0)
         rating = get_rating_info(score)
-        if score >= 15:
+        if score >= 18:
           fg = '#228B22'
-        elif score >= 10:
+        elif score >= 13:
           fg = '#388e3c'
-        elif score >= 5:
+        elif score >= 8:
           fg = '#7e8c3b'
-        elif score >= 0:
+        elif score >= 3:
           fg = '#ffb300'
         else:
           fg = '#b22222'
-        name_style = 'SidePanelName.TLabel'
-        name_label.config(text=f"{i + 1}. {loc['location_name']}", foreground=fg, style=name_style)
-        # Use human-readable weather description if possible
-        weather_desc = self.format_weather(loc['weather_description'])
-        param_label.config(
-          text=(
-            f"Score: {rating} ({score:.1f})\n"
-            f"Temp: {loc['min_temp']}°C - {loc['max_temp']}°C\n"
-            f"Weather: {weather_desc}"
-          ),
-          foreground=fg, style='SidePanelParam.TLabel')
+        # Number label in heading color, rest in score color
+        number_label.config(text=f"{i + 1}.", foreground=self.side_panel_title.cget('foreground'))
+        name_score_label.config(text=f" {loc.get('location_name', 'Unknown')}: {rating} ({score:.1f})", foreground=fg)
+        processed = self.all_location_processed.get(loc.get('location_key'))
+        all_hours_for_day = []
+        if processed and "daily_forecasts" in processed:
+          all_hours_for_day = processed["daily_forecasts"].get(date_obj, [])
+        filtered_hours = [h for h in all_hours_for_day if 8 <= h.time.hour <= 20 and (date_obj != now.date() or h.time.hour >= now.hour)]
+        best_text = ""
+        if filtered_hours:
+          weather_blocks_info = find_optimal_weather_block(filtered_hours)
+          optimal_block = weather_blocks_info.get('optimal_block')
+          if not optimal_block:
+            best_hour = max(filtered_hours, key=lambda h: h.total_score)
+            start_time = end_time = best_hour.time.strftime('%H:%M')
+            duration = 1
+            weather_type = self.format_weather(best_hour.symbol)
+            best_text = f"Best: {start_time}-{end_time} ({weather_type} - {duration}h)\n"
+            conditions = []
+            if best_hour.temp is not None:
+              conditions.append(f"Temperature: {best_hour.temp:.1f}°C")
+            if best_hour.wind is not None:
+              conditions.append(f"Wind: {best_hour.wind:.1f} m/s")
+            if conditions:
+              best_text += ", ".join(conditions)
+          else:
+            start_time = optimal_block["start"].strftime('%H:%M')
+            end_time = optimal_block["end"].strftime('%H:%M')
+            duration = optimal_block["duration"]
+            weather_type = self.format_weather(optimal_block["weather"])
+            best_text = f"Best: {start_time}-{end_time} ({weather_type} - {duration}h)\n"
+            conditions = []
+            if optimal_block["temp"] is not None:
+              conditions.append(f"Temperature: {optimal_block['temp']:.1f}°C")
+            if optimal_block["wind"] is not None:
+              conditions.append(f"Wind: {optimal_block['wind']:.1f} m/s")
+            if conditions:
+              best_text += ", ".join(conditions)
+          best_label.config(text=best_text, foreground=fg)
+        else:
+          best_label.config(text="Best: No data", foreground=fg)
       else:
-        name_label.config(text="", style='SidePanelName.TLabel')
-        param_label.config(text="", style='SidePanelParam.TLabel')
+        number_label.config(text="")
+        name_score_label.config(text="")
+        best_label.config(text="")
 
   def update_main_table(self):
     for row in self.main_table.get_children():
@@ -280,9 +329,12 @@ class WeatherHelperApp:
     if not processed:
       return
     time_blocks = get_time_blocks_for_date(processed, date_obj)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
+    # Filter for only hours between 08:00 and 20:00 and only future hours
     if date_obj == now.date():
-      time_blocks = [h for h in time_blocks if h.time.hour >= now.hour]
+      time_blocks = [h for h in time_blocks if 8 <= h.hour <= 20 and h.hour >= now.hour]
+    else:
+      time_blocks = [h for h in time_blocks if 8 <= h.hour <= 20]
     for hour in time_blocks:
       time_str = hour.time.strftime('%H:%M')
       rating = get_rating_info(hour.total_score)
@@ -291,13 +343,13 @@ class WeatherHelperApp:
       weather = self.format_weather(hour.symbol) if hour.symbol else "N/A"
       wind = f"{hour.wind:.1f} m/s" if hour.wind is not None else "N/A"
       humidity = f"{hour.humidity:.0f}%" if hour.humidity is not None else "N/A"
-      if hour.total_score >= 15:
+      if hour.total_score >= 18:
         tag = 'Excellent'
-      elif hour.total_score >= 10:
+      elif hour.total_score >= 13:
         tag = 'VeryGood'
-      elif hour.total_score >= 5:
+      elif hour.total_score >= 8:
         tag = 'Good'
-      elif hour.total_score >= 0:
+      elif hour.total_score >= 3:
         tag = 'Fair'
       else:
         tag = 'Poor'
