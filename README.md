@@ -11,74 +11,30 @@ The Weather Helper is a desktop application that provides detailed weather forec
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a scoring system.
 - **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
 
-## Project Structure
-
-The project is organized into the following directories:
-
-- `src/`: Contains the main source code for the application.
-  - `core/`: Core logic, including weather data processing, evaluation, and data models.
-  - `gui/`: GUI components, including the main application window and custom themes.
-  - `utils/`: Utility functions used across the application.
-- `tests/`: Contains all the unit tests for the project.
-
-## Installation
+## Installation and Usage
 
 1. **Clone the repository:**
 
-   ```bash
-   git clone https://github.com/your-username/weather-helper.git
-   cd weather-helper
-   ```
-
-2. **Create a virtual environment:**
-
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-   ```
-
-3. **Install the dependencies:**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-To run the application, execute the following command from the root directory:
-
-```bash
-python main.py
-```
-
-## Running the Tests
-
-To run the unit tests, use `pytest`:
-
-```bash
-pytest
-```
-
-## Development Setup
-
-1. Clone the repository:
    ```bash
    git clone https://github.com/maximbetin/weather-helper.git
    cd weather-helper
    ```
 
-2. Create a virtual environment (recommended):
+2. **Create a virtual environment (recommended):**
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+3. **Install dependencies:**
+
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Run the application:
+4. **Run the application:**
+
    ```bash
    python weather_helper.py
    ```
@@ -127,9 +83,10 @@ weather-helper/
 │   ├── gui/            # GUI components
 │   └── utils/          # Utility functions
 ├── tests/              # Test suite
-├── .github/            # GitHub Actions workflows
+├── pyproject.toml      # Project metadata
 ├── requirements.txt    # Python dependencies
-└── README.md          # This file
+├── setup.py            # Build script
+└── README.md           # This file
 ```
 
 ## Contributing
@@ -139,7 +96,3 @@ weather-helper/
 3. Make your changes
 4. Run the tests
 5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
