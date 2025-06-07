@@ -30,7 +30,7 @@ The Weather Helper is a desktop application that provides detailed weather forec
 3. **Install dependencies:**
 
    ```bash
-   pip install -r requirements.txt
+   pip install .
    ```
 
 4. **Run the application:**
@@ -83,9 +83,7 @@ weather-helper/
 │   ├── gui/            # GUI components
 │   └── utils/          # Utility functions
 ├── tests/              # Test suite
-├── pyproject.toml      # Project metadata
-├── requirements.txt    # Python dependencies
-├── setup.py            # Build script
+├── pyproject.toml      # Project metadata and dependencies
 └── README.md           # This file
 ```
 

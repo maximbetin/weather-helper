@@ -5,7 +5,7 @@ from src.gui.app import WeatherHelperApp
 from src.gui.formatting import format_date, get_weather_description
 from src.core.evaluation import get_rating_info
 from src.core.hourly_weather import HourlyWeather
-from datetime import datetime
+from datetime import datetime, date
 
 
 @pytest.fixture
@@ -44,3 +44,17 @@ def test_main_table_setup(app):
   assert app.main_table is not None
   columns = ("Time", "Score", "Temperature", "Weather", "Wind", "Humidity")
   assert app.main_table['columns'] == columns
+
+
+def test_get_rating_info():
+  assert get_rating_info(20) == "Excellent"
+  assert get_rating_info(15) == "Very Good"
+  assert get_rating_info(10) == "Good"
+  assert get_rating_info(5) == "Fair"
+  assert get_rating_info(0) == "Poor"
+  assert get_rating_info(None) == "N/A"
+
+
+def test_format_date():
+  test_date = date(2024, 1, 5)
+  assert format_date(test_date) == "Fri, 05 Jan"

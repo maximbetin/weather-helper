@@ -6,42 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from src.core.hourly_weather import HourlyWeather
-from src.utils.misc import is_value_valid, safe_average
-
-
-def get_weather_description_from_counts(sunny_hours: int, partly_cloudy_hours: int, rainy_hours: int,
-                                        avg_precip_prob: Optional[float] = None) -> str:
-  """Determine overall weather description based on hour counts.
-
-  Args:
-      sunny_hours: Number of sunny hours
-      partly_cloudy_hours: Number of partly cloudy hours
-      rainy_hours: Number of rainy hours
-      avg_precip_prob: Average precipitation probability
-
-  Returns:
-      str: Description of the overall weather
-  """
-  # First check if there's significant rain
-  if rainy_hours > 0:
-    return f"Rain ({rainy_hours}h)"
-
-  # Determine the dominant condition
-  max_hours = max(sunny_hours, partly_cloudy_hours, 0)  # Ensure non-negative
-
-  # Format precipitation warning if needed
-  precip_warning = ""
-  if avg_precip_prob is not None and avg_precip_prob > 40:
-    precip_warning = f" - {avg_precip_prob:.0f}% rain"
-
-  if max_hours == 0:
-    return "Mixed" + precip_warning
-  elif sunny_hours == max_hours:
-    return "Sunny" + precip_warning
-  elif partly_cloudy_hours == max_hours:
-    return "Partly Cloudy" + precip_warning
-  else:
-    return "Mixed" + precip_warning
+from src.utils.misc import safe_average
 
 
 class DailyReport:
@@ -60,6 +25,29 @@ class DailyReport:
     # Calculate all stats in one pass through the data
     self._calculate_all_stats()
 
+  def _get_weather_description(self) -> str:
+    """Determine overall weather description based on hour counts."""
+    # First check if there's significant rain
+    if self.rainy_hours > 0:
+      return f"Rain ({self.rainy_hours}h)"
+
+    # Determine the dominant condition
+    max_hours = max(self.sunny_hours, self.partly_cloudy_hours, 0)  # Ensure non-negative
+
+    # Format precipitation warning if needed
+    precip_warning = ""
+    if self.avg_precip_prob is not None and self.avg_precip_prob > 40:
+      precip_warning = f" - {self.avg_precip_prob:.0f}% rain"
+
+    if max_hours == 0:
+      return "Mixed" + precip_warning
+    elif self.sunny_hours == max_hours:
+      return "Sunny" + precip_warning
+    elif self.partly_cloudy_hours == max_hours:
+      return "Partly Cloudy" + precip_warning
+    else:
+      return "Mixed" + precip_warning
+
   def _initialize_empty_report(self) -> None:
     """Initialize default values for an empty report (no daylight hours)."""
     self.avg_score: float = -float('inf')
@@ -74,56 +62,24 @@ class DailyReport:
 
   def _calculate_all_stats(self) -> None:
     """Calculate all statistics in a single pass through the data."""
-    # Initialize counters and aggregators
-    self.sunny_hours = 0
-    self.partly_cloudy_hours = 0
-    self.rainy_hours = 0
-    self.likely_rain_hours = 0
+    self.sunny_hours = sum(1 for hour in self.daylight_hours if hour.symbol in ["clearsky", "fair"])
+    self.partly_cloudy_hours = sum(1 for hour in self.daylight_hours if hour.symbol == "partlycloudy")
+    self.rainy_hours = sum(1 for hour in self.daylight_hours if "rain" in hour.symbol or "shower" in hour.symbol)
+    self.likely_rain_hours = sum(1 for hour in self.daylight_hours if isinstance(
+      hour.precipitation_probability, (int, float)) and hour.precipitation_probability > 30)
 
-    # For temperature stats
-    valid_temps = []
+    valid_temps = [hour.temp for hour in self.daylight_hours if hour.temp is not None]
+    valid_precip_probs = [hour.precipitation_probability for hour in self.daylight_hours if hour.precipitation_probability is not None]
 
-    # For precipitation stats
-    valid_precip_probs = []
+    total_score = sum(hour.total_score for hour in self.daylight_hours)
 
-    # For score calculation
-    num_hours = len(self.daylight_hours)
-    total_score = 0
-
-    # Process each hour in a single loop
-    for hour in self.daylight_hours:
-      # Count condition hours
-      if hour.symbol in ["clearsky", "fair"]:
-        self.sunny_hours += 1
-      elif hour.symbol == "partlycloudy":
-        self.partly_cloudy_hours += 1
-      elif "rain" in hour.symbol or "shower" in hour.symbol:
-        self.rainy_hours += 1
-
-      # Count likely rain hours
-      if isinstance(hour.precipitation_probability, (int, float)) and hour.precipitation_probability > 30:
-        self.likely_rain_hours += 1
-
-      # Collect temperature data
-      if is_value_valid(hour.temp):
-        valid_temps.append(hour.temp)
-
-      # Collect precipitation probability data
-      if is_value_valid(hour.precipitation_probability):
-        valid_precip_probs.append(hour.precipitation_probability)
-
-      # Sum the total score directly
-      total_score += hour.total_score
-
-    # Calculate temperature stats
     self.min_temp = min(valid_temps) if valid_temps else None
     self.max_temp = max(valid_temps) if valid_temps else None
     self.avg_temp = safe_average(valid_temps)
 
-    # Calculate precipitation stats
     self.avg_precip_prob = safe_average(valid_precip_probs)
 
-    # Calculate average score
+    num_hours = len(self.daylight_hours)
     self.avg_score = total_score / num_hours if num_hours > 0 else 0
 
   @property
@@ -133,9 +89,4 @@ class DailyReport:
     Returns:
         str: Description of the overall weather
     """
-    return get_weather_description_from_counts(
-        self.sunny_hours,
-        self.partly_cloudy_hours,
-        self.rainy_hours,
-        self.avg_precip_prob
-    )
+    return self._get_weather_description()

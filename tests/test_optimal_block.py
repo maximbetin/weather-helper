@@ -33,9 +33,9 @@ def test_find_optimal_block_with_clear_winner():
       create_hour(base_time + timedelta(hours=5), 2),
   ]
   result = find_optimal_weather_block(hours)
-  assert result['optimal_block'] is not None
-  assert result['optimal_block']['start'].hour == 11
-  assert result['optimal_block']['duration'] == 4
+  assert result is not None
+  assert result['start'].hour == 11
+  assert result['duration'] == 4
 
 
 def test_find_optimal_block_with_long_good_block():
@@ -49,9 +49,9 @@ def test_find_optimal_block_with_long_good_block():
       create_hour(base_time + timedelta(hours=5), 5),
   ]
   result = find_optimal_weather_block(hours)
-  assert result['optimal_block'] is not None
-  assert result['optimal_block']['start'].hour == 10
-  assert result['optimal_block']['duration'] == 5
+  assert result is not None
+  assert result['start'].hour == 10
+  assert result['duration'] == 5
 
 
 def test_find_optimal_block_with_no_good_blocks():
@@ -62,8 +62,7 @@ def test_find_optimal_block_with_no_good_blocks():
       create_hour(base_time + timedelta(hours=2), -3),
   ]
   result = find_optimal_weather_block(hours)
-  assert result['optimal_block'] is None
-  assert len(result['avoid_ranges']) > 0
+  assert result is None
 
 
 def test_find_optimal_block_with_single_best_hour():
@@ -75,29 +74,14 @@ def test_find_optimal_block_with_single_best_hour():
       create_hour(base_time + timedelta(hours=3), -2),
   ]
   result = find_optimal_weather_block(hours)
-  assert result['optimal_block'] is not None
-  assert result['optimal_block']['duration'] == 1
-  assert result['optimal_block']['start'].hour == 12
-
-
-def test_find_optimal_block_with_avoid_ranges():
-  base_time = datetime(2023, 1, 1, 10)
-  hours = [
-      create_hour(base_time, 8),
-      create_hour(base_time + timedelta(hours=1), -10, symbol="heavyrain"),  # Bad weather
-      create_hour(base_time + timedelta(hours=2), -8, symbol="heavyrain"),  # Bad weather
-      create_hour(base_time + timedelta(hours=3), 7),
-  ]
-  result = find_optimal_weather_block(hours)
-  assert len(result['avoid_ranges']) == 1
-  assert result['avoid_ranges'][0]['start'].hour == 11
-  assert result['avoid_ranges'][0]['end'].hour == 12
+  assert result is not None
+  assert result['duration'] == 1
+  assert result['start'].hour == 12
 
 
 def test_find_optimal_block_empty_input():
   result = find_optimal_weather_block([])
-  assert result['optimal_block'] is None
-  assert len(result['avoid_ranges']) == 0
+  assert result is None
 
 
 def test_find_optimal_block_short_good_block():
@@ -107,5 +91,5 @@ def test_find_optimal_block_short_good_block():
       create_hour(base_time + timedelta(hours=1), 9)
   ]
   result = find_optimal_weather_block(hours)
-  assert result['optimal_block'] is not None
-  assert result['optimal_block']['duration'] == 2
+  assert result is not None
+  assert result['duration'] == 2

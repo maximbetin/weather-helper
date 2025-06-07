@@ -3,11 +3,12 @@ from datetime import datetime, timedelta
 from src.core.evaluation import (
     get_weather_score,
     get_block_type,
-    extract_blocks
+    extract_blocks,
+    find_optimal_weather_block,
+    process_forecast
 )
-from src.core.daily_report import get_weather_description_from_counts
-from src.gui.formatting import get_weather_description
 from src.core.hourly_weather import HourlyWeather
+from src.core.enums import WeatherBlockType
 
 
 def test_get_weather_score():
@@ -24,44 +25,6 @@ def test_get_weather_score():
   assert get_weather_score(None) == 0
   assert get_weather_score("") == 0
   assert get_weather_score("invalid_symbol") == 0
-
-
-def test_get_weather_description():
-  # Test valid weather symbols
-  assert get_weather_description("clearsky") == "Clear Sky"
-  assert get_weather_description("fair") == "Fair"
-  assert get_weather_description("partlycloudy") == "Partly Cloudy"
-  assert get_weather_description("cloudy") == "Cloudy"
-  assert get_weather_description("lightrain") == "Light Rain"
-  assert get_weather_description("heavyrain") == "Heavy Rain"
-  assert get_weather_description("thunderstorm") == "Thunderstorm"
-
-  # Test invalid inputs
-  assert get_weather_description("") == ""
-  assert get_weather_description("invalid_symbol") == "Invalid_symbol"
-  assert get_weather_description("partly_cloudy") == "Partly_cloudy"
-
-
-def test_get_weather_description_from_counts():
-  # Test sunny conditions
-  assert get_weather_description_from_counts(5, 2, 0) == "Sunny"
-  assert get_weather_description_from_counts(3, 3, 0) == "Sunny"
-
-  # Test partly cloudy conditions
-  assert get_weather_description_from_counts(2, 4, 0) == "Partly Cloudy"
-  assert get_weather_description_from_counts(1, 5, 0) == "Partly Cloudy"
-
-  # Test rainy conditions
-  assert get_weather_description_from_counts(2, 2, 1) == "Rain (1h)"
-  assert get_weather_description_from_counts(0, 0, 3) == "Rain (3h)"
-
-  # Test with precipitation probability
-  assert get_weather_description_from_counts(5, 2, 0, 45) == "Sunny - 45% rain"
-  assert get_weather_description_from_counts(2, 2, 1, 60) == "Rain (1h)"
-
-  # Test edge cases
-  assert get_weather_description_from_counts(0, 0, 0) == "Mixed"
-  assert get_weather_description_from_counts(0, 0, 0, 30) == "Mixed"
 
 
 def test_get_block_type():
@@ -97,9 +60,9 @@ def test_get_block_type():
   )
 
   # Test weather types
-  assert get_block_type(sunny_hour) == "sunny"
-  assert get_block_type(rainy_hour) == "rainy"
-  assert get_block_type(cloudy_hour) == "cloudy"
+  assert get_block_type(sunny_hour) == WeatherBlockType.SUNNY
+  assert get_block_type(rainy_hour) == WeatherBlockType.RAINY
+  assert get_block_type(cloudy_hour) == WeatherBlockType.CLOUDY
 
 
 def test_extract_blocks():
@@ -127,21 +90,29 @@ def test_extract_blocks():
   blocks = extract_blocks(hours, min_block_len=2)
   assert len(blocks) == 4
   assert len(blocks[0][0]) == 3
-  assert blocks[0][1] == "sunny"
+  assert blocks[0][1] == WeatherBlockType.SUNNY
   assert len(blocks[1][0]) == 2
-  assert blocks[1][1] == "cloudy"
+  assert blocks[1][1] == WeatherBlockType.CLOUDY
   assert len(blocks[2][0]) == 3
-  assert blocks[2][1] == "rainy"
+  assert blocks[2][1] == WeatherBlockType.RAINY
   assert len(blocks[3][0]) == 2
-  assert blocks[3][1] == "sunny"
+  assert blocks[3][1] == WeatherBlockType.SUNNY
 
   # Test with minimum length 3
   blocks = extract_blocks(hours, min_block_len=3)
   assert len(blocks) == 2
   assert len(blocks[0][0]) == 3
-  assert blocks[0][1] == "sunny"
+  assert blocks[0][1] == WeatherBlockType.SUNNY
   assert len(blocks[1][0]) == 3
-  assert blocks[1][1] == "rainy"
+  assert blocks[1][1] == WeatherBlockType.RAINY
 
   # Test with empty input
   assert extract_blocks([]) == []
+
+
+def test_find_optimal_weather_block_empty():
+  assert find_optimal_weather_block([]) is None
+
+
+def test_process_forecast_empty():
+  assert process_forecast({}, "Test Location") is None

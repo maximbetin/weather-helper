@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime
-from src.utils.misc import get_current_date, get_current_datetime, get_timezone, is_value_valid, get_value_or_default, safe_average
+from src.utils.misc import get_current_date, get_current_datetime, get_timezone, get_value_or_default, safe_average
 
 
 def test_get_timezone():
@@ -15,12 +15,6 @@ def test_get_current_date():
   assert isinstance(get_current_date(), type(datetime.now().date()))
 
 
-def test_is_value_valid():
-  assert is_value_valid(10)
-  assert is_value_valid(10.5)
-  assert not is_value_valid(None)
-
-
 def test_get_value_or_default():
   assert get_value_or_default(10, 5) == 10
   assert get_value_or_default(None, 5) == 5
@@ -30,3 +24,4 @@ def test_safe_average():
   assert safe_average([1, 2, 3]) == 2
   assert safe_average([]) is None
   assert safe_average([1, 3]) == 2
+  assert safe_average([10, 20, 30, 40, 50]) == 30.0

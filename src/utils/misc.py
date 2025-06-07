@@ -40,18 +40,6 @@ def get_current_date() -> date:
   return get_current_datetime().date()
 
 
-def is_value_valid(value: Optional[Union[int, float]]) -> bool:
-  """Check if a numeric value is valid (not None and is a number).
-
-  Args:
-      value: The value to check
-
-  Returns:
-      bool: True if the value is a valid number
-  """
-  return value is not None and isinstance(value, (int, float))
-
-
 def get_value_or_default(value: Optional[T], default: T) -> T:
   """Get a value if it's not None, otherwise return the default.
   This is a generic utility that works with any type.
@@ -75,7 +63,6 @@ def safe_average(values: List[Union[int, float]]) -> Optional[float]:
   Returns:
       Optional[float]: Average value or None if list is empty
   """
-  valid_values = [v for v in values if is_value_valid(v)]
-  if not valid_values:
+  if not values:
     return None
-  return sum(valid_values) / len(valid_values)
+  return sum(values) / len(values)

@@ -19,6 +19,19 @@ class WeatherHelperApp:
     self.root.title("Weather Helper")
     self.root.minsize(1100, 700)
     apply_theme(self.root)
+    self._init_data_storage()
+    self._setup_ui()
+    self.root.after(100, self.load_all_forecasts)
+
+  def _init_data_storage(self):
+    """Initialize data storage attributes."""
+    self.all_location_processed = {}
+    self.selected_location_key = None
+    self.selected_date = None
+    self.date_map = {}
+
+  def _setup_ui(self):
+    """Setup the main UI layout and widgets."""
     self.setup_window()
     self.main_frame = ttk.Frame(self.root, padding=PADDING['large'])
     self.main_frame.grid(row=0, column=0, sticky="nsew")
@@ -27,7 +40,7 @@ class WeatherHelperApp:
     self.main_frame.columnconfigure(0, weight=0)
     self.main_frame.columnconfigure(1, weight=1)
     self.main_frame.rowconfigure(3, weight=1)
-    # Center the main title across the window
+
     self.title_label = ttk.Label(
         self.main_frame,
         text="Weather Helper",
@@ -37,18 +50,9 @@ class WeatherHelperApp:
     )
     self.title_label.grid(row=0, column=0, columnspan=2, pady=(0, PADDING['large']), sticky="ew")
 
-    # Data storage
-    self.all_location_processed = {}  # key: location_key, value: processed forecast dict
-    self.selected_location_key = None
-    self.selected_date = None
-
-    # UI
     self.setup_selectors()
     self.setup_side_panel()
     self.setup_main_table()
-
-    # Start data loading
-    self.root.after(100, self.load_all_forecasts)
 
   def setup_window(self):
     """Configure the main window settings."""
@@ -245,8 +249,7 @@ class WeatherHelperApp:
         best_rating = get_rating_info(score)
         limited_data = False
         if filtered_hours:
-          weather_blocks_info = find_optimal_weather_block(filtered_hours)
-          optimal_block = weather_blocks_info.get('optimal_block')
+          optimal_block = find_optimal_weather_block(filtered_hours)
           if not optimal_block:
             best_hour = max(filtered_hours, key=lambda h: h.total_score)
             best_score = best_hour.total_score
