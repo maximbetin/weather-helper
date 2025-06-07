@@ -183,8 +183,18 @@ class WeatherHelperApp:
       if loc.name == selected_name:
         self.selected_location_key = key
         break
-    # Update date selector
+    # Try to keep the selected date if available
+    previous_date = self.selected_date
     self.populate_date_selector()
+    if previous_date and previous_date in self.date_map.values():
+      # Set the date dropdown to the previous date
+      for k, v in self.date_map.items():
+        if v == previous_date:
+          self.date_var.set(k)
+          self.selected_date = previous_date
+          break
+      self.update_side_panel()
+      self.update_main_table()
 
   def format_human_date(self, d):
     # Returns e.g. 'June 6th (Friday)'
@@ -262,31 +272,21 @@ class WeatherHelperApp:
       if i < len(top_locs):
         loc = top_locs[i]
         score = loc.get('combined_score', 0)
-        rating = get_rating_info(score)
-        if score >= 18:
-          fg = '#228B22'
-        elif score >= 13:
-          fg = '#388e3c'
-        elif score >= 8:
-          fg = '#7e8c3b'
-        elif score >= 3:
-          fg = '#ffb300'
-        else:
-          fg = '#b22222'
-        # Number label in heading color, rest in score color
-        number_label.config(text=f"{i + 1}.", foreground=self.side_panel_title.cget('foreground'))
-        name_score_label.config(text=f" {loc.get('location_name', 'Unknown')}: {rating} ({score:.1f})", foreground=fg)
         processed = self.all_location_processed.get(loc.get('location_key'))
         all_hours_for_day = []
         if processed and "daily_forecasts" in processed:
           all_hours_for_day = processed["daily_forecasts"].get(date_obj, [])
         filtered_hours = [h for h in all_hours_for_day if 8 <= h.time.hour <= 20 and (date_obj != now.date() or h.time.hour >= now.hour)]
         best_text = ""
+        best_score = score
+        best_rating = get_rating_info(score)
+        limited_data = False
         if filtered_hours:
           weather_blocks_info = find_optimal_weather_block(filtered_hours)
           optimal_block = weather_blocks_info.get('optimal_block')
           if not optimal_block:
             best_hour = max(filtered_hours, key=lambda h: h.total_score)
+            best_score = best_hour.total_score
             start_time = end_time = best_hour.time.strftime('%H:%M')
             duration = 1
             weather_type = self.format_weather(best_hour.symbol)
@@ -299,6 +299,7 @@ class WeatherHelperApp:
             if conditions:
               best_text += ", ".join(conditions)
           else:
+            best_score = optimal_block["avg_score"]
             start_time = optimal_block["start"].strftime('%H:%M')
             end_time = optimal_block["end"].strftime('%H:%M')
             duration = optimal_block["duration"]
@@ -311,9 +312,25 @@ class WeatherHelperApp:
               conditions.append(f"Wind: {optimal_block['wind']:.1f} m/s")
             if conditions:
               best_text += ", ".join(conditions)
-          best_label.config(text=best_text, foreground=fg)
+          # If there are fewer than 3 hours, mark as limited data
+          if len(filtered_hours) < 3:
+            limited_data = True
+          # If the best score is < 3, force the rating to 'Fair' or 'Poor'
+          if best_score < 0:
+            best_rating = 'Poor'
+          elif best_score < 3:
+            best_rating = 'Fair'
         else:
-          best_label.config(text="Best: No data", foreground=fg)
+          best_text = "Best: No data"
+          best_rating = get_rating_info(score)
+        # Number label in heading color, rest in score color
+        number_label.config(text=f"{i + 1}.", foreground=self.side_panel_title.cget('foreground'))
+        name_score_label.config(text=f" {loc.get('location_name', 'Unknown')}: {best_rating} ({score:.1f})", foreground='#228B22' if best_rating ==
+                                'Excellent' else '#388e3c' if best_rating == 'Very Good' else '#7e8c3b' if best_rating == 'Good' else '#ffb300' if best_rating == 'Fair' else '#b22222')
+        if limited_data:
+          best_label.config(text=best_text + "\n(Limited data)", foreground=name_score_label.cget('foreground'))
+        else:
+          best_label.config(text=best_text, foreground=name_score_label.cget('foreground'))
       else:
         number_label.config(text="")
         name_score_label.config(text="")
