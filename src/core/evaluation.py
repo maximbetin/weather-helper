@@ -180,43 +180,6 @@ def get_block_type(hour_obj: HourlyWeather) -> WeatherBlockType:
   return WeatherBlockType.CLOUDY
 
 
-def extract_blocks(hours: List[HourlyWeather], min_block_len: int = 2) -> list:
-  """Find consecutive blocks of hours with similar weather type.
-
-  Args:
-      hours: List of HourlyWeather objects
-      min_block_len: Minimum number of hours to consider a block
-
-  Returns:
-      List of (hour_block, WeatherBlockType) tuples
-  """
-  if not hours:
-    return []
-
-  # Ensure hours are HourlyWeather objects and sorted
-  sorted_hours = sorted(hours, key=lambda x: x.time)  # Sort by full datetime
-  blocks = []
-  current_block = [sorted_hours[0]]
-
-  current_type = get_block_type(sorted_hours[0])
-  for hour_obj in sorted_hours[1:]:
-    hour_type = get_block_type(hour_obj)
-    # Check for consecutive hours (time difference of 1 hour)
-    if hour_type == current_type and (hour_obj.time - current_block[-1].time) == timedelta(hours=1):
-      current_block.append(hour_obj)
-    else:
-      if len(current_block) >= min_block_len:
-        blocks.append((current_block, current_type))
-      current_block = [hour_obj]
-      current_type = hour_type
-
-  # Don't forget the last block
-  if len(current_block) >= min_block_len:
-    blocks.append((current_block, current_type))
-
-  return blocks
-
-
 def get_rating_info(score: Union[int, float, None]) -> str:
   """Return standardized rating description based on score.
 
