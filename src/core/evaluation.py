@@ -5,7 +5,7 @@ Provides functions to process forecasts, evaluate time blocks, and rank location
 
 from collections import defaultdict
 from datetime import datetime, timedelta, date
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TypeVar
 import math
 
 from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, WEATHER_SYMBOLS
@@ -15,25 +15,31 @@ from src.core.daily_report import DailyReport
 
 # Type alias for numeric types
 NumericType = Union[int, float]
+T = TypeVar('T')
+
+
+def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> Optional[T]:
+  """Generic helper to get a value from a list of ranges."""
+  if value is None or not isinstance(value, (int, float)):
+    return None
+
+  for (range_tuple, result_value) in ranges:
+    if range_tuple is None:  # Default case
+      return result_value
+    low, high = range_tuple
+    if inclusive:
+      if low <= value <= high:
+        return result_value
+    else:
+      if low <= value < high:
+        return result_value
+  # Return the result of the last entry if it's a default, otherwise a fallback.
+  return ranges[-1][1] if ranges and ranges[-1][0] is None else None
 
 
 def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
   """Helper to calculate score based on a value and a list of ranges."""
-  if value is None or not isinstance(value, (int, float)):
-    return 0
-
-  for (range_tuple, score_value) in ranges:
-    if range_tuple is None:  # Default case
-      return score_value
-    low, high = range_tuple
-    if inclusive:
-      if low <= value <= high:
-        return score_value
-    else:
-      if low <= value < high:
-        return score_value
-  # Return the score of the last entry if it's a default, otherwise a fallback.
-  return ranges[-1][1] if ranges and ranges[-1][0] is None else 0
+  return _get_value_from_ranges(value, ranges, inclusive) or 0
 
 
 def get_weather_score(symbol: Optional[str]) -> int:
@@ -221,16 +227,15 @@ def get_rating_info(score: Union[int, float, None]) -> str:
   """
   if score is None:
     return "N/A"
-  if score >= 18.0:
-    return "Excellent"
-  elif score >= 13.0:
-    return "Very Good"
-  elif score >= 8.0:
-    return "Good"
-  elif score >= 3.0:
-    return "Fair"
-  else:
-    return "Poor"
+
+  rating_ranges = [
+      ((18.0, float('inf')), "Excellent"),
+      ((13.0, 18.0), "Very Good"),
+      ((8.0, 13.0), "Good"),
+      ((3.0, 8.0), "Fair"),
+      (None, "Poor")
+  ]
+  return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
 def find_optimal_weather_block(hours: List[HourlyWeather]) -> Dict[str, Any]:

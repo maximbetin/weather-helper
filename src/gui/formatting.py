@@ -3,20 +3,7 @@ This module contains utility functions for formatting data for display in the GU
 """
 import re
 from datetime import date, datetime
-from typing import Union
-
-
-def format_datetime(dt: Union[datetime, date], format_str: str) -> str:
-  """Format a datetime or date object according to the provided format string.
-
-  Args:
-      dt: The datetime or date to format
-      format_str: The format string to use
-
-  Returns:
-      str: Formatted datetime string
-  """
-  return dt.strftime(format_str)
+from typing import Union, Optional
 
 
 def format_time(dt: datetime) -> str:
@@ -28,42 +15,35 @@ def format_time(dt: datetime) -> str:
   Returns:
       str: Formatted time string (e.g., "14:30")
   """
-  return format_datetime(dt, "%H:%M")
+  return dt.strftime("%H:%M")
 
 
-def format_date(dt: Union[datetime, date]) -> str:
-  """Format a date or datetime object to display date.
-
-  Args:
-      dt: The date or datetime to format
-
-  Returns:
-      str: Formatted date string (e.g., "Mon, 15 Jun")
-  """
-  if isinstance(dt, datetime):
-    dt = dt.date()
-  return format_datetime(dt, "%a, %d %b")
-
-
-def format_human_date(d: date) -> str:
-  """Format a date object into a human-readable string.
+def format_date(d: Union[date, datetime], human_readable: bool = False) -> str:
+  """Format a date or datetime object.
 
   Args:
-      d: The date to format.
+      d: The date or datetime to format
+      human_readable: If True, returns a more descriptive format
 
   Returns:
-      A string in the format 'Month Day (Weekday)', e.g., 'June 6th (Friday)'.
+      Formatted date string
   """
-  day = d.day
-  suffix = 'th' if 11 <= day <= 13 else {
-      1: 'st',
-      2: 'nd',
-      3: 'rd'
-  }.get(day % 10, 'th')
-  return d.strftime(f"%B {day}{suffix}, %A")
+  if isinstance(d, datetime):
+    d = d.date()
+
+  if human_readable:
+    day = d.day
+    suffix = 'th' if 11 <= day <= 13 else {
+        1: 'st',
+        2: 'nd',
+        3: 'rd'
+    }.get(day % 10, 'th')
+    return d.strftime(f"%B {day}{suffix}, %A")
+  else:
+    return d.strftime("%a, %d %b")
 
 
-def get_weather_description(symbol: str) -> str:
+def get_weather_description(symbol: Optional[str]) -> str:
   """Return a human-readable weather description from a symbol code.
 
   Args:
@@ -98,8 +78,8 @@ def get_weather_description(symbol: str) -> str:
   if s in weather_map:
     return weather_map[s]
   # Fallback: Insert space before uppercase letters (except the first)
-  return re.sub(r'(?<!^)(?=[A-Z])', ' ',
-                s).replace('  ', ' ').strip().capitalize()
+  s = re.sub(r'(?<!^)(?=[A-Z])', ' ', symbol if symbol else '').strip()
+  return ' '.join(word.capitalize() for word in s.split())
 
 
 def format_column(text: str, width: int) -> str:

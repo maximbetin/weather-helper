@@ -19,18 +19,6 @@ logger = logging.getLogger('weather_api')
 
 
 def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
-  """Fetch weather data for a specific location.
-
-  Args:
-      location: Location object containing lat/lon coordinates
-
-  Returns:
-      JSON response from API or None if request failed
-  """
-  return fetch_weather_data_with_fallback(location)
-
-
-def fetch_weather_data_with_fallback(location: Location) -> Optional[Dict[str, Any]]:
   """Fetch weather data for a specific location, falling back to compact endpoint if complete returns insufficient data.
 
   Args:

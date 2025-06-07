@@ -1,6 +1,7 @@
 """
 Utility functions used across the application.
 """
+from functools import lru_cache
 from datetime import date, datetime
 from typing import List, Optional, TypeVar, Union
 
@@ -10,20 +11,15 @@ from src.core.config import TIMEZONE
 
 T = TypeVar('T')
 
-# Cache the timezone object to avoid repeatedly creating it
-_TIMEZONE_CACHE = None
 
-
+@lru_cache(maxsize=None)
 def get_timezone():
   """Get the application timezone object.
 
   Returns:
       pytz.timezone: The timezone object
   """
-  global _TIMEZONE_CACHE
-  if _TIMEZONE_CACHE is None:
-    _TIMEZONE_CACHE = pytz.timezone(TIMEZONE)
-  return _TIMEZONE_CACHE
+  return pytz.timezone(TIMEZONE)
 
 
 def get_current_datetime() -> datetime:

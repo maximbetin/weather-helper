@@ -2,6 +2,10 @@ import pytest
 import tkinter as tk
 from unittest.mock import MagicMock, patch
 from src.gui.app import WeatherHelperApp
+from src.gui.formatting import format_date, get_weather_description
+from src.core.evaluation import get_rating_info
+from src.core.hourly_weather import HourlyWeather
+from datetime import datetime
 
 
 @pytest.fixture
