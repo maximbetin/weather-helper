@@ -1,4 +1,5 @@
 import pytest
+import tkinter as tk
 from datetime import datetime, date
 from src.core.hourly_weather import HourlyWeather
 
@@ -58,3 +59,12 @@ def sample_forecast_data():
           ]
       }
   }
+
+
+@pytest.fixture(scope="session")
+def tk_root():
+  """Fixture to create a single Tkinter root for the entire test session."""
+  root = tk.Tk()
+  root.withdraw()
+  yield root
+  root.destroy()

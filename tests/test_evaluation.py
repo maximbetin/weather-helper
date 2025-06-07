@@ -1,117 +1,72 @@
 import pytest
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from src.core.evaluation import (
-    process_forecast,
-    get_available_dates,
-    get_time_blocks_for_date,
-    get_top_locations_for_date
+    get_weather_score,
+    get_block_type,
+    find_optimal_weather_block,
+    process_forecast
 )
 from src.core.hourly_weather import HourlyWeather
+from src.core.enums import WeatherBlockType
 
 
-def test_get_available_dates():
-  # Test with empty forecast
-  assert get_available_dates({}) == []
+def test_get_weather_score():
+  # Test valid weather symbols
+  assert get_weather_score("clearsky") == 5
+  assert get_weather_score("fair") == 3
+  assert get_weather_score("partlycloudy") == 1
+  assert get_weather_score("cloudy") == -1
+  assert get_weather_score("lightrain") == -3
+  assert get_weather_score("heavyrain") == -10
+  assert get_weather_score("thunderstorm") == -15
 
-  # Test with valid forecast
-  test_date = date(2024, 3, 15)
-  test_forecast = {
-      "daily_forecasts": {
-          test_date: [
-              HourlyWeather(
-                  time=datetime(2024, 3, 15, 12),
-                  temp=20,
-                  wind=5,
-                  humidity=60,
-                  cloud_coverage=20,
-                  fog=0,
-                  wind_direction=180,
-                  wind_gust=10,
-                  precipitation_amount=0,
-                  precipitation_probability=0,
-                  symbol="clearsky",
-                  weather_score=10,
-                  temp_score=8,
-                  wind_score=9,
-                  cloud_score=10,
-                  precip_prob_score=10
-              )
-          ]
-      }
-  }
-  assert get_available_dates(test_forecast) == [test_date]
+  # Test invalid inputs
+  assert get_weather_score(None) == 0
+  assert get_weather_score("") == 0
+  assert get_weather_score("invalid_symbol") == 0
 
 
-def test_get_time_blocks_for_date():
-  # Test with empty forecast
-  assert get_time_blocks_for_date({}, date(2024, 3, 15)) == []
-
-  # Test with valid forecast
-  test_date = date(2024, 3, 15)
-  test_hour = datetime(2024, 3, 15, 12)
-  test_weather = HourlyWeather(
-      time=test_hour,
-      temp=20,
-      wind=5,
-      humidity=60,
-      cloud_coverage=20,
-      fog=0,
-      wind_direction=180,
-      wind_gust=10,
-      precipitation_amount=0,
-      precipitation_probability=0,
+def test_get_block_type():
+  # Create test HourlyWeather objects
+  sunny_hour = HourlyWeather(
+      time=datetime.now(),
       symbol="clearsky",
-      weather_score=10,
-      temp_score=8,
-      wind_score=9,
-      cloud_score=10,
-      precip_prob_score=10
+      weather_score=5,
+      temp_score=0,
+      wind_score=0,
+      cloud_score=0,
+      precip_prob_score=0
   )
-  test_forecast = {
-      "daily_forecasts": {
-          test_date: [test_weather]
-      }
-  }
-  blocks = get_time_blocks_for_date(test_forecast, test_date)
-  assert len(blocks) == 1
-  assert blocks[0].time == test_hour
-  assert blocks[0].temp == 20
+
+  rainy_hour = HourlyWeather(
+      time=datetime.now(),
+      symbol="lightrain",
+      weather_score=-3,
+      temp_score=0,
+      wind_score=0,
+      cloud_score=0,
+      precip_prob_score=0
+  )
+
+  cloudy_hour = HourlyWeather(
+      time=datetime.now(),
+      symbol="cloudy",
+      weather_score=-1,
+      temp_score=0,
+      wind_score=0,
+      cloud_score=0,
+      precip_prob_score=0
+  )
+
+  # Test weather types
+  assert get_block_type(sunny_hour) == WeatherBlockType.SUNNY
+  assert get_block_type(rainy_hour) == WeatherBlockType.RAINY
+  assert get_block_type(cloudy_hour) == WeatherBlockType.CLOUDY
 
 
-def test_get_top_locations_for_date():
-  # Test with empty data
-  assert get_top_locations_for_date({}, date(2024, 3, 15)) == []
+def test_find_optimal_weather_block_empty():
+  assert find_optimal_weather_block([]) is None
 
-  # Test with valid data
-  test_date = date(2024, 3, 15)
-  test_data = {
-      "loc1": {
-          "day_scores": {
-              test_date: type('obj', (object,), {
-                  'location_name': 'Location 1',
-                  'avg_score': 15,
-                  'min_temp': 18,
-                  'max_temp': 22,
-                  'weather_description': 'Sunny'
-              })
-          }
-      },
-      "loc2": {
-          "day_scores": {
-              test_date: type('obj', (object,), {
-                  'location_name': 'Location 2',
-                  'avg_score': 10,
-                  'min_temp': 15,
-                  'max_temp': 20,
-                  'weather_description': 'Cloudy'
-              })
-          }
-      }
-  }
 
-  results = get_top_locations_for_date(test_data, test_date)
-  assert len(results) == 2
-  assert results[0]["location_name"] == "Location 1"  # Higher score
-  assert results[0]["avg_score"] == 15
-  assert results[1]["location_name"] == "Location 2"  # Lower score
-  assert results[1]["avg_score"] == 10
+def test_process_forecast_empty():
+  assert process_forecast({}, "Test Location") is None

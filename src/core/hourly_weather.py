@@ -38,13 +38,4 @@ class HourlyWeather:
 
   def _calculate_total_score(self) -> NumericType:
     """Calculate the total score from individual component scores."""
-    # Define the score components to include
-    score_components = [
-        self.weather_score,
-        self.temp_score,
-        self.wind_score,
-        self.cloud_score,
-        self.precip_prob_score
-    ]
-    # Sum valid components (all should be numeric types based on class definition)
-    return sum(score_components)
+    return sum([self.weather_score, self.temp_score, self.wind_score, self.cloud_score, self.precip_prob_score])

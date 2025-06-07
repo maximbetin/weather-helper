@@ -1,34 +1,40 @@
 # Weather Helper
 
-A desktop application that helps users find the best weather conditions across multiple locations.
+## Overview
+
+The Weather Helper is a desktop application that provides detailed weather forecasts for various locations. It allows users to compare weather conditions across multiple locations and find the best time for outdoor activities.
 
 ## Features
 
-- View weather forecasts for multiple locations
-- Compare weather conditions across different locations
-- Get recommendations for the best locations based on weather conditions
-- Simple and intuitive GUI interface
+- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature, wind speed, humidity, and precipitation probability.
+- **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
+- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a scoring system.
+- **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
 
-## Development Setup
+## Installation and Usage
 
-1. Clone the repository:
+1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/maximbetin/weather-helper.git
    cd weather-helper
    ```
 
-2. Create a virtual environment (recommended):
+2. **Create a virtual environment (recommended):**
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. Install dependencies:
+3. **Install dependencies:**
+
    ```bash
-   pip install -r requirements.txt
+   pip install .
    ```
 
-4. Run the application:
+4. **Run the application:**
+
    ```bash
    python weather_helper.py
    ```
@@ -77,9 +83,8 @@ weather-helper/
 │   ├── gui/            # GUI components
 │   └── utils/          # Utility functions
 ├── tests/              # Test suite
-├── .github/            # GitHub Actions workflows
-├── requirements.txt    # Python dependencies
-└── README.md          # This file
+├── pyproject.toml      # Project metadata and dependencies
+└── README.md           # This file
 ```
 
 ## Contributing
@@ -89,7 +94,3 @@ weather-helper/
 3. Make your changes
 4. Run the tests
 5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
