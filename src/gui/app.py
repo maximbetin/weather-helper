@@ -19,7 +19,7 @@ from src.core.evaluation import (
 )
 from src.gui.formatting import (
     format_date, get_weather_description, add_tooltip,
-    format_temperature, format_wind_speed, format_percentage, get_weather_emoji
+    format_temperature, format_wind_speed, format_percentage
 )
 
 
@@ -682,7 +682,7 @@ class WeatherHelperApp:
       wind = format_wind_speed(hour.wind)
       humidity = format_percentage(hour.humidity)
 
-      # Determine tag based on updated score thresholds
+      # Determine tag based on score thresholds
       if hour.total_score >= 12:
         tag = 'Excellent'
       elif hour.total_score >= 8:
@@ -695,7 +695,7 @@ class WeatherHelperApp:
         tag = 'Poor'
 
       # Insert row with proper tag
-      item = self.main_table.insert(
+      self.main_table.insert(
           "", "end",
           values=(time_str, score, temp, weather_desc, wind, humidity),
           tags=(tag,)

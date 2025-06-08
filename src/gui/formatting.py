@@ -173,38 +173,3 @@ def get_weather_description(symbol: Optional[str]) -> str:
   }
   s = symbol.lower() if symbol else ''
   return weather_map.get(s, s.replace("_", " ").title())
-
-
-def get_weather_emoji(symbol: Optional[str]) -> str:
-  """Get weather emoji for visual representation.
-
-  Args:
-      symbol: The weather symbol code
-
-  Returns:
-      Weather emoji string
-  """
-  emoji_map = {
-      'clearsky': '☀️',
-      'fair': '🌤️',
-      'partlycloudy': '⛅',
-      'cloudy': '☁️',
-      'lightrain': '🌦️',
-      'lightrainshowers': '🌦️',
-      'rain': '🌧️',
-      'rainshowers': '🌧️',
-      'heavyrain': '⛈️',
-      'heavyrainshowers': '⛈️',
-      'lightsnow': '🌨️',
-      'snow': '❄️',
-      'fog': '🌫️',
-      'thunderstorm': '⛈️',
-      'sleet': '🌨️',
-      'lightsleet': '🌨️',
-      'sleetshowers': '🌨️',
-      'lightsleetshowers': '🌨️',
-      'heavysnow': '❄️',
-      'heavysnowshowers': '❄️',
-  }
-  s = symbol.lower() if symbol else ''
-  return emoji_map.get(s, '🌤️')
