@@ -197,15 +197,15 @@ def get_rating_info(score: Union[int, float, None]) -> str:
   return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
-def _find_best_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, Any]]:
+def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
   """Find the best continuous block of weather."""
   best_block = None
   max_score = -float('inf')
 
   for i in range(len(sorted_hours)):
-    for j in range(i, len(sorted_hours)):
+    for j in range(i + min_duration - 1, len(sorted_hours)):
       block = sorted_hours[i:j + 1]
-      if not block:
+      if not block or len(block) < min_duration:
         continue
 
       avg_score = sum(h.total_score for h in block) / len(block)
@@ -239,7 +239,7 @@ def _find_best_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, An
   return best_block
 
 
-def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str, Any]]:
+def find_optimal_weather_block(hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
   """Find the optimal weather block for outdoor activities.
 
   This function identifies the highest scoring continuous block of weather,
@@ -247,6 +247,7 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str,
 
   Args:
       hours: List of HourlyWeather objects for a given date
+      min_duration: Minimum duration in hours for a valid block (default: 1)
 
   Returns:
       A dictionary containing the best weather block, or None.
@@ -255,8 +256,7 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str,
     return None
 
   sorted_hours = sorted(hours, key=lambda x: x.time)
-
-  return _find_best_block(sorted_hours)
+  return _find_best_block(sorted_hours, min_duration)
 
 
 def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:

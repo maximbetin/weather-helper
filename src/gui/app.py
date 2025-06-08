@@ -603,29 +603,28 @@ class WeatherHelperApp:
       if not filtered_hours:
         return "No daylight data available"
 
-      # Find optimal block or best hour
-      optimal_block = find_optimal_weather_block(filtered_hours)
+      # Find optimal block with minimum 2-hour duration
+      optimal_block = find_optimal_weather_block(filtered_hours, min_duration=2)
 
       if optimal_block:
         start_time = optimal_block["start"].strftime('%H:%M')
         end_time = optimal_block["end"].strftime('%H:%M')
-        duration = optimal_block["duration"]
         weather = get_weather_description(optimal_block["weather"])
         temp = optimal_block.get("temp")
 
-        # Compact format without emojis
-        details = f"{start_time}-{end_time} ({duration}h) | {weather}"
+        # Format without duration indicator
+        details = f"{start_time} to {end_time} | {weather}"
         if temp is not None:
           details += f" | {temp:.1f}°C"
 
       else:
-        # Fall back to best single hour
+        # If no optimal block found, show best single hour
         best_hour = max(filtered_hours, key=lambda h: h.total_score)
         time_str = best_hour.time.strftime('%H:%M')
         weather = get_weather_description(best_hour.symbol)
 
-        # Compact format without emojis
-        details = f"{time_str} (1h) | {weather}"
+        # Format single hour without duration
+        details = f"Best hour: {time_str} | {weather}"
         if best_hour.temp is not None:
           details += f" | {best_hour.temp:.1f}°C"
 
