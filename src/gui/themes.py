@@ -24,11 +24,11 @@ COLORS = {
     'text': '#1e293b',           # Dark slate
     'text_secondary': '#64748b',  # Medium gray
     'text_muted': '#94a3b8',     # Light gray
-    'excellent': '#16a34a',      # Bright green - more distinct
-    'very_good': '#0284c7',      # Sky blue - better contrast from excellent
-    'good': '#7c3aed',           # Purple - distinct from others
-    'fair': '#ea580c',           # Bright orange
-    'poor': '#dc2626',           # Red
+    'excellent': '#15803d',      # Darker Green
+    'very_good': '#65a30d',      # Darker Yellow-Green
+    'good': '#ca8a04',           # Darker Yellow
+    'fair': '#ea580c',           # Darker Orange
+    'poor': '#b91c1c',           # Darker Red
 }
 
 # Enhanced font configurations with better hierarchy
