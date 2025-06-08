@@ -76,22 +76,22 @@ def apply_theme(root):
   # Configure root window
   root.configure(background=COLORS['background'])
 
-  # Configure ttk styles with modern appearance - FORCE NO BORDERS ANYWHERE
+  # Configure ttk styles with modern appearance
   style.configure('TFrame',
-                  background=COLORS['surface'],  # Use surface color to match sidebar
+                  background=COLORS['background'],
                   relief='flat',
                   borderwidth=0,
                   highlightthickness=0)
 
   style.configure('Card.TFrame',
-                  background=COLORS['surface'],
-                  relief='solid',
-                  borderwidth=1,
+                  background=COLORS['background'],
+                  relief='flat',
+                  borderwidth=0,
                   padding=2)
 
-  # Sidebar content frame with unified background - ABSOLUTELY NO BORDERS
+  # Sidebar content frame with unified background
   style.configure('Sidebar.TFrame',
-                  background=COLORS['surface'],
+                  background=COLORS['background'],
                   relief='flat',
                   borderwidth=0,
                   highlightthickness=0)
@@ -101,9 +101,9 @@ def apply_theme(root):
                   foreground=COLORS['text'],
                   font=FONTS['body'])
 
-  # Sidebar label styling for unified appearance - NO BORDERS
+  # Sidebar label styling for unified appearance
   style.configure('Sidebar.TLabel',
-                  background=COLORS['surface'],
+                  background=COLORS['background'],
                   foreground=COLORS['text'],
                   font=FONTS['body'],
                   relief='flat',
@@ -141,58 +141,48 @@ def apply_theme(root):
 
   # Modern combobox styling
   style.configure('TCombobox',
-                  fieldbackground=COLORS['surface'],
-                  background=COLORS['surface'],
+                  fieldbackground=COLORS['background'],
+                  background=COLORS['background'],
                   foreground=COLORS['text'],
                   font=FONTS['body'],
                   borderwidth=1,
                   relief='solid')
 
   style.map('TCombobox',
-            fieldbackground=[('readonly', COLORS['surface']),
-                             ('disabled', COLORS['surface_secondary'])],
+            fieldbackground=[('readonly', COLORS['background']),
+                             ('disabled', COLORS['background'])],
             bordercolor=[('focus', COLORS['primary_light']),
                          ('!focus', COLORS['border'])])
 
-  # Enhanced treeview styling
-  style.configure('Treeview',
+  # Create a custom style for the Treeview
+  style.configure('Custom.Treeview',
                   background=COLORS['surface'],
                   foreground=COLORS['text'],
-                  font=FONTS['body'],
                   fieldbackground=COLORS['surface'],
-                  borderwidth=1,
-                  relief='solid')
+                  font=FONTS['body'])
 
-  style.configure('Treeview.Heading',
-                  background=COLORS['surface_secondary'],
+  style.configure('Custom.Treeview.Heading',
+                  background=COLORS['surface'],
                   foreground=COLORS['text'],
                   font=FONTS['body_bold'],
                   relief='flat',
                   borderwidth=1)
 
-  style.map('Treeview.Heading',
-            background=[('active', COLORS['primary_light']),
-                        ('pressed', COLORS['primary'])])
-
-  style.map('Treeview',
-            background=[('selected', '!focus', COLORS['surface'])],
-            foreground=[('selected', '!focus', COLORS['text'])])
+  # Configure rating-specific styles
+  style.configure('Excellent.Custom.Treeview', foreground=COLORS['excellent'])
+  style.configure('VeryGood.Custom.Treeview', foreground=COLORS['very_good'])
+  style.configure('Good.Custom.Treeview', foreground=COLORS['good'])
+  style.configure('Fair.Custom.Treeview', foreground=COLORS['fair'])
+  style.configure('Poor.Custom.Treeview', foreground=COLORS['poor'])
 
   # Status bar styling
   style.configure('Status.TLabel',
-                  background=COLORS['surface_secondary'],
+                  background=COLORS['background'],
                   foreground=COLORS['text_secondary'],
                   font=FONTS['small'],
                   padding=(PADDING['small'], PADDING['tiny']),
-                  relief='sunken',
-                  borderwidth=1)
-
-  # Rating-specific tag styles for treeview
-  style.configure('Excellent.Treeview', foreground=COLORS['excellent'])
-  style.configure('VeryGood.Treeview', foreground=COLORS['very_good'])
-  style.configure('Good.Treeview', foreground=COLORS['good'])
-  style.configure('Fair.Treeview', foreground=COLORS['fair'])
-  style.configure('Poor.Treeview', foreground=COLORS['poor'])
+                  relief='flat',
+                  borderwidth=0)
 
 
 def get_rating_color(rating: str) -> str:

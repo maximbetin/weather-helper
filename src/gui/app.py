@@ -283,7 +283,8 @@ class WeatherHelperApp:
         table_frame,
         columns=columns,
         show="headings",
-        height=20
+        height=20,
+        style='Custom.Treeview'
     )
     self.main_table.grid(row=0, column=0, sticky="nsew")
 
@@ -694,7 +695,7 @@ class WeatherHelperApp:
         tag = 'Poor'
 
       # Insert row with proper tag
-      self.main_table.insert(
+      item = self.main_table.insert(
           "", "end",
           values=(time_str, score, temp, weather_desc, wind, humidity),
           tags=(tag,)
