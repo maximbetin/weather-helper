@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from src.core.hourly_weather import HourlyWeather
 from src.utils.misc import safe_average
+from src.core.types import NumericType
 
 
 class DailyReport:
@@ -48,15 +49,15 @@ class DailyReport:
 
   def _initialize_empty_report(self) -> None:
     """Initialize default values for an empty report (no daylight hours)."""
-    self.avg_score: float = -float('inf')
+    self.avg_score: NumericType = -float('inf')
     self.sunny_hours: int = 0
     self.partly_cloudy_hours: int = 0
     self.rainy_hours: int = 0
     self.likely_rain_hours: int = 0
-    self.avg_precip_prob: Optional[float] = None
-    self.min_temp: Optional[float] = None
-    self.max_temp: Optional[float] = None
-    self.avg_temp: Optional[float] = None
+    self.avg_precip_prob: Optional[NumericType] = None
+    self.min_temp: Optional[NumericType] = None
+    self.max_temp: Optional[NumericType] = None
+    self.avg_temp: Optional[NumericType] = None
 
   def _calculate_all_stats(self) -> None:
     """Calculate all statistics in a single pass through the data."""

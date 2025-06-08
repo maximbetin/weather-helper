@@ -40,6 +40,12 @@ def test_find_optimal_block_with_clear_winner():
   assert result['duration'] >= 1   # Should have at least 1 hour
   assert result['combined_score'] > result['avg_score']  # Should have duration boost
 
+  # Test with minimum duration of 2 hours
+  result = find_optimal_weather_block(hours, min_duration=2)
+  assert result is not None
+  assert result['duration'] >= 2  # Should respect minimum duration
+  assert result['avg_score'] >= 8  # May select different block due to duration requirement
+
 
 def test_find_optimal_block_with_long_good_block():
   base_time = datetime(2023, 1, 1, 10)
@@ -59,6 +65,12 @@ def test_find_optimal_block_with_long_good_block():
   assert result['duration'] >= 1    # Should have at least 1 hour
   assert result['combined_score'] >= result['avg_score']  # Should have some boost
 
+  # Test with minimum duration of 3 hours
+  result = find_optimal_weather_block(hours, min_duration=3)
+  assert result is not None
+  assert result['duration'] >= 3  # Should respect minimum duration
+  assert result['avg_score'] >= 9  # Should still select good quality hours
+
 
 def test_find_optimal_block_with_no_good_blocks():
   base_time = datetime(2023, 1, 1, 10)
@@ -69,6 +81,10 @@ def test_find_optimal_block_with_no_good_blocks():
   ]
   result = find_optimal_weather_block(hours)
   assert result is None
+
+  # Test with minimum duration
+  result = find_optimal_weather_block(hours, min_duration=2)
+  assert result is None  # Should still return None as no good blocks exist
 
 
 def test_find_optimal_block_with_single_best_hour():
@@ -84,9 +100,16 @@ def test_find_optimal_block_with_single_best_hour():
   assert result['duration'] == 1
   assert result['start'].hour == 12
 
+  # Test with minimum duration of 2 hours
+  result = find_optimal_weather_block(hours, min_duration=2)
+  assert result is None  # Should return None as no 2-hour block exists
+
 
 def test_find_optimal_block_empty_input():
   result = find_optimal_weather_block([])
+  assert result is None
+
+  result = find_optimal_weather_block([], min_duration=2)
   assert result is None
 
 
@@ -99,3 +122,7 @@ def test_find_optimal_block_short_good_block():
   result = find_optimal_weather_block(hours)
   assert result is not None
   assert result['duration'] == 2
+
+  # Test with minimum duration of 3 hours
+  result = find_optimal_weather_block(hours, min_duration=3)
+  assert result is None  # Should return None as block is too short

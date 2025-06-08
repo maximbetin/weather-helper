@@ -5,22 +5,18 @@ Provides functions to process forecasts, evaluate time blocks, and rank location
 
 from collections import defaultdict
 from datetime import datetime, timedelta, date
-from typing import Any, Dict, List, Optional, Union, TypeVar
+from typing import Any, Dict, List, Optional, Union
 import math
 
 from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, WEATHER_SYMBOLS
 from src.core.hourly_weather import HourlyWeather
 from src.core.daily_report import DailyReport
 from src.core.enums import WeatherBlockType
-
-
-# Type alias for numeric types
-NumericType = Union[int, float]
-T = TypeVar('T')
+from src.core.types import NumericType, T
 
 
 def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> Optional[T]:
-  """Generic helper to get a value from a list of ranges."""
+  """Get a value from a list of ranges."""
   if value is None or not isinstance(value, (int, float)):
     return None
 
@@ -34,12 +30,11 @@ def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], in
     else:
       if low <= value < high:
         return result_value
-  # Return the result of the last entry if it's a default, otherwise a fallback.
   return ranges[-1][1] if ranges and ranges[-1][0] is None else None
 
 
 def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
-  """Helper to calculate score based on a value and a list of ranges."""
+  """Calculate score based on a value and a list of ranges."""
   return _get_value_from_ranges(value, ranges, inclusive) or 0
 
 
@@ -202,26 +197,32 @@ def get_rating_info(score: Union[int, float, None]) -> str:
   return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
-def _find_best_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, Any]]:
+def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
   """Find the best continuous block of weather."""
   best_block = None
   max_score = -float('inf')
 
   for i in range(len(sorted_hours)):
-    for j in range(i, len(sorted_hours)):
+    for j in range(i + min_duration - 1, len(sorted_hours)):
       block = sorted_hours[i:j + 1]
-      if not block:
+      if not block or len(block) < min_duration:
+        continue
+
+      # For multi-hour blocks, require all hours to be non-negative
+      if min_duration > 1 and any(h.total_score < 0 for h in block):
         continue
 
       avg_score = sum(h.total_score for h in block) / len(block)
-      duration = len(block)
-
       if avg_score < 0:
         continue
 
+      duration = len(block)
       duration_factor = 1 + math.log(duration) / 4.0 if duration > 1 else 1
       combined_score = avg_score * duration_factor
       combined_score = min(combined_score, avg_score * 1.5)
+
+      if duration < min_duration:
+        continue
 
       if combined_score > max_score:
         max_score = combined_score
@@ -244,7 +245,7 @@ def _find_best_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, An
   return best_block
 
 
-def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str, Any]]:
+def find_optimal_weather_block(hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
   """Find the optimal weather block for outdoor activities.
 
   This function identifies the highest scoring continuous block of weather,
@@ -252,6 +253,7 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str,
 
   Args:
       hours: List of HourlyWeather objects for a given date
+      min_duration: Minimum duration in hours for a valid block (default: 1)
 
   Returns:
       A dictionary containing the best weather block, or None.
@@ -260,8 +262,7 @@ def find_optimal_weather_block(hours: List[HourlyWeather]) -> Optional[Dict[str,
     return None
 
   sorted_hours = sorted(hours, key=lambda x: x.time)
-
-  return _find_best_block(sorted_hours)
+  return _find_best_block(sorted_hours, min_duration)
 
 
 def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:

@@ -5,6 +5,8 @@ from datetime import date, datetime
 from typing import Union, Optional
 import tkinter as tk
 
+from src.core.types import NumericType
+
 
 class ToolTip:
   """Simple tooltip implementation for GUI widgets."""
@@ -95,7 +97,7 @@ def format_duration(hours: int) -> str:
     return f"{hours} hours"
 
 
-def format_temperature(temp: Optional[float], unit: str = "°C") -> str:
+def format_temperature(temp: Optional[NumericType], unit: str = "°C") -> str:
   """Format temperature with proper unit and fallback.
 
   Args:
@@ -110,7 +112,7 @@ def format_temperature(temp: Optional[float], unit: str = "°C") -> str:
   return "N/A"
 
 
-def format_percentage(value: Optional[float], suffix: str = "%") -> str:
+def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
   """Format percentage value with proper fallback.
 
   Args:
@@ -125,7 +127,7 @@ def format_percentage(value: Optional[float], suffix: str = "%") -> str:
   return "N/A"
 
 
-def format_wind_speed(speed: Optional[float], unit: str = " m/s") -> str:
+def format_wind_speed(speed: Optional[NumericType], unit: str = " m/s") -> str:
   """Format wind speed with proper unit and fallback.
 
   Args:
@@ -173,38 +175,3 @@ def get_weather_description(symbol: Optional[str]) -> str:
   }
   s = symbol.lower() if symbol else ''
   return weather_map.get(s, s.replace("_", " ").title())
-
-
-def get_weather_emoji(symbol: Optional[str]) -> str:
-  """Get weather emoji for visual representation.
-
-  Args:
-      symbol: The weather symbol code
-
-  Returns:
-      Weather emoji string
-  """
-  emoji_map = {
-      'clearsky': '☀️',
-      'fair': '🌤️',
-      'partlycloudy': '⛅',
-      'cloudy': '☁️',
-      'lightrain': '🌦️',
-      'lightrainshowers': '🌦️',
-      'rain': '🌧️',
-      'rainshowers': '🌧️',
-      'heavyrain': '⛈️',
-      'heavyrainshowers': '⛈️',
-      'lightsnow': '🌨️',
-      'snow': '❄️',
-      'fog': '🌫️',
-      'thunderstorm': '⛈️',
-      'sleet': '🌨️',
-      'lightsleet': '🌨️',
-      'sleetshowers': '🌨️',
-      'lightsleetshowers': '🌨️',
-      'heavysnow': '❄️',
-      'heavysnowshowers': '❄️',
-  }
-  s = symbol.lower() if symbol else ''
-  return emoji_map.get(s, '🌤️')

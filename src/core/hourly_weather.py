@@ -4,9 +4,9 @@ Defines the data models for HourlyWeather and DailyReport.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Union
+from typing import Optional
 
-NumericType = Union[int, float]
+from src.core.types import NumericType
 
 
 @dataclass
