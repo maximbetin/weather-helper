@@ -42,7 +42,8 @@ jobs:
         id: semver
         run: |
           git fetch --tags
-          $latestTag = git describe --tags --abbrev=0 2>$null
+
+          $latestTag = git tag --sort=-creatordate | Select-Object -First 1
 
           if (-not $latestTag) {
             $major = 1; $minor = 0; $patch = 0
@@ -54,11 +55,14 @@ jobs:
             $patch = [int]$parts[2]
           }
 
-          $prTitle = "${{ github.event.pull_request.title }}"
+          $prTitle = "${{ github.event.pull_request.title }}".Trim()
+          $labels = @(${{
+            github.event.pull_request.labels[*].name
+          }})
 
-          if ($prTitle -like "BREAKING:*" -or "${{ github.event.pull_request.labels }}" -match "major") {
+          if ($prTitle -like "BREAKING:*" -or ($labels -contains "major")) {
             $major++; $minor = 0; $patch = 0
-          } elseif ($prTitle -like "feat:*") {
+          } elseif ($prTitle -like "feat:*" -or ($labels -contains "minor")) {
             $minor++; $patch = 0
           } else {
             $patch++
