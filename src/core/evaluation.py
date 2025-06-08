@@ -5,22 +5,18 @@ Provides functions to process forecasts, evaluate time blocks, and rank location
 
 from collections import defaultdict
 from datetime import datetime, timedelta, date
-from typing import Any, Dict, List, Optional, Union, TypeVar
+from typing import Any, Dict, List, Optional, Union
 import math
 
 from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, WEATHER_SYMBOLS
 from src.core.hourly_weather import HourlyWeather
 from src.core.daily_report import DailyReport
 from src.core.enums import WeatherBlockType
-
-
-# Type alias for numeric types
-NumericType = Union[int, float]
-T = TypeVar('T')
+from src.core.types import NumericType, T
 
 
 def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> Optional[T]:
-  """Generic helper to get a value from a list of ranges."""
+  """Get a value from a list of ranges."""
   if value is None or not isinstance(value, (int, float)):
     return None
 
@@ -34,12 +30,11 @@ def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], in
     else:
       if low <= value < high:
         return result_value
-  # Return the result of the last entry if it's a default, otherwise a fallback.
   return ranges[-1][1] if ranges and ranges[-1][0] is None else None
 
 
 def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
-  """Helper to calculate score based on a value and a list of ranges."""
+  """Calculate score based on a value and a list of ranges."""
   return _get_value_from_ranges(value, ranges, inclusive) or 0
 
 
