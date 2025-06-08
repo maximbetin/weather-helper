@@ -190,45 +190,33 @@ class WeatherHelperApp:
     add_tooltip(self.date_dropdown, "Select a date to view hourly weather data")
 
   def _setup_side_panel(self):
-    """Setup the enhanced side panel moved to the top."""
-    # Create content container for sidebar and selectors
-    self.content_container = ttk.Frame(self.main_frame)
-    self.content_container.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING['large']))
-    self.content_container.columnconfigure(0, weight=1)
-    self.content_container.rowconfigure(0, weight=0)  # Selectors area
-    self.content_container.rowconfigure(1, weight=1)  # Side panel
-
-    # Side panel container with card styling - now at the top
-    self.side_panel = ttk.Frame(self.content_container, style='Card.TFrame', padding=PADDING['medium'])
-    self.side_panel.grid(row=1, column=0, sticky="nsew")
+    """Setup the side panel with enhanced visual design."""
+    # Create side panel with proper styling
+    self.side_panel = ttk.Frame(self.main_frame, style='Sidebar.TFrame', padding=PADDING['small'])
+    self.side_panel.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING['small']))
     self.side_panel.columnconfigure(0, weight=1)
 
-    # Configure row weights for even distribution
-    self.side_panel.rowconfigure(0, weight=0)  # Header
-    for i in range(1, 6):
-      self.side_panel.rowconfigure(i, weight=1)
-
-    # Enhanced title with better styling
-    self.side_panel_title = ttk.Label(
+    # Title for side panel
+    title_label = ttk.Label(
         self.side_panel,
-        text="🏆 Top 5 Locations",  # Added emoji for visual appeal
+        text="Top 5 Locations",
         style='Heading.TLabel',
-        anchor="w"
+        anchor="center"
     )
-    self.side_panel_title.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['medium']))
+    title_label.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['small']))
 
-    # Create location entries with enhanced design
+    # Initialize list to store location entries
     self.location_frames = []
     self.side_panel_entries = []
 
     for i in range(5):
-        # Create container frame for each location with no visual separation
-      loc_frame = ttk.Frame(self.side_panel, padding=(PADDING['small'], PADDING['medium']))
-      loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['medium'])
+      # Create container frame for each location with minimal padding
+      loc_frame = ttk.Frame(self.side_panel, padding=(PADDING['small'], PADDING['small']))
+      loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['tiny'])
       loc_frame.columnconfigure(1, weight=1)
       loc_frame.rowconfigure(0, weight=0)
       loc_frame.rowconfigure(1, weight=0)
-      loc_frame.rowconfigure(2, weight=1)
+      loc_frame.rowconfigure(2, weight=0)  # Changed from weight=1 to weight=0
 
       self.location_frames.append(loc_frame)
 
@@ -300,20 +288,20 @@ class WeatherHelperApp:
     self.main_table.grid(row=0, column=0, sticky="nsew")
 
     # Configure row colors FIRST before any data is added
-    self.main_table.tag_configure('Excellent', foreground='white', background='#22c55e')
-    self.main_table.tag_configure('VeryGood', foreground='white', background='#3b82f6')
-    self.main_table.tag_configure('Good', foreground='white', background='#8b5cf6')
-    self.main_table.tag_configure('Fair', foreground='white', background='#f97316')
-    self.main_table.tag_configure('Poor', foreground='white', background='#ef4444')
+    self.main_table.tag_configure('Excellent', foreground=COLORS['excellent'])
+    self.main_table.tag_configure('VeryGood', foreground=COLORS['very_good'])
+    self.main_table.tag_configure('Good', foreground=COLORS['good'])
+    self.main_table.tag_configure('Fair', foreground=COLORS['fair'])
+    self.main_table.tag_configure('Poor', foreground=COLORS['poor'])
 
     # Enhanced column configuration with proper alignments
     col_configs = {
-        "Time": {"width": 70, "anchor": "center"},
-        "Score": {"width": 150, "anchor": "w"},      # Left-aligned
-        "Temperature": {"width": 90, "anchor": "center"},
-        "Weather": {"width": 180, "anchor": "center"},  # Center-aligned
-        "Wind": {"width": 80, "anchor": "center"},
-        "Humidity": {"width": 80, "anchor": "center"}
+        "Time": {"width": 60, "anchor": "center", "stretch": False},
+        "Score": {"width": 120, "anchor": "center", "stretch": True},      # Center-aligned
+        "Temperature": {"width": 100, "anchor": "center", "stretch": True},
+        "Weather": {"width": 120, "anchor": "center", "stretch": True},  # Center-aligned
+        "Wind": {"width": 70, "anchor": "center", "stretch": True},
+        "Humidity": {"width": 70, "anchor": "center", "stretch": True}
     }
 
     for col in columns:
@@ -324,7 +312,7 @@ class WeatherHelperApp:
           anchor=config["anchor"],
           width=config["width"],
           minwidth=config["width"],
-          stretch=False
+          stretch=config["stretch"]
       )
 
     # Add scrollbar
@@ -332,12 +320,21 @@ class WeatherHelperApp:
     scrollbar.grid(row=0, column=1, sticky="ns")
     self.main_table.configure(yscrollcommand=scrollbar.set)
 
-    # Prevent column resizing for consistency
-    def block_resize(event):
-      if self.main_table.identify_region(event.x, event.y) == 'separator':
-        return "break"
+    # Allow column resizing for dynamic adjustment
+    def on_resize(event):
+      # Get the total width of the table
+      total_width = self.main_table.winfo_width()
+      # Calculate the width for stretchable columns
+      stretchable_width = total_width - col_configs["Time"]["width"]  # Subtract fixed width
+      stretchable_cols = sum(1 for config in col_configs.values() if config["stretch"])
+      if stretchable_cols > 0:
+        width_per_col = stretchable_width // stretchable_cols
+        for col, config in col_configs.items():
+          if config["stretch"]:
+            self.main_table.column(col, width=width_per_col)
 
-    self.main_table.bind('<Button-1>', block_resize)
+    # Bind resize event
+    self.main_table.bind('<Configure>', on_resize)
 
   def _start_data_loading(self):
     """Start loading weather data in a background thread."""
@@ -541,32 +538,43 @@ class WeatherHelperApp:
     except Exception as e:
       self._update_status(f"Error updating rankings: {str(e)}")
 
-  def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label, name_label, score_label, details_label):
-    """Populate a single location entry with enhanced formatting."""
+  def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label: ttk.Label, name_label: ttk.Label, score_label: ttk.Label, details_label: ttk.Label):
+    """Populate a single location entry in the side panel."""
     try:
-      score = loc_data.get('combined_score', 0)
+      # Set rank number
+      rank_label.config(text=f"{rank}.")
+
+      # Get score and rating
+      score = loc_data.get("combined_score", 0)
       rating = get_rating_info(score)
-      location_name = loc_data.get('location_name', 'Unknown')
-
-      # Set rank with medal emojis for top 3
-      rank_text = f"🥇" if rank == 1 else f"🥈" if rank == 2 else f"🥉" if rank == 3 else f"{rank}."
-      rank_label.config(text=rank_text)
-
-      # Set location name and score with separate labels and enhanced color coding
       score_color = get_rating_color(rating)
-      name_label.config(text=location_name, foreground=score_color, font=FONTS['subheading'])
-      # Make score more prominent with bold styling
-      score_label.config(text=f"{rating} ({score:.1f})", foreground=score_color, font=FONTS['small_bold'])
 
-      # Get detailed information
-      details_text = self._get_location_details(loc_data)
-      details_label.config(text=details_text, foreground=score_color)
+      # Set location name with color
+      name_label.config(
+          text=loc_data.get("location_name", "Unknown"),
+          foreground=score_color,
+          font=FONTS['subheading']
+      )
+
+      # Set score with color
+      score_label.config(
+          text=f"{rating} ({score:.1f})",
+          foreground=score_color,
+          font=FONTS['small_bold']
+      )
+
+      # Set details with color
+      details = self._get_location_details(loc_data)
+      details_label.config(
+          text=details,
+          foreground=score_color
+      )
 
     except Exception as e:
-      rank_label.config(text=f"{rank}.")
-      name_label.config(text="Error loading data")
+      rank_label.config(text="")
+      name_label.config(text="Error")
       score_label.config(text="")
-      details_label.config(text="")
+      details_label.config(text=str(e))
 
   def _get_location_details(self, loc_data: Dict) -> str:
     """Get formatted details for a location entry."""
@@ -604,11 +612,10 @@ class WeatherHelperApp:
         weather = get_weather_description(optimal_block["weather"])
         temp = optimal_block.get("temp")
 
-        # Compact format to prevent overflow
-        details = f"⏰ {start_time}-{end_time} ({duration}h)"
-        details += f"\n🌤️ {weather}"
+        # Compact format without emojis
+        details = f"{start_time}-{end_time} ({duration}h) | {weather}"
         if temp is not None:
-          details += f"\n🌡️ {temp:.1f}°C"
+          details += f" | {temp:.1f}°C"
 
       else:
         # Fall back to best single hour
@@ -616,11 +623,10 @@ class WeatherHelperApp:
         time_str = best_hour.time.strftime('%H:%M')
         weather = get_weather_description(best_hour.symbol)
 
-        # Compact format
-        details = f"⏰ {time_str} (1h)"
-        details += f"\n🌤️ {weather}"
+        # Compact format without emojis
+        details = f"{time_str} (1h) | {weather}"
         if best_hour.temp is not None:
-          details += f"\n🌡️ {best_hour.temp:.1f}°C"
+          details += f" | {best_hour.temp:.1f}°C"
 
       return details
 
@@ -671,10 +677,7 @@ class WeatherHelperApp:
 
       # Format values with enhanced utilities and proper spacing
       temp = format_temperature(hour.temp)
-      weather_emoji = get_weather_emoji(hour.symbol)
       weather_desc = get_weather_description(hour.symbol) if hour.symbol else "Unknown"
-      # Proper spacing for weather column alignment
-      weather = f"{weather_emoji}   {weather_desc}"  # Three spaces for better separation
       wind = format_wind_speed(hour.wind)
       humidity = format_percentage(hour.humidity)
 
@@ -690,9 +693,10 @@ class WeatherHelperApp:
       else:
         tag = 'Poor'
 
+      # Insert row with proper tag
       self.main_table.insert(
           "", "end",
-          values=(time_str, score, temp, weather, wind, humidity),
+          values=(time_str, score, temp, weather_desc, wind, humidity),
           tags=(tag,)
       )
 

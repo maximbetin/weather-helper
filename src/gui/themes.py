@@ -175,10 +175,8 @@ def apply_theme(root):
                         ('pressed', COLORS['primary'])])
 
   style.map('Treeview',
-            background=[('selected', COLORS['primary_light']),
-                        ('!selected', COLORS['surface'])],
-            foreground=[('selected', 'white'),
-                        ('!selected', COLORS['text'])])
+            background=[('selected', '!focus', COLORS['surface'])],
+            foreground=[('selected', '!focus', COLORS['text'])])
 
   # Status bar styling
   style.configure('Status.TLabel',
