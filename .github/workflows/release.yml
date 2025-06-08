@@ -56,13 +56,16 @@ jobs:
           }
 
           $prTitle = "${{ github.event.pull_request.title }}".Trim()
-          $labels = @(${{
-            github.event.pull_request.labels[*].name
-          }})
 
-          if ($prTitle -like "BREAKING:*" -or ($labels -contains "major")) {
+          # Extract labels (as strings)
+          $labelJson = @'
+          ${{ toJson(github.event.pull_request.labels) }}
+          '@
+          $labelNames = (ConvertFrom-Json $labelJson) | ForEach-Object { $_.name }
+
+          if ($prTitle -like "BREAKING:*" -or ($labelNames -contains "major")) {
             $major++; $minor = 0; $patch = 0
-          } elseif ($prTitle -like "feat:*" -or ($labels -contains "minor")) {
+          } elseif ($prTitle -like "feat:*" -or ($labelNames -contains "minor")) {
             $minor++; $patch = 0
           } else {
             $patch++
