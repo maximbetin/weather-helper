@@ -208,15 +208,21 @@ def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -
       if not block or len(block) < min_duration:
         continue
 
-      avg_score = sum(h.total_score for h in block) / len(block)
-      duration = len(block)
+      # For multi-hour blocks, require all hours to be non-negative
+      if min_duration > 1 and any(h.total_score < 0 for h in block):
+        continue
 
+      avg_score = sum(h.total_score for h in block) / len(block)
       if avg_score < 0:
         continue
 
+      duration = len(block)
       duration_factor = 1 + math.log(duration) / 4.0 if duration > 1 else 1
       combined_score = avg_score * duration_factor
       combined_score = min(combined_score, avg_score * 1.5)
+
+      if duration < min_duration:
+        continue
 
       if combined_score > max_score:
         max_score = combined_score
