@@ -30,4 +30,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest --cov=src --ignore=src/gui/app.py
+          pytest --cov=src
