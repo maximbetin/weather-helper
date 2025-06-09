@@ -5,7 +5,7 @@ Defines HourlyWeather and DailyReport classes used throughout the application.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from src.core.config import NumericType, safe_average
 
@@ -38,7 +38,7 @@ class HourlyWeather:
 class DailyReport:
   """Represents a daily weather report with calculated statistics."""
 
-  def __init__(self, date: datetime, daylight_hours: List[HourlyWeather], location_name: str):
+  def __init__(self, date: datetime, daylight_hours: list[HourlyWeather], location_name: str):
     self.date = date
     self.daylight_hours = daylight_hours
     self.location_name = location_name

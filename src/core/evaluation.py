@@ -5,14 +5,28 @@ Provides functions to process forecasts, evaluate time blocks, and rank location
 
 from collections import defaultdict
 from datetime import datetime, timedelta, date, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 import math
 
-from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, NumericType, T, get_timezone
+from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, NumericType, T, get_timezone, safe_average
 from src.core.models import HourlyWeather, DailyReport
 
 
-def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> Optional[T]:
+def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[float], Optional[float]]:
+  """Calculate average temperature and wind speed for a list of hours.
+
+  Args:
+      hours: List of HourlyWeather objects
+
+  Returns:
+      Tuple of (avg_temp, avg_wind) or (None, None) if no valid data
+  """
+  temps = [h.temp for h in hours if h.temp is not None]
+  winds = [h.wind for h in hours if h.wind is not None]
+  return safe_average(temps), safe_average(winds)
+
+
+def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> Optional[T]:
   """Get a value from a list of ranges."""
   if value is None or not isinstance(value, (int, float)):
     return None
@@ -30,7 +44,7 @@ def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], in
   return ranges[-1][1] if ranges and ranges[-1][0] is None else None
 
 
-def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
+def _calculate_score(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> int:
   """Calculate score based on a value and a list of ranges."""
   return _get_value_from_ranges(value, ranges, inclusive) or 0
 
@@ -149,7 +163,7 @@ def get_rating_info(score: Union[int, float, None]) -> str:
   return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
-def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
+def _find_best_block(sorted_hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
   """Find the best continuous block of weather."""
   best_block = None
   max_score = -float('inf')
@@ -178,8 +192,7 @@ def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -
 
       if combined_score > max_score:
         max_score = combined_score
-        avg_temp = sum(h.temp for h in block if h.temp is not None) / len(block) if any(h.temp is not None for h in block) else None
-        avg_wind = sum(h.wind for h in block if h.wind is not None) / len(block) if any(h.wind is not None for h in block) else None
+        avg_temp, avg_wind = _calculate_weather_averages(block)
 
         best_block = {
           'block': block,
@@ -194,7 +207,7 @@ def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -
   return best_block
 
 
-def find_optimal_weather_block(hours: List[HourlyWeather], min_duration: int = 1) -> Optional[Dict[str, Any]]:
+def find_optimal_weather_block(hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
   """Find the optimal weather block for outdoor activities.
 
   This function identifies the highest scoring continuous block of weather,
@@ -214,7 +227,7 @@ def find_optimal_weather_block(hours: List[HourlyWeather], min_duration: int = 1
   return _find_best_block(sorted_hours, min_duration)
 
 
-def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
+def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
   """Create an HourlyWeather object from a forecast timeseries entry."""
   time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
 
@@ -247,7 +260,7 @@ def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
   )
 
 
-def _process_timeseries(forecast_timeseries: List[Dict[str, Any]]) -> Dict[date, List[HourlyWeather]]:
+def _process_timeseries(forecast_timeseries: list[dict[str, Any]]) -> dict[date, list[HourlyWeather]]:
   """Process forecast timeseries data into a dictionary of daily forecasts."""
   daily_forecasts = defaultdict(list)
   today = datetime.now().date()
@@ -287,21 +300,21 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
   }
 
 
-def get_available_dates(processed_forecast: dict) -> List[date]:
+def get_available_dates(processed_forecast: dict) -> list[date]:
   """Return all available dates for a processed forecast."""
   if not processed_forecast or "daily_forecasts" not in processed_forecast:
     return []
   return sorted(processed_forecast["daily_forecasts"].keys())
 
 
-def get_time_blocks_for_date(processed_forecast: dict, d: date) -> List[HourlyWeather]:
+def get_time_blocks_for_date(processed_forecast: dict, d: date) -> list[HourlyWeather]:
   """Return all HourlyWeather blocks for a given date."""
   if not processed_forecast or "daily_forecasts" not in processed_forecast:
     return []
   return sorted(processed_forecast["daily_forecasts"].get(d, []), key=lambda h: h.hour)
 
 
-def _find_consistent_blocks(sorted_hours: List[HourlyWeather], max_score_variance: float = 7.0) -> List[Dict[str, Any]]:
+def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_variance: float = 7.0) -> list[dict[str, Any]]:
   """Find blocks of hours with consistent scores (without drastic changes).
 
   Args:
@@ -346,8 +359,7 @@ def _find_consistent_blocks(sorted_hours: List[HourlyWeather], max_score_varianc
       # Check if block is consistent (low variance)
       if std_dev <= adjusted_variance_threshold:
         # Calculate additional stats for the block
-        avg_temp = sum(h.temp for h in block if h.temp is not None) / len(block) if any(h.temp is not None for h in block) else None
-        avg_wind = sum(h.wind for h in block if h.wind is not None) / len(block) if any(h.wind is not None for h in block) else None
+        avg_temp, avg_wind = _calculate_weather_averages(block)
 
         blocks.append({
           'block': block,
@@ -364,7 +376,7 @@ def _find_consistent_blocks(sorted_hours: List[HourlyWeather], max_score_varianc
   return blocks
 
 
-def _find_optimal_consistent_block(sorted_hours: List[HourlyWeather]) -> Optional[Dict[str, Any]]:
+def _find_optimal_consistent_block(sorted_hours: list[HourlyWeather]) -> Optional[dict[str, Any]]:
   """Find the optimal block that balances score, duration, and consistency.
 
   Args:
@@ -426,7 +438,7 @@ def _find_optimal_consistent_block(sorted_hours: List[HourlyWeather]) -> Optiona
   return best_block
 
 
-def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date, top_n: int = 5) -> List[dict]:
+def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date, top_n: int = 5) -> list[dict]:
   """Return the top N locations for a given date, prioritizing consistent score blocks."""
   results = []
   # Get current time for filtering
@@ -490,8 +502,7 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
         final_location_score = location_score  # No bonus for fallback case
 
         # Create fallback optimal_block for details
-        avg_temp = sum(h.temp for h in filtered_hours if h.temp is not None) / len(filtered_hours) if any(h.temp is not None for h in filtered_hours) else None
-        avg_wind = sum(h.wind for h in filtered_hours if h.wind is not None) / len(filtered_hours) if any(h.wind is not None for h in filtered_hours) else None
+        avg_temp, avg_wind = _calculate_weather_averages(filtered_hours)
 
         optimal_block = {
           'block': filtered_hours,
