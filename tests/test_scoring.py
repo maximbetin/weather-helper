@@ -3,7 +3,6 @@ from src.core.evaluation import (
     temp_score,
     wind_score,
     cloud_score,
-    precip_probability_score,
 )
 
 # Test cases for temperature scoring
@@ -32,13 +31,13 @@ def test_temp_score(temp, expected_score):
 
 @pytest.mark.parametrize("wind, expected_score", [
     (0.5, 0),  # Calm
-    (1.5, -1),  # Light air
-    (3, -2),   # Light breeze
-    (4, -3),   # Gentle breeze
-    (7, -5),   # Moderate breeze
-    (9, -7),   # Fresh breeze
-    (12, -8),  # Strong breeze
-    (14, -9),  # Near gale
+    (1.5, 0),  # Light air
+    (3, -1),   # Light breeze
+    (4, -1),   # Gentle breeze
+    (6, -3),   # Moderate breeze
+    (9, -5),   # Fresh breeze
+    (12, -7),  # Strong breeze
+    (14, -8),  # Near gale
     (16, -10),  # Gale
     (None, 0),  # No value
 ])
@@ -50,28 +49,12 @@ def test_wind_score(wind, expected_score):
 
 @pytest.mark.parametrize("clouds, expected_score", [
     (5, 4),    # Clear
-    (15, 2),   # Few clouds
-    (30, 0),   # Partly cloudy
-    (60, -2),  # Mostly cloudy
-    (80, -4),  # Very cloudy
-    (95, -6),  # Overcast
+    (15, 3),   # Few clouds
+    (30, 2),   # Partly cloudy
+    (60, 0),   # Mostly cloudy
+    (80, -2),  # Very cloudy
+    (95, -4),  # Overcast
     (None, 0),  # No value
 ])
 def test_cloud_score(clouds, expected_score):
   assert cloud_score(clouds) == expected_score
-
-# Test cases for precipitation probability scoring
-
-
-@pytest.mark.parametrize("precip, expected_score", [
-    (2, 0),    # Very unlikely
-    (10, -1),  # Unlikely
-    (20, -3),  # Slight chance
-    (40, -5),  # Moderate chance
-    (60, -7),  # Likely
-    (80, -9),  # Very likely
-    (90, -10),  # Almost certain
-    (None, 0),  # No value
-])
-def test_precip_probability_score(precip, expected_score):
-  assert precip_probability_score(precip) == expected_score

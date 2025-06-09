@@ -41,8 +41,8 @@ def test_daily_report_calculations():
           temp_score=8,
           wind_score=9,
           cloud_score=10,
-          precip_prob_score=10,
-          precipitation_probability=10
+          precip_amount_score=10,
+          precipitation_amount=0.0
       ),
       HourlyWeather(
           time=base_time.replace(hour=9),
@@ -55,8 +55,8 @@ def test_daily_report_calculations():
           temp_score=9,
           wind_score=8,
           cloud_score=9,
-          precip_prob_score=10,
-          precipitation_probability=20
+          precip_amount_score=10,
+          precipitation_amount=0.0
       ),
       # Partly cloudy hours
       HourlyWeather(
@@ -70,8 +70,8 @@ def test_daily_report_calculations():
           temp_score=7,
           wind_score=7,
           cloud_score=7,
-          precip_prob_score=8,
-          precipitation_probability=30
+          precip_amount_score=8,
+          precipitation_amount=0.0
       ),
       # Rainy hours
       HourlyWeather(
@@ -85,8 +85,8 @@ def test_daily_report_calculations():
           temp_score=6,
           wind_score=6,
           cloud_score=5,
-          precip_prob_score=5,
-          precipitation_probability=40
+          precip_amount_score=5,
+          precipitation_amount=1.0
       ),
       HourlyWeather(
           time=base_time.replace(hour=12),
@@ -99,8 +99,8 @@ def test_daily_report_calculations():
           temp_score=5,
           wind_score=5,
           cloud_score=4,
-          precip_prob_score=4,
-          precipitation_probability=50
+          precip_amount_score=4,
+          precipitation_amount=2.0
       )
   ]
 
@@ -112,15 +112,15 @@ def test_daily_report_calculations():
   assert report.sunny_hours == 2
   assert report.partly_cloudy_hours == 1
   assert report.rainy_hours == 2
-  assert report.likely_rain_hours == 2  # Hours with >30% rain probability
+  assert report.likely_rain_hours == 2  # Hours with >0.5mm precipitation
 
   # Test temperature calculations
   assert report.min_temp == 18
   assert report.max_temp == 22
   assert report.avg_temp == 20  # (20 + 22 + 21 + 19 + 18) / 5
 
-  # Test precipitation probability
-  assert report.avg_precip_prob == 30  # (10 + 20 + 30 + 40 + 50) / 5
+  # Test precipitation probability - no longer used
+  assert report.avg_precip_prob is None
 
   # Test average score calculation
   expected_scores = [
@@ -147,7 +147,7 @@ def test_daily_report_weather_description():
           temp_score=0,
           wind_score=0,
           cloud_score=0,
-          precip_prob_score=0
+          precip_amount_score=0
       )
       for h in range(8, 11)
   ]
@@ -163,7 +163,7 @@ def test_daily_report_weather_description():
           temp_score=0,
           wind_score=0,
           cloud_score=0,
-          precip_prob_score=0
+          precip_amount_score=0
       )
       for h in range(8, 10)
   ]
@@ -179,7 +179,7 @@ def test_daily_report_weather_description():
           temp_score=0,
           wind_score=0,
           cloud_score=0,
-          precip_prob_score=0
+          precip_amount_score=0
       )
       for h in range(8, 10)
   ]

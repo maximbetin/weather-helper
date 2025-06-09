@@ -65,10 +65,9 @@ class DailyReport:
     self.partly_cloudy_hours = sum(1 for hour in self.daylight_hours if hour.symbol == "partlycloudy")
     self.rainy_hours = sum(1 for hour in self.daylight_hours if "rain" in hour.symbol or "shower" in hour.symbol)
     self.likely_rain_hours = sum(1 for hour in self.daylight_hours if isinstance(
-      hour.precipitation_probability, (int, float)) and hour.precipitation_probability > 30)
+      hour.precipitation_amount, (int, float)) and hour.precipitation_amount > 0.5)
 
     valid_temps = [hour.temp for hour in self.daylight_hours if hour.temp is not None]
-    valid_precip_probs = [hour.precipitation_probability for hour in self.daylight_hours if hour.precipitation_probability is not None]
 
     total_score = sum(hour.total_score for hour in self.daylight_hours)
 
@@ -76,7 +75,7 @@ class DailyReport:
     self.max_temp = max(valid_temps) if valid_temps else None
     self.avg_temp = safe_average(valid_temps)
 
-    self.avg_precip_prob = safe_average(valid_precip_probs)
+    self.avg_precip_prob = None  # No longer using precipitation probability
 
     num_hours = len(self.daylight_hours)
     self.avg_score = total_score / num_hours if num_hours > 0 else 0

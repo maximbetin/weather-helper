@@ -17,13 +17,12 @@ def sample_hourly_weather():
       wind_direction=180,
       wind_gust=10,
       precipitation_amount=0,
-      precipitation_probability=0,
       symbol="clearsky",
       weather_score=10,
       temp_score=8,
       wind_score=9,
       cloud_score=10,
-      precip_prob_score=10
+      precip_amount_score=6
   )
 
 

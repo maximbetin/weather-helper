@@ -16,7 +16,7 @@ def create_hour(time, weather_score, symbol="clearsky", temp=20, wind=1):
       temp_score=0,
       wind_score=0,
       cloud_score=0,
-      precip_prob_score=0,
+      precip_amount_score=0,
   )
 
 # Test cases for find_optimal_weather_block

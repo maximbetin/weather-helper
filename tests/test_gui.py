@@ -42,7 +42,7 @@ def test_side_panel_setup(app):
 def test_main_table_setup(app):
   """Test if the main table is set up with the correct columns."""
   assert app.main_table is not None
-  columns = ("Time", "Score", "Temperature", "Weather", "Wind", "Humidity")
+  columns = ("Time", "Temp", "Wind", "Clouds", "Rain")
   assert app.main_table['columns'] == columns
 
 
