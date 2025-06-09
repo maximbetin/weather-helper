@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - '**.py'
-      - 'requirements.txt'
+      - 'pyproject.toml'
       - '.github/workflows/**'
 
 jobs:
@@ -30,6 +30,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
+          pip install pytest
+
+      - name: Run Tests
+        run: |
+          pytest
 
       - name: Determine Next Version
         id: semver
