@@ -68,8 +68,8 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 [![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
 
-- Tests are run on every PR
-- When a PR is merged to main:
+- Tests are run on every commit
+- When a commit is pushed to main:
   - Tests are run on Windows
   - Executables are built for Windows
   - A new release is created with the executables
@@ -81,7 +81,7 @@ weather-helper/
 ├── src/
 │   ├── core/           # Core business logic and data models
 │   └── gui/            # GUI components and theming
-├── tests/              # Consolidated test suite
+├── tests/              # Test suite
 ├── pyproject.toml      # Project metadata and dependencies
 └── README.md           # This file
 ```

@@ -1,8 +1,7 @@
 name: Build Executable
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
     paths:
       - '**.py'
@@ -13,7 +12,6 @@ jobs:
   build:
     permissions:
       contents: write
-    if: github.event.pull_request.merged == true
     runs-on: windows-latest
     defaults:
       run:
@@ -50,17 +48,11 @@ jobs:
             $patch = [int]$parts[2]
           }
 
-          $prTitle = "${{ github.event.pull_request.title }}".Trim()
+          $commitMessage = "${{ github.event.head_commit.message }}".Trim()
 
-          # Extract labels (as strings)
-          $labelJson = @'
-          ${{ toJson(github.event.pull_request.labels) }}
-          '@
-          $labelNames = (ConvertFrom-Json $labelJson) | ForEach-Object { $_.name }
-
-          if ($prTitle -like "BREAKING:*" -or ($labelNames -contains "major")) {
+          if ($commitMessage -like "BREAKING:*" -or ($commitMessage -contains "major")) {
             $major++; $minor = 0; $patch = 0
-          } elseif ($prTitle -like "feat:*" -or ($labelNames -contains "minor")) {
+          } elseif ($commitMessage -like "feat:*" -or ($commitMessage -contains "minor") -or ($commitMessage -contains "feature")) {
             $minor++; $patch = 0
           } else {
             $patch++
@@ -107,8 +99,8 @@ jobs:
           tag_name: ${{ steps.semver.outputs.tag }}
           name: Release ${{ steps.semver.outputs.tag }}
           body: |
-            Release from PR #${{ github.event.pull_request.number }}
-            ${{ github.event.pull_request.title }}
+            Release from commit #${{ github.event.head_commit.id }}
+            ${{ github.event.head_commit.message }}
 
             This release includes:
             - Windows Executable
