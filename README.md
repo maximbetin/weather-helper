@@ -66,7 +66,7 @@ The executable will be created in the `dist` directory.
 
 The project uses GitHub Actions for continuous integration and deployment:
 
-[![Build and Release Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
+[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
 
 - Tests are run on every PR
 - When a PR is merged to main:

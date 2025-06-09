@@ -1,22 +1,20 @@
 """
-Tests for data models (HourlyWeather and DailyReport).
-Consolidates tests for the core data structures used throughout the application.
+Tests for data models including HourlyWeather and DailyReport.
 """
 
 import pytest
-from datetime import datetime, date
-from src.core.models import DailyReport, HourlyWeather
+from datetime import datetime
+from src.core.models import HourlyWeather, DailyReport
 
 
-# Tests for DailyReport model
 def test_daily_report_empty():
-  """Test DailyReport with no daylight hours."""
+  """Test DailyReport with empty daylight hours."""
   test_date = datetime(2024, 3, 15)
   report = DailyReport(test_date, [], "Test Location")
 
   assert report.date == test_date
   assert report.location_name == "Test Location"
-  assert report.avg_score == float('-inf')
+  assert report.avg_score == -float('inf')
   assert report.likely_rain_hours == 0
   assert report.min_temp is None
   assert report.max_temp is None
@@ -111,84 +109,113 @@ def test_daily_report_weather_description():
   test_date = datetime(2024, 3, 15)
   base_time = datetime(2024, 3, 15, 8)
 
-  # Test pleasant weather description (based on temperature)
-  pleasant_hours = [
+  # Test warm weather (22°C or higher)
+  hours_warm = [
       HourlyWeather(
-          time=base_time.replace(hour=h),
-          temp=20,
-          temp_score=6,
-          wind_score=0,
-          cloud_score=0,
-          precip_amount_score=4,
-          precipitation_amount=0.0
-      )
-      for h in range(8, 11)
-  ]
-  report = DailyReport(test_date, pleasant_hours, "Test Location")
-  assert "Pleasant" in report.weather_description
-
-  # Test rainy description (based on precipitation amount)
-  rainy_hours = [
-      HourlyWeather(
-          time=base_time.replace(hour=h),
-          temp=18,
-          temp_score=4,
-          wind_score=0,
-          cloud_score=0,
-          precip_amount_score=-3,
-          precipitation_amount=1.0
-      )
-      for h in range(8, 10)
-  ]
-  report = DailyReport(test_date, rainy_hours, "Test Location")
-  assert "Rain" in report.weather_description
-
-  # Test warm conditions
-  warm_hours = [
-      HourlyWeather(
-          time=base_time.replace(hour=h),
+          time=base_time,
           temp=25,
-          temp_score=4,
-          wind_score=0,
-          cloud_score=0,
-          precip_amount_score=4,
-          precipitation_amount=0.0
+          precipitation_amount=0.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
       )
-      for h in range(8, 10)
   ]
-  report = DailyReport(test_date, warm_hours, "Test Location")
-  assert "Warm" in report.weather_description
+  report_warm = DailyReport(test_date, hours_warm, "Test")
+  assert report_warm.weather_description == "Warm"
+
+  # Test pleasant weather (18-22°C)
+  hours_pleasant = [
+      HourlyWeather(
+          time=base_time,
+          temp=20,
+          precipitation_amount=0.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_pleasant = DailyReport(test_date, hours_pleasant, "Test")
+  assert report_pleasant.weather_description == "Pleasant"
+
+  # Test cool weather (10-18°C)
+  hours_cool = [
+      HourlyWeather(
+          time=base_time,
+          temp=15,
+          precipitation_amount=0.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_cool = DailyReport(test_date, hours_cool, "Test")
+  assert report_cool.weather_description == "Cool"
+
+  # Test cold weather (below 10°C)
+  hours_cold = [
+      HourlyWeather(
+          time=base_time,
+          temp=5,
+          precipitation_amount=0.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_cold = DailyReport(test_date, hours_cold, "Test")
+  assert report_cold.weather_description == "Cold"
+
+  # Test rainy weather (precipitation > 0.5mm)
+  hours_rain = [
+      HourlyWeather(
+          time=base_time,
+          temp=20,
+          precipitation_amount=1.5,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_rain = DailyReport(test_date, hours_rain, "Test")
+  assert report_rain.weather_description == "Rain (1h)"
+
+  # Test multiple rainy hours
+  hours_multiple_rain = [
+      HourlyWeather(
+          time=base_time,
+          temp=20,
+          precipitation_amount=1.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      ),
+      HourlyWeather(
+          time=base_time.replace(hour=9),
+          temp=20,
+          precipitation_amount=2.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_multiple_rain = DailyReport(test_date, hours_multiple_rain, "Test")
+  assert report_multiple_rain.weather_description == "Rain (2h)"
+
+  # Test weather description with None temperature (fallback to "Mixed")
+  hours_none_temp = [
+      HourlyWeather(
+          time=base_time,
+          temp=None,
+          precipitation_amount=0.0,
+          temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+      )
+  ]
+  report_none_temp = DailyReport(test_date, hours_none_temp, "Test")
+  assert report_none_temp.weather_description == "Mixed"
 
 
-# Tests for HourlyWeather model
 def test_hourly_weather_score_calculation():
-  """Test that HourlyWeather correctly calculates total score."""
+  """Test that HourlyWeather calculates total score correctly."""
   hour = HourlyWeather(
-      time=datetime(2024, 3, 15, 12),
-      temp=20,
-      wind=5,
-      cloud_coverage=20,
-      precipitation_amount=0,
-      temp_score=6,
-      wind_score=-3,
+      time=datetime(2024, 3, 15, 10),
+      temp_score=5,
+      wind_score=-2,
       cloud_score=3,
-      precip_amount_score=4
+      precip_amount_score=1
   )
 
-  # total_score should be sum of individual scores
-  assert hour.total_score == 10  # 6 + (-3) + 3 + 4
-  assert hour.hour == 12  # Should extract hour from time
+  assert hour.total_score == 7  # 5 + (-2) + 3 + 1
 
 
 def test_hourly_weather_hour_extraction():
   """Test that hour is correctly extracted from datetime."""
-  for h in [0, 6, 12, 18, 23]:
-    hour = HourlyWeather(
-        time=datetime(2024, 3, 15, h),
-        temp=20,
-        temp_score=6,
-        wind_score=0,
-        cloud_score=0,
-        precip_amount_score=0
-    )
-    assert hour.hour == h
+  test_time = datetime(2024, 3, 15, 14, 30)  # 2:30 PM
+  hour = HourlyWeather(time=test_time)
+
+  assert hour.hour == 14

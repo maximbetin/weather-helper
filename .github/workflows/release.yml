@@ -1,4 +1,4 @@
-name: Build and Release Executable
+name: Build Executable
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ jobs:
   build:
     permissions:
       contents: write
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.merged == true
     runs-on: windows-latest
     defaults:
       run:

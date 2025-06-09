@@ -6,10 +6,16 @@ from src.gui.formatting import (
     format_percentage,
     format_wind_speed,
     format_time,
-    format_date
+    format_date,
+    format_duration,
+    add_tooltip,
+    ToolTip
 )
 from src.gui.themes import get_rating_color
 from src.core.config import NumericType
+from datetime import date, datetime
+import tkinter as tk
+from unittest.mock import MagicMock
 
 
 def test_format_temperature():
@@ -69,6 +75,13 @@ def test_format_date():
   assert format_date(date(2024, 12, 31)) == "Tue, 31 Dec"
 
 
+def test_format_duration():
+  assert format_duration(1) == "1 hour"
+  assert format_duration(0) == "0 hours"
+  assert format_duration(2) == "2 hours"
+  assert format_duration(24) == "24 hours"
+
+
 def test_get_rating_color():
   assert get_rating_color("Excellent")
   assert get_rating_color("Very Good")
@@ -77,3 +90,52 @@ def test_get_rating_color():
   assert get_rating_color("Poor")
   # Unknown rating falls back to text color
   assert get_rating_color("N/A")
+
+
+def test_tooltip_creation():
+  # Create a mock widget
+  mock_widget = MagicMock()
+  mock_widget.bind = MagicMock()
+
+  # Test that ToolTip can be created
+  tooltip = ToolTip(mock_widget, "Test tooltip text")
+
+  assert tooltip.widget == mock_widget
+  assert tooltip.text == "Test tooltip text"
+  assert tooltip.tooltip_window is None
+
+  # Verify that event bindings were called
+  mock_widget.bind.assert_any_call("<Enter>", tooltip.on_enter)
+  mock_widget.bind.assert_any_call("<Leave>", tooltip.on_leave)
+
+
+def test_add_tooltip():
+  mock_widget = MagicMock()
+  mock_widget.bind = MagicMock()
+
+  tooltip = add_tooltip(mock_widget, "Test tooltip")
+
+  assert isinstance(tooltip, ToolTip)
+  assert tooltip.text == "Test tooltip"
+
+
+class TestTooltipWidget:
+  @pytest.fixture
+  def root(self):
+    # Create a temporary tkinter root for testing.
+    root = tk.Tk()
+    root.withdraw()  # Hide the window
+    yield root
+    root.destroy()
+
+  def test_tooltip_widget_interaction(self, root):
+    # Test tooltip with actual tkinter widget.
+    label = tk.Label(root, text="Test")
+    tooltip = ToolTip(label, "Test tooltip")
+
+    # Test that tooltip_window starts as None
+    assert tooltip.tooltip_window is None
+
+    # Test on_leave method when no tooltip window exists
+    tooltip.on_leave()
+    assert tooltip.tooltip_window is None
