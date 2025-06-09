@@ -6,11 +6,10 @@ from src.gui.formatting import (
     format_percentage,
     format_wind_speed,
     format_time,
-    format_date,
-    get_weather_description
+    format_date
 )
 from src.gui.themes import get_rating_color
-from src.core.types import NumericType
+from src.core.config import NumericType
 
 
 def test_format_temperature():
@@ -68,15 +67,6 @@ def test_format_date():
   assert format_date(date(2024, 3, 15)) == "Fri, 15 Mar"
   assert format_date(datetime(2024, 1, 1, 12, 0)) == "Mon, 01 Jan"
   assert format_date(date(2024, 12, 31)) == "Tue, 31 Dec"
-
-
-def test_get_weather_description():
-  assert get_weather_description("clearsky") == "Clear Sky"
-  assert get_weather_description("lightrain") == "Light Rain"
-  assert get_weather_description("heavysnow") == "Heavy Snow"
-  assert get_weather_description("") == ""
-  assert get_weather_description(None) == ""
-  assert get_weather_description("unknown_code") == "Unknown Code"
 
 
 def test_get_rating_color():

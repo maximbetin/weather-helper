@@ -6,7 +6,7 @@ The Weather Helper is a desktop application that provides detailed weather forec
 
 ## Features
 
-- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature, wind speed, humidity, and precipitation probability.
+- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature, wind speed, cloud coverage, and precipitation amount.
 - **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a scoring system.
 - **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.

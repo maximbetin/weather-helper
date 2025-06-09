@@ -1,11 +1,51 @@
+"""
+Tests for core functionality including evaluation, processing, and configuration utilities.
+Consolidates tests for the core business logic of the weather helper.
+"""
+
 import pytest
 from datetime import date, datetime, timezone, timedelta
-from src.core.evaluation import process_forecast, get_top_locations_for_date
+from src.core.evaluation import (
+    find_optimal_weather_block,
+    process_forecast,
+    get_top_locations_for_date
+)
+from src.core.config import get_current_date, get_current_datetime, get_timezone, safe_average
+from src.core.models import HourlyWeather
 
-# Mock forecast data for testing
+
+# Tests for basic evaluation functions
+def test_find_optimal_weather_block_empty():
+  assert find_optimal_weather_block([]) is None
 
 
+def test_process_forecast_empty():
+  assert process_forecast({}, "Test Location") is None
+
+
+# Tests for configuration utilities
+def test_get_timezone():
+  assert get_timezone().zone == "Europe/Madrid"
+
+
+def test_get_current_datetime():
+  assert isinstance(get_current_datetime(), datetime)
+
+
+def test_get_current_date():
+  assert isinstance(get_current_date(), type(datetime.now().date()))
+
+
+def test_safe_average():
+  assert safe_average([1, 2, 3]) == 2
+  assert safe_average([]) is None
+  assert safe_average([1, 3]) == 2
+  assert safe_average([10, 20, 30, 40, 50]) == 30.0
+
+
+# Tests for forecast processing
 def create_mock_forecast(air_temp):
+  """Create mock forecast data for testing."""
   # Use tomorrow's date at 12:00 UTC to ensure it's within the forecast range and daylight hours
   tomorrow = datetime.now(timezone.utc).date() + timedelta(days=1)
   test_time = datetime.combine(tomorrow, datetime.min.time().replace(hour=12, tzinfo=timezone.utc))
@@ -41,11 +81,6 @@ def test_process_forecast():
   assert "daily_forecasts" in processed_data
   assert "day_scores" in processed_data
   assert len(processed_data["daily_forecasts"]) == 1
-
-
-def test_process_forecast_empty():
-  processed_data = process_forecast({}, "Test Location")
-  assert processed_data is None
 
 
 def test_get_top_locations_for_date():

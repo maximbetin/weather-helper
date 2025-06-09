@@ -6,22 +6,22 @@ Handles window setup and main widget initialization with enhanced UX.
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as messagebox
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from src.gui.themes import apply_theme, FONTS, PADDING, COLORS, get_rating_color
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import (
     process_forecast, get_available_dates, get_top_locations_for_date,
-    get_time_blocks_for_date, get_rating_info, find_optimal_weather_block
+    get_time_blocks_for_date, get_rating_info
 )
 from src.gui.formatting import (
     format_date, add_tooltip,
     format_temperature, format_wind_speed, format_percentage
 )
-from src.utils.misc import get_timezone
+from src.core.config import get_timezone
 
 
 class WeatherHelperApp:
@@ -572,6 +572,33 @@ class WeatherHelperApp:
       score_label.config(text="")
       details_label.config(text=str(e))
 
+  def _filter_daylight_hours(self, hours_for_day: List, selected_date: date) -> List:
+    """Filter hours for daylight and future times with consistent logic.
+
+    Args:
+        hours_for_day: List of hourly weather data
+        selected_date: The selected date
+
+    Returns:
+        Filtered list of hours
+    """
+    local_tz = get_timezone()
+    now_utc = datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(local_tz)
+
+    # Filter for daylight hours and future times
+    if selected_date == now_local.date():
+      # Show future hours, plus current hour if we're in the first half of it
+      return [
+          h for h in hours_for_day
+          if 8 <= h.time.hour <= 20 and (
+              h.time.astimezone(local_tz) > now_local or
+              (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
+          )
+      ]
+    else:
+      return [h for h in hours_for_day if 8 <= h.time.hour <= 20]
+
   def _get_location_details(self, loc_data: Dict) -> str:
     """Get formatted details for a location entry."""
     try:
@@ -587,23 +614,8 @@ class WeatherHelperApp:
       daily_forecasts = processed.get("daily_forecasts", {})
       hours_for_day = daily_forecasts.get(self.selected_date, [])
 
-      # Get current time in UTC and convert to local timezone
-      local_tz = get_timezone()
-      now_utc = datetime.now(timezone.utc)
-      now_local = now_utc.astimezone(local_tz)
-
       # Filter for daylight hours and future times
-      if self.selected_date == now_local.date():
-        # Show future hours, plus current hour if we're in the first half of it
-        filtered_blocks = [
-            h for h in hours_for_day
-            if 8 <= h.time.hour <= 20 and (
-                h.time.astimezone(local_tz) > now_local or
-                (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
-            )
-        ]
-      else:
-        filtered_blocks = [h for h in hours_for_day if 8 <= h.time.hour <= 20]
+      filtered_blocks = self._filter_daylight_hours(hours_for_day, self.selected_date)
 
       if not filtered_blocks:
         return "No daylight data available"
@@ -613,6 +625,7 @@ class WeatherHelperApp:
       optimal_block = _find_optimal_consistent_block(filtered_blocks)
 
       if optimal_block:
+        local_tz = get_timezone()
         start_time = optimal_block["start"].astimezone(local_tz).strftime('%H:%M')
         end_time = optimal_block["end"].astimezone(local_tz).strftime('%H:%M')
         duration = optimal_block.get("duration", 1)
@@ -639,6 +652,7 @@ class WeatherHelperApp:
 
       else:
         # If no optimal block found, show best single hour
+        local_tz = get_timezone()
         best_hour = max(filtered_blocks, key=lambda h: h.total_score)
         time_str = best_hour.time.astimezone(local_tz).strftime('%H:%M')
 
@@ -676,23 +690,8 @@ class WeatherHelperApp:
       if not time_blocks:
         return
 
-      # Get current time in UTC and convert to local timezone
-      local_tz = get_timezone()
-      now_utc = datetime.now(timezone.utc)
-      now_local = now_utc.astimezone(local_tz)
-
       # Filter for daylight hours and future times
-      if self.selected_date == now_local.date():
-        # Show future hours, plus current hour if we're in the first half of it
-        filtered_blocks = [
-            h for h in time_blocks
-            if 8 <= h.hour <= 20 and (
-                h.time.astimezone(local_tz) > now_local or
-                (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
-            )
-        ]
-      else:
-        filtered_blocks = [h for h in time_blocks if 8 <= h.hour <= 20]
+      filtered_blocks = self._filter_daylight_hours(time_blocks, self.selected_date)
 
       # Populate table with enhanced formatting
       for hour in filtered_blocks:

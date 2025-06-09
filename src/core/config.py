@@ -1,8 +1,15 @@
 """
-Configuration constants for the Weather Helper application.
+Configuration constants and type definitions for the Weather Helper application.
 """
 
-from typing import Dict, Tuple
+from typing import Union, TypeVar
+from functools import lru_cache
+from datetime import date, datetime
+import pytz
+
+# Type definitions
+NumericType = Union[int, float]
+T = TypeVar('T')
 
 # API settings
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
@@ -17,30 +24,27 @@ DAYLIGHT_START_HOUR = 8
 DAYLIGHT_END_HOUR = 20
 FORECAST_DAYS = 7  # Max days for forecast processing
 
-# Weather rating system - positive scores for good outdoor conditions
-WEATHER_SYMBOLS: Dict[str, Tuple[str, int]] = {
-    "clearsky": ("Sunny", 5),
-    "fair": ("Mostly Sunny", 3),
-    "partlycloudy": ("Partly Cloudy", 1),
-    "cloudy": ("Cloudy", -1),
-    "lightrain": ("Light Rain", -3),
-    "lightrainshowers": ("Light Rain", -3),
-    "lightsleet": ("Light Sleet", -4),
-    "lightsleetshowers": ("Light Sleet", -4),
-    "lightsnow": ("Light Snow", -4),
-    "lightsnowshowers": ("Light Snow", -4),
-    "rain": ("Rain", -6),
-    "rainshowers": ("Rain", -6),
-    "sleet": ("Sleet", -7),
-    "sleetshowers": ("Sleet", -7),
-    "snow": ("Snow", -7),
-    "snowshowers": ("Snow", -7),
-    "heavyrain": ("Heavy Rain", -10),
-    "heavyrainshowers": ("Heavy Rain", -10),
-    "heavysleet": ("Heavy Sleet", -10),
-    "heavysleetshowers": ("Heavy Sleet", -10),
-    "heavysnow": ("Heavy Snow", -10),
-    "heavysnowshowers": ("Heavy Snow", -10),
-    "fog": ("Foggy", -5),
-    "thunderstorm": ("Thunderstorm", -15)
-}
+# Utility functions
+
+
+@lru_cache(maxsize=None)
+def get_timezone():
+  """Get the application timezone object."""
+  return pytz.timezone(TIMEZONE)
+
+
+def get_current_datetime() -> datetime:
+  """Get the current datetime in the application timezone."""
+  return datetime.now(get_timezone())
+
+
+def get_current_date() -> date:
+  """Get the current date in the application timezone."""
+  return get_current_datetime().date()
+
+
+def safe_average(values: list[NumericType]) -> float | None:
+  """Calculate the average of a list of values, handling empty lists."""
+  if not values:
+    return None
+  return sum(values) / len(values)

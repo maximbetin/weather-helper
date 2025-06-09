@@ -8,12 +8,8 @@ from datetime import datetime, timedelta, date, timezone
 from typing import Any, Dict, List, Optional, Union
 import math
 
-from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, WEATHER_SYMBOLS
-from src.core.hourly_weather import HourlyWeather
-from src.core.daily_report import DailyReport
-
-from src.core.types import NumericType, T
-from src.utils.misc import get_timezone
+from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, NumericType, T, get_timezone
+from src.core.models import HourlyWeather, DailyReport
 
 
 def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> Optional[T]:
@@ -37,21 +33,6 @@ def _get_value_from_ranges(value: Optional[NumericType], ranges: List[tuple], in
 def _calculate_score(value: Optional[NumericType], ranges: List[tuple], inclusive: bool = False) -> int:
   """Calculate score based on a value and a list of ranges."""
   return _get_value_from_ranges(value, ranges, inclusive) or 0
-
-
-def get_weather_score(symbol: Optional[str]) -> int:
-  """Return weather score from symbol code.
-
-  Args:
-      symbol: Weather symbol code
-
-  Returns:
-      Integer score representing the weather condition quality
-  """
-  if not symbol or not isinstance(symbol, str):
-    return 0
-  _, score = WEATHER_SYMBOLS.get(symbol, ("", 0))
-  return score
 
 
 def temp_score(temp: Optional[NumericType]) -> int:
@@ -146,21 +127,6 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
   return _calculate_score(amount, amount_ranges)
 
 
-def extract_base_symbol(symbol_code: str) -> str:
-  """Extract the base symbol from a symbol code.
-
-  Args:
-      symbol_code: The full symbol code (e.g., 'partlycloudy_day')
-
-  Returns:
-      str: Base symbol without time of day suffix
-  """
-  if not symbol_code:
-    return "unknown"
-
-  return symbol_code.split('_')[0] if '_' in symbol_code else symbol_code
-
-
 def get_rating_info(score: Union[int, float, None]) -> str:
   """Return standardized rating description based on score.
 
@@ -214,8 +180,6 @@ def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -
         max_score = combined_score
         avg_temp = sum(h.temp for h in block if h.temp is not None) / len(block) if any(h.temp is not None for h in block) else None
         avg_wind = sum(h.wind for h in block if h.wind is not None) / len(block) if any(h.wind is not None for h in block) else None
-        symbols = [h.symbol for h in block if h.symbol]
-        weather_type = max(set(symbols), key=symbols.count) if symbols else ""
 
         best_block = {
           'block': block,
@@ -224,7 +188,6 @@ def _find_best_block(sorted_hours: List[HourlyWeather], min_duration: int = 1) -
           'avg_score': avg_score,
           'duration': duration,
           'combined_score': combined_score,
-          'weather': weather_type,
           'temp': avg_temp,
           'wind': avg_wind
         }
@@ -258,11 +221,7 @@ def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
   instant_details = entry["data"]["instant"]["details"]
   temp = instant_details.get("air_temperature")
   wind = instant_details.get("wind_speed")
-  humidity = instant_details.get("relative_humidity")
   cloud_coverage = instant_details.get("cloud_area_fraction")
-  fog = instant_details.get("fog_area_fraction")
-  wind_direction = instant_details.get("wind_from_direction")
-  wind_gust = instant_details.get("wind_speed_of_gust")
 
   next_1h = entry["data"].get("next_1_hours", {})
   next_1h_details = next_1h.get("details", {})
@@ -275,25 +234,12 @@ def _create_hourly_weather(entry: Dict[str, Any]) -> HourlyWeather:
   if final_precipitation_amount is None and next_6h_details:
     final_precipitation_amount = next_6h_details.get("precipitation_amount")
 
-  # We still keep the symbol for display purposes but don't use it for scoring
-  symbol_code = next_1h.get("summary", {}).get("symbol_code")
-  if not symbol_code and next_6h.get("summary"):
-    symbol_code = next_6h["summary"].get("symbol_code")
-
-  base_symbol = extract_base_symbol(symbol_code) if symbol_code else ""
-
   return HourlyWeather(
       time=time_utc,
       temp=temp,
       wind=wind,
-      humidity=humidity,
       cloud_coverage=cloud_coverage,
-      fog=fog,
-      wind_direction=wind_direction,
-      wind_gust=wind_gust,
       precipitation_amount=final_precipitation_amount,
-      symbol=base_symbol,
-      weather_score=0,  # No longer using weather symbol for scoring
       temp_score=temp_score(temp),
       wind_score=wind_score(wind),
       cloud_score=cloud_score(cloud_coverage),
@@ -403,10 +349,6 @@ def _find_consistent_blocks(sorted_hours: List[HourlyWeather], max_score_varianc
         avg_temp = sum(h.temp for h in block if h.temp is not None) / len(block) if any(h.temp is not None for h in block) else None
         avg_wind = sum(h.wind for h in block if h.wind is not None) / len(block) if any(h.wind is not None for h in block) else None
 
-        # Get most common weather symbol in the block
-        symbols = [h.symbol for h in block if h.symbol]
-        weather_type = max(set(symbols), key=symbols.count) if symbols else ""
-
         blocks.append({
           'block': block,
           'start': block[0].time,
@@ -415,7 +357,6 @@ def _find_consistent_blocks(sorted_hours: List[HourlyWeather], max_score_varianc
           'duration': len(block),
           'consistency': 1 / (1 + std_dev),  # Higher is more consistent
           'variance': std_dev,
-          'weather': weather_type,
           'temp': avg_temp,
           'wind': avg_wind
         })
@@ -549,8 +490,6 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
         final_location_score = location_score  # No bonus for fallback case
 
         # Create fallback optimal_block for details
-        symbols = [h.symbol for h in filtered_hours if h.symbol]
-        weather_type = max(set(symbols), key=symbols.count) if symbols else ""
         avg_temp = sum(h.temp for h in filtered_hours if h.temp is not None) / len(filtered_hours) if any(h.temp is not None for h in filtered_hours) else None
         avg_wind = sum(h.wind for h in filtered_hours if h.wind is not None) / len(filtered_hours) if any(h.wind is not None for h in filtered_hours) else None
 
@@ -561,7 +500,6 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
           'avg_score': location_score,
           'duration': duration,
           'consistency': consistency,
-          'weather': weather_type,
           'temp': avg_temp,
           'wind': avg_wind
         }

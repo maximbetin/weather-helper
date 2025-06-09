@@ -1,7 +1,7 @@
 import pytest
 import tkinter as tk
 from datetime import datetime, date
-from src.core.hourly_weather import HourlyWeather
+from src.core.models import HourlyWeather
 
 
 @pytest.fixture
@@ -11,14 +11,8 @@ def sample_hourly_weather():
       time=datetime(2024, 3, 15, 12),
       temp=20,
       wind=5,
-      humidity=60,
       cloud_coverage=20,
-      fog=0,
-      wind_direction=180,
-      wind_gust=10,
       precipitation_amount=0,
-      symbol="clearsky",
-      weather_score=10,
       temp_score=8,
       wind_score=9,
       cloud_score=10,

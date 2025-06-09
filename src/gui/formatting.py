@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Union, Optional
 import tkinter as tk
 
-from src.core.types import NumericType
+from src.core.config import NumericType
 
 
 class ToolTip:
@@ -140,38 +140,3 @@ def format_wind_speed(speed: Optional[NumericType], unit: str = " m/s") -> str:
   if speed is not None:
     return f"{speed:.1f}{unit}"
   return "N/A"
-
-
-def get_weather_description(symbol: Optional[str]) -> str:
-  """Return a human-readable weather description from a symbol code.
-
-  Args:
-      symbol: The weather symbol code.
-
-  Returns:
-      A human-readable weather description.
-  """
-  weather_map = {
-      'clearsky': 'Clear Sky',
-      'fair': 'Fair',
-      'partlycloudy': 'Partly Cloudy',
-      'cloudy': 'Cloudy',
-      'lightrain': 'Light Rain',
-      'lightrainshowers': 'Light Rain Showers',
-      'rain': 'Rain',
-      'rainshowers': 'Rain Showers',
-      'heavyrain': 'Heavy Rain',
-      'heavyrainshowers': 'Heavy Rain Showers',
-      'lightsnow': 'Light Snow',
-      'snow': 'Snow',
-      'fog': 'Fog',
-      'thunderstorm': 'Thunderstorm',
-      'sleet': 'Sleet',
-      'lightsleet': 'Light Sleet',
-      'sleetshowers': 'Sleet Showers',
-      'lightsleetshowers': 'Light Sleet Showers',
-      'heavysnow': 'Heavy Snow',
-      'heavysnowshowers': 'Heavy Snow Showers',
-  }
-  s = symbol.lower() if symbol else ''
-  return weather_map.get(s, s.replace("_", " ").title())
