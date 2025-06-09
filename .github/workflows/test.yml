@@ -30,9 +30,4 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -v
-
-      - name: Display Test Summary
-        if: always()
-        run: |
-          Write-Host "✅ Test workflow completed" -ForegroundColor Green
+          pytest --cov=src --ignore=src/gui/app.py
