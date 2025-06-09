@@ -1,22 +1,21 @@
 import pytest
 from datetime import datetime, timedelta
 from src.core.evaluation import find_optimal_weather_block
-from src.core.hourly_weather import HourlyWeather
+from src.core.models import HourlyWeather
 
 # Helper to create an HourlyWeather object
 
 
-def create_hour(time, weather_score, symbol="clearsky", temp=20, wind=1):
+def create_hour(time, total_score, temp=20, wind=1):
+  # Create HourlyWeather with scores that sum to total_score
   return HourlyWeather(
       time=time,
-      symbol=symbol,
       temp=temp,
       wind=wind,
-      weather_score=weather_score,
-      temp_score=0,
-      wind_score=0,
-      cloud_score=0,
-      precip_prob_score=0,
+      temp_score=total_score // 4,
+      wind_score=total_score // 4,
+      cloud_score=total_score // 4,
+      precip_amount_score=total_score - (3 * (total_score // 4)),
   )
 
 # Test cases for find_optimal_weather_block

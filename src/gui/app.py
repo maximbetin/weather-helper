@@ -6,21 +6,22 @@ Handles window setup and main widget initialization with enhanced UX.
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as messagebox
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import threading
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from src.gui.themes import apply_theme, FONTS, PADDING, COLORS, get_rating_color
 from src.core.weather_api import fetch_weather_data
 from src.core.locations import LOCATIONS
 from src.core.evaluation import (
     process_forecast, get_available_dates, get_top_locations_for_date,
-    get_time_blocks_for_date, get_rating_info, find_optimal_weather_block
+    get_time_blocks_for_date, get_rating_info
 )
 from src.gui.formatting import (
-    format_date, get_weather_description, add_tooltip,
+    format_date, add_tooltip,
     format_temperature, format_wind_speed, format_percentage
 )
+from src.core.config import get_timezone
 
 
 class WeatherHelperApp:
@@ -277,8 +278,10 @@ class WeatherHelperApp:
     table_frame.columnconfigure(0, weight=1)
     table_frame.rowconfigure(0, weight=1)
 
-    # Enhanced table with modern styling
-    columns = ("Time", "Score", "Temperature", "Weather", "Wind", "Humidity")
+    # Simplified table with essential data and scores in parentheses
+    columns = (
+        "Time", "Temp", "Wind", "Clouds", "Rain"
+    )
     self.main_table = ttk.Treeview(
         table_frame,
         columns=columns,
@@ -297,17 +300,25 @@ class WeatherHelperApp:
 
     # Enhanced column configuration with proper alignments
     col_configs = {
-        "Time": {"width": 60, "anchor": "center", "stretch": False},
-        "Score": {"width": 120, "anchor": "center", "stretch": True},      # Center-aligned
-        "Temperature": {"width": 100, "anchor": "center", "stretch": True},
-        "Weather": {"width": 120, "anchor": "center", "stretch": True},  # Center-aligned
-        "Wind": {"width": 70, "anchor": "center", "stretch": True},
-        "Humidity": {"width": 70, "anchor": "center", "stretch": True}
+        "Time": {"width": 80, "anchor": "center", "stretch": False},
+        "Temp": {"width": 120, "anchor": "center", "stretch": True},
+        "Wind": {"width": 120, "anchor": "center", "stretch": True},
+        "Clouds": {"width": 120, "anchor": "center", "stretch": True},
+        "Rain": {"width": 120, "anchor": "center", "stretch": True}
+    }
+
+    # Set column headings with clear labels
+    headings = {
+        "Time": "Time",
+        "Temp": "Temperature",
+        "Wind": "Wind Speed",
+        "Clouds": "Cloud Coverage",
+        "Rain": "Precipitation"
     }
 
     for col in columns:
       config = col_configs[col]
-      self.main_table.heading(col, text=col)
+      self.main_table.heading(col, text=headings[col])
       self.main_table.column(
           col,
           anchor=config["anchor"],
@@ -320,22 +331,6 @@ class WeatherHelperApp:
     scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.main_table.yview)
     scrollbar.grid(row=0, column=1, sticky="ns")
     self.main_table.configure(yscrollcommand=scrollbar.set)
-
-    # Allow column resizing for dynamic adjustment
-    def on_resize(event):
-      # Get the total width of the table
-      total_width = self.main_table.winfo_width()
-      # Calculate the width for stretchable columns
-      stretchable_width = total_width - col_configs["Time"]["width"]  # Subtract fixed width
-      stretchable_cols = sum(1 for config in col_configs.values() if config["stretch"])
-      if stretchable_cols > 0:
-        width_per_col = stretchable_width // stretchable_cols
-        for col, config in col_configs.items():
-          if config["stretch"]:
-            self.main_table.column(col, width=width_per_col)
-
-    # Bind resize event
-    self.main_table.bind('<Configure>', on_resize)
 
   def _start_data_loading(self):
     """Start loading weather data in a background thread."""
@@ -577,6 +572,33 @@ class WeatherHelperApp:
       score_label.config(text="")
       details_label.config(text=str(e))
 
+  def _filter_daylight_hours(self, hours_for_day: List, selected_date: date) -> List:
+    """Filter hours for daylight and future times with consistent logic.
+
+    Args:
+        hours_for_day: List of hourly weather data
+        selected_date: The selected date
+
+    Returns:
+        Filtered list of hours
+    """
+    local_tz = get_timezone()
+    now_utc = datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(local_tz)
+
+    # Filter for daylight hours and future times
+    if selected_date == now_local.date():
+      # Show future hours, plus current hour if we're in the first half of it
+      return [
+          h for h in hours_for_day
+          if 8 <= h.time.hour <= 20 and (
+              h.time.astimezone(local_tz) > now_local or
+              (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
+          )
+      ]
+    else:
+      return [h for h in hours_for_day if 8 <= h.time.hour <= 20]
+
   def _get_location_details(self, loc_data: Dict) -> str:
     """Get formatted details for a location entry."""
     try:
@@ -592,41 +614,58 @@ class WeatherHelperApp:
       daily_forecasts = processed.get("daily_forecasts", {})
       hours_for_day = daily_forecasts.get(self.selected_date, [])
 
-      # Filter for daylight hours
-      now = datetime.now(timezone.utc)
-      filtered_hours = [
-          h for h in hours_for_day
-          if 8 <= h.time.hour <= 20 and
-          (self.selected_date != now.date() or h.time.hour >= now.hour)
-      ]
+      # Filter for daylight hours and future times
+      filtered_blocks = self._filter_daylight_hours(hours_for_day, self.selected_date)
 
-      if not filtered_hours:
+      if not filtered_blocks:
         return "No daylight data available"
 
-      # Find optimal block with minimum 2-hour duration
-      optimal_block = find_optimal_weather_block(filtered_hours, min_duration=2)
+      # Find optimal consistent block (same as Top 5 calculation)
+      from src.core.evaluation import _find_optimal_consistent_block
+      optimal_block = _find_optimal_consistent_block(filtered_blocks)
 
       if optimal_block:
-        start_time = optimal_block["start"].strftime('%H:%M')
-        end_time = optimal_block["end"].strftime('%H:%M')
-        weather = get_weather_description(optimal_block["weather"])
+        local_tz = get_timezone()
+        start_time = optimal_block["start"].astimezone(local_tz).strftime('%H:%M')
+        end_time = optimal_block["end"].astimezone(local_tz).strftime('%H:%M')
+        duration = optimal_block.get("duration", 1)
         temp = optimal_block.get("temp")
+        wind = optimal_block.get("wind")
 
-        # Format without duration indicator
-        details = f"{start_time} to {end_time} | {weather}"
+        # Format based on duration
+        if duration == 1:
+          # Single hour - make it clear
+          details = f"Best: {start_time} (1h)"
+        else:
+          # Multiple hours - show range
+          details = f"{start_time}-{end_time} ({duration}h)"
+
+        # Add practical outdoor activity info instead of weather symbols
+        info_parts = []
         if temp is not None:
-          details += f" | {temp:.1f}°C"
+          info_parts.append(f"{temp:.1f}°C")
+        if wind is not None:
+          info_parts.append(f"{wind:.1f}m/s wind")
+
+        if info_parts:
+          details += f" | {' | '.join(info_parts)}"
 
       else:
         # If no optimal block found, show best single hour
-        best_hour = max(filtered_hours, key=lambda h: h.total_score)
-        time_str = best_hour.time.strftime('%H:%M')
-        weather = get_weather_description(best_hour.symbol)
+        local_tz = get_timezone()
+        best_hour = max(filtered_blocks, key=lambda h: h.total_score)
+        time_str = best_hour.time.astimezone(local_tz).strftime('%H:%M')
 
-        # Format single hour without duration
-        details = f"Best hour: {time_str} | {weather}"
+        # Format single hour with practical info
+        details = f"Best hour: {time_str}"
+        info_parts = []
         if best_hour.temp is not None:
-          details += f" | {best_hour.temp:.1f}°C"
+          info_parts.append(f"{best_hour.temp:.1f}°C")
+        if best_hour.wind is not None:
+          info_parts.append(f"{best_hour.wind:.1f}m/s wind")
+
+        if info_parts:
+          details += f" | {' | '.join(info_parts)}"
 
       return details
 
@@ -652,14 +691,7 @@ class WeatherHelperApp:
         return
 
       # Filter for daylight hours and future times
-      now = datetime.now(timezone.utc)
-      if self.selected_date == now.date():
-        filtered_blocks = [
-            h for h in time_blocks
-            if 8 <= h.hour <= 20 and h.hour >= now.hour
-        ]
-      else:
-        filtered_blocks = [h for h in time_blocks if 8 <= h.hour <= 20]
+      filtered_blocks = self._filter_daylight_hours(time_blocks, self.selected_date)
 
       # Populate table with enhanced formatting
       for hour in filtered_blocks:
@@ -671,15 +703,13 @@ class WeatherHelperApp:
   def _add_table_row(self, hour):
     """Add a single row to the main table with proper formatting."""
     try:
-      time_str = hour.time.strftime('%H:%M')
-      rating = get_rating_info(hour.total_score)
-      score = f"{rating} ({hour.total_score:.1f})"
+      time_str = f"{hour.time.strftime('%H:%M')} ({hour.total_score:+.0f})"
 
-      # Format values with enhanced utilities and proper spacing
-      temp = format_temperature(hour.temp)
-      weather_desc = get_weather_description(hour.symbol) if hour.symbol else "Unknown"
-      wind = format_wind_speed(hour.wind)
-      humidity = format_percentage(hour.humidity)
+      # Format values with scores in parentheses
+      temp = f"{hour.temp:.1f}°C ({hour.temp_score:+.0f})" if hour.temp is not None else "N/A"
+      wind = f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})" if hour.wind is not None else "N/A"
+      clouds = f"{hour.cloud_coverage:.0f}% ({hour.cloud_score:+.0f})" if hour.cloud_coverage is not None else "N/A"
+      rain = f"{hour.precipitation_amount:.1f}mm ({hour.precip_amount_score:+.0f})" if hour.precipitation_amount is not None else "N/A"
 
       # Determine tag based on score thresholds
       if hour.total_score >= 12:
@@ -696,7 +726,9 @@ class WeatherHelperApp:
       # Insert row with proper tag
       self.main_table.insert(
           "", "end",
-          values=(time_str, score, temp, weather_desc, wind, humidity),
+          values=(
+              time_str, temp, wind, clouds, rain
+          ),
           tags=(tag,)
       )
 
@@ -704,7 +736,7 @@ class WeatherHelperApp:
       # Add error row for debugging
       self.main_table.insert(
           "", "end",
-          values=("Error", "Error", "Error", "Error", "Error", "Error"),
+          values=("Error", "Error", "Error", "Error", "Error"),
           tags=('Poor',)
       )
 

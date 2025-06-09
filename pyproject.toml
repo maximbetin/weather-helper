@@ -10,7 +10,7 @@ dependencies = [
     "pytz==2025.2",
     "pytest==8.3.5",
     "requests==2.32.3",
-    "pyinstaller==6.14.0"
+    "pyinstaller==6.14.1"
 ]
 
 [tool.pytest.ini_options]
@@ -23,3 +23,12 @@ testpaths = [
 python_files = [
     "test_*.py"
 ]
+
+[tool.coverage.run]
+omit = [
+    "src/gui/app.py",
+    "src/__init__.py",
+    "src/gui/__init__.py",
+    "src/core/__init__.py"
+]
+source = ["src"]
