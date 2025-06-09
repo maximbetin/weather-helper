@@ -2,11 +2,12 @@
 Tests for weather API functionality.
 """
 
-import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
 import requests
-from src.core.weather_api import fetch_weather_data, _make_request
+
 from src.core.locations import Location
+from src.core.weather_api import _make_request, fetch_weather_data
 
 
 def test_fetch_weather_data_invalid_location():

@@ -3,19 +3,11 @@ Tests for core functionality including evaluation, processing, and configuration
 Consolidates tests for the core business logic of the weather helper.
 """
 
-import pytest
-from datetime import date, datetime, timezone, timedelta
-from src.core.evaluation import (
-    find_optimal_weather_block,
-    process_forecast,
-    get_top_locations_for_date,
-    _get_value_from_ranges,
-    _calculate_score,
-    get_available_dates,
-    get_time_blocks_for_date,
-    _calculate_weather_averages
-)
+from datetime import date, datetime
+
 from src.core.config import get_current_date, get_current_datetime, get_timezone, safe_average
+from src.core.evaluation import (_calculate_score, _calculate_weather_averages, _get_value_from_ranges, find_optimal_weather_block, get_available_dates,
+                                 get_time_blocks_for_date, get_top_locations_for_date, process_forecast)
 from src.core.models import HourlyWeather
 
 

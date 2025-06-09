@@ -2,9 +2,10 @@
 Configuration constants and type definitions for the Weather Helper application.
 """
 
-from typing import Union, TypeVar
-from functools import lru_cache
 from datetime import date, datetime
+from functools import lru_cache
+from typing import TypeVar, Union
+
 import pytz
 
 # Type definitions

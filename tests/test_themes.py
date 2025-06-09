@@ -2,14 +2,12 @@
 Tests for GUI themes and styling functionality.
 """
 
-import pytest
 import tkinter as tk
-from tkinter import ttk
 from unittest.mock import MagicMock, patch
 
-from src.gui.themes import (
-    COLORS, FONTS, PADDING, BORDER, apply_theme, get_rating_color
-)
+import pytest
+
+from src.gui.themes import BORDER, COLORS, FONTS, PADDING, apply_theme, get_rating_color
 
 
 class TestColorsAndConstants:

@@ -1,21 +1,13 @@
 """Tests for formatting utilities."""
 
-import pytest
-from src.gui.formatting import (
-    format_temperature,
-    format_percentage,
-    format_wind_speed,
-    format_time,
-    format_date,
-    format_duration,
-    add_tooltip,
-    ToolTip
-)
-from src.gui.themes import get_rating_color
-from src.core.config import NumericType
-from datetime import date, datetime
 import tkinter as tk
+from datetime import date, datetime
 from unittest.mock import MagicMock, patch
+
+import pytest
+
+from src.gui.formatting import ToolTip, add_tooltip, format_date, format_duration, format_percentage, format_temperature, format_time, format_wind_speed
+from src.gui.themes import get_rating_color
 
 
 def test_format_temperature():

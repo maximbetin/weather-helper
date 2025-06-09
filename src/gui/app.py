@@ -3,25 +3,19 @@ Main GUI application class for the weather helper.
 Handles window setup and main widget initialization with enhanced UX.
 """
 
-import tkinter as tk
-from tkinter import ttk
-import tkinter.messagebox as messagebox
-from datetime import datetime, timezone, date
 import threading
-from typing import Optional, Dict, Any, List
+import tkinter as tk
+import tkinter.messagebox as messagebox
+from datetime import date, datetime, timezone
+from tkinter import ttk
+from typing import Any, Dict, List, Optional
 
-from src.gui.themes import apply_theme, FONTS, PADDING, COLORS, get_rating_color
-from src.core.weather_api import fetch_weather_data
-from src.core.locations import LOCATIONS
-from src.core.evaluation import (
-    process_forecast, get_available_dates, get_top_locations_for_date,
-    get_time_blocks_for_date, get_rating_info
-)
-from src.gui.formatting import (
-    format_date, add_tooltip,
-    format_temperature, format_wind_speed, format_percentage
-)
 from src.core.config import get_timezone
+from src.core.evaluation import get_available_dates, get_rating_info, get_time_blocks_for_date, get_top_locations_for_date, process_forecast
+from src.core.locations import LOCATIONS
+from src.core.weather_api import fetch_weather_data
+from src.gui.formatting import add_tooltip, format_date, format_percentage, format_temperature, format_wind_speed
+from src.gui.themes import COLORS, FONTS, PADDING, apply_theme, get_rating_color
 
 
 class WeatherHelperApp:

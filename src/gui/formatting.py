@@ -1,9 +1,9 @@
 """
 This module contains utility functions for formatting data for display in the GUI.
 """
-from datetime import date, datetime
-from typing import Union, Optional
 import tkinter as tk
+from datetime import date, datetime
+from typing import Optional, Union
 
 from src.core.config import NumericType
 

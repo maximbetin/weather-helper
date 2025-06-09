@@ -1,11 +1,6 @@
 import pytest
-from src.core.evaluation import (
-    temp_score,
-    wind_score,
-    cloud_score,
-)
 
-# Test cases for temperature scoring
+from src.core.evaluation import cloud_score, temp_score, wind_score
 
 
 @pytest.mark.parametrize("temp, expected_score", [

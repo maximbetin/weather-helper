@@ -3,13 +3,13 @@ Evaluation and scoring logic for weather forecasts.
 Provides functions to process forecasts, evaluate time blocks, and rank locations for GUI use.
 """
 
-from collections import defaultdict
-from datetime import datetime, timedelta, date, timezone
-from typing import Any, Optional, Union
 import math
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Optional, Union
 
 from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, NumericType, T, get_timezone, safe_average
-from src.core.models import HourlyWeather, DailyReport
+from src.core.models import DailyReport, HourlyWeather
 
 
 def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[float], Optional[float]]:

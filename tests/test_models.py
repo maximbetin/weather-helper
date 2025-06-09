@@ -2,9 +2,9 @@
 Tests for data models including HourlyWeather and DailyReport.
 """
 
-import pytest
 from datetime import datetime
-from src.core.models import HourlyWeather, DailyReport
+
+from src.core.models import DailyReport, HourlyWeather
 
 
 def test_daily_report_empty():
