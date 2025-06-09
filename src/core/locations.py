@@ -28,7 +28,6 @@ LOCATIONS: Dict[str, Location] = {
     "luarca": Location("luarca", "Luarca", 43.5420, -6.5359),
     "luanco": Location("luanco", "Luanco", 43.6137, -5.7929),
     "salinas": Location("salinas", "Salinas", 43.5753, -5.9585),
-    "alicante": Location("alicante", "Alicante", 38.34517, -0.48149),
     "cudillero": Location("cudillero", "Cudillero", 43.5629, -6.1453),
     "ribadesella": Location("ribadesella", "Ribadesella", 43.4631, -5.0567),
     "lagos_covadonga": Location("lagos_covadonga", "Lagos de Covadonga", 43.1600, -4.5900),

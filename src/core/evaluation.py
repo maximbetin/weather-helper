@@ -450,24 +450,28 @@ def _find_optimal_consistent_block(sorted_hours: List[HourlyWeather]) -> Optiona
     duration = block_info['duration']
     consistency = block_info['consistency']
 
-    # Significantly favor longer blocks - duration is very valuable for planning
-    if duration >= 3:
-      duration_factor = 1.8 + math.log(duration) / 2.0  # Strong preference for 3+ hour blocks
+    # Moderate preference for longer blocks - balance quality and duration
+    if duration >= 5:
+      duration_factor = 2.2 + math.log(duration) / 3.0  # Good preference for 5+ hour blocks
+    elif duration == 4:
+      duration_factor = 2.0  # Solid preference for 4-hour blocks
+    elif duration == 3:
+      duration_factor = 1.7  # Good preference for 3-hour blocks
     elif duration == 2:
-      duration_factor = 1.4  # Good preference for 2-hour blocks
+      duration_factor = 1.4  # Moderate preference for 2-hour blocks
     else:
       duration_factor = 1.0  # Base case for single hours
 
-    duration_factor = min(duration_factor, 2.5)  # Cap the bonus
+    duration_factor = min(duration_factor, 2.5)  # Reasonable cap
 
     # Consistency factor: reward more consistent blocks, but don't penalize too much
     consistency_factor = 0.7 + (consistency * 0.3)  # Scale from 0.7 to 1.0
 
-    # Combined score strongly rewards longer duration and good average score
+    # Combined score balances quality and duration more evenly
     combined_score = avg_score * duration_factor * consistency_factor
 
-    # Add a small bonus for longer blocks to break ties
-    combined_score += (duration - 1) * 0.5
+    # Add a moderate bonus for longer blocks to break ties
+    combined_score += (duration - 1) * 0.8  # Reduced from 1.5 to 0.8
 
     if combined_score > best_combined_score:
       best_combined_score = combined_score
@@ -520,15 +524,29 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
 
       # Calculate the location's score based on the optimal block
       if optimal_block:
-        # Use the average score of the optimal block (divided by hours)
+        # Use the average score of the optimal block
         location_score = optimal_block['avg_score']
         duration = optimal_block['duration']
         consistency = optimal_block.get('consistency', 1.0)
+
+        # Apply more moderate duration bonus at the location level
+        duration_bonus_multiplier = 1.0
+        if duration >= 4:
+          duration_bonus_multiplier = 1.3  # Moderate bonus for 4+ hour blocks
+        elif duration == 3:
+          duration_bonus_multiplier = 1.2  # Small bonus for 3-hour blocks
+        elif duration == 2:
+          duration_bonus_multiplier = 1.1  # Very small bonus for 2-hour blocks
+
+        # Apply the duration bonus to the location score for ranking
+        final_location_score = location_score * duration_bonus_multiplier
+
       else:
         # Fallback: use simple average if no consistent block found
         location_score = sum(h.total_score for h in filtered_hours) / len(filtered_hours)
         duration = len(filtered_hours)
         consistency = 0.5
+        final_location_score = location_score  # No bonus for fallback case
 
         # Create fallback optimal_block for details
         symbols = [h.symbol for h in filtered_hours if h.symbol]
@@ -551,8 +569,8 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
       results.append({
           "location_key": loc_key,
           "location_name": getattr(report, "location_name", loc_key),
-          "avg_score": location_score,  # Average score of optimal block
-          "combined_score": location_score,  # Same as avg for consistency
+          "avg_score": final_location_score,  # Use the duration-boosted score for ranking
+          "combined_score": final_location_score,  # Same as avg for consistency
           "min_temp": getattr(report, "min_temp", None),
           "max_temp": getattr(report, "max_temp", None),
           "weather_description": getattr(report, "weather_description", ""),
@@ -561,6 +579,6 @@ def get_top_locations_for_date(all_location_processed: Dict[str, dict], d: date,
           "consistency": consistency
       })
 
-  # Sort by the location score (average of optimal consistent block)
+  # Sort by the final location score (which includes duration bonuses)
   results.sort(key=lambda x: x["avg_score"], reverse=True)
   return results[:top_n]
