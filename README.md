@@ -99,7 +99,7 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor activities. Each hour receives a total score based on four key factors:
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor activities. Each hour receives a total score based on four key factors.
 
 ### Individual Component Scores
 

@@ -624,7 +624,6 @@ class WeatherHelperApp:
         end_time = optimal_block["end"].astimezone(local_tz).strftime('%H:%M')
         duration = optimal_block.get("duration", 1)
         temp = optimal_block.get("temp")
-        wind = optimal_block.get("wind")
 
         # Format based on duration
         if duration == 1:
@@ -638,8 +637,6 @@ class WeatherHelperApp:
         info_parts = []
         if temp is not None:
           info_parts.append(f"{temp:.1f}°C")
-        if wind is not None:
-          info_parts.append(f"{wind:.1f}m/s wind")
 
         if info_parts:
           details += f" | {' | '.join(info_parts)}"
@@ -655,8 +652,6 @@ class WeatherHelperApp:
         info_parts = []
         if best_hour.temp is not None:
           info_parts.append(f"{best_hour.temp:.1f}°C")
-        if best_hour.wind is not None:
-          info_parts.append(f"{best_hour.wind:.1f}m/s wind")
 
         if info_parts:
           details += f" | {' | '.join(info_parts)}"
