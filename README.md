@@ -1,3 +1,5 @@
+[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
+
 # Weather Helper
 
 ## Overview
@@ -65,8 +67,6 @@ The executable will be created in the `dist` directory.
 ## CI/CD Pipeline
 
 The project uses GitHub Actions for continuous integration and deployment:
-
-[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
 
 - Tests are run on every commit
 - When a commit is pushed to main:
