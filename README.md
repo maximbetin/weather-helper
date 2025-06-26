@@ -15,29 +15,29 @@ The Weather Helper is a desktop application that provides detailed weather forec
 
 1. **Clone the repository:**
 
-   ```bash
-   git clone https://github.com/maximbetin/weather-helper.git
-   cd weather-helper
-   ```
+  ```bash
+  git clone https://github.com/maximbetin/weather-helper.git
+  cd weather-helper
+  ```
 
 2. **Create a virtual environment (recommended):**
 
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+  ```bash
+  python -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+  ```
 
 3. **Install dependencies:**
 
-   ```bash
-   pip install .
-   ```
+  ```bash
+  pip install .
+  ```
 
 4. **Run the application:**
 
-   ```bash
-   python weather_helper.py
-   ```
+  ```bash
+  python weather_helper.py
+  ```
 
 ## Testing
 
