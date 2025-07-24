@@ -2,7 +2,6 @@ import pytest
 
 from src.core.evaluation import cloud_score, temp_score, wind_score
 
-
 @pytest.mark.parametrize("temp, expected_score", [
     (20, 6),   # Ideal
     (17, 4),   # Slightly cool
@@ -19,10 +18,9 @@ from src.core.evaluation import cloud_score, temp_score, wind_score
     (None, 0),  # No value
 ])
 def test_temp_score(temp, expected_score):
-  assert temp_score(temp) == expected_score
+    assert temp_score(temp) == expected_score
 
 # Test cases for wind speed scoring
-
 
 @pytest.mark.parametrize("wind, expected_score", [
     (0.5, 0),  # Calm
@@ -37,10 +35,9 @@ def test_temp_score(temp, expected_score):
     (None, 0),  # No value
 ])
 def test_wind_score(wind, expected_score):
-  assert wind_score(wind) == expected_score
+    assert wind_score(wind) == expected_score
 
 # Test cases for cloud coverage scoring
-
 
 @pytest.mark.parametrize("clouds, expected_score", [
     (5, 4),    # Clear
@@ -52,4 +49,4 @@ def test_wind_score(wind, expected_score):
     (None, 0),  # No value
 ])
 def test_cloud_score(clouds, expected_score):
-  assert cloud_score(clouds) == expected_score
+    assert cloud_score(clouds) == expected_score
