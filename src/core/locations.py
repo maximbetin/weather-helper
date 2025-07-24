@@ -30,6 +30,6 @@ LOCATIONS: Dict[str, Location] = {
     "cudillero": Location("cudillero", "Cudillero", 43.5629, -6.1453),
     "ribadesella": Location("ribadesella", "Ribadesella", 43.4631, -5.0567),
     "cangas_de_onis": Location("cangas_de_onis", "Cangas de Onis", 43.3506, -5.1312),
-    "cangas_de_narcea": Location("cangas_de_narcea", "Cangas de Nareca", 43.1774, -6.5498),
+    "cangas_de_narcea": Location("cangas_de_narcea", "Cangas de Narcea", 43.1774, -6.5498),
     "lagos_covadonga": Location("lagos_covadonga", "Lagos de Covadonga", 43.1600, -4.5900),
 }
