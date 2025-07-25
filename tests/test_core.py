@@ -25,6 +25,7 @@ def test_process_forecast_empty():
     assert result["day_scores"] == {}
 
 # Tests for configuration utilities
+
 def test_get_timezone():
     tz = get_timezone()
     assert tz is not None
@@ -48,6 +49,7 @@ def test_safe_average():
     assert result is not None and abs(result - expected) < 0.000001
 
 # Tests for _get_value_from_ranges function
+
 def test_get_value_from_ranges():
     ranges = [
         ((0, 10), "low"),
@@ -87,6 +89,7 @@ def test_calculate_score():
     assert _calculate_score(None, ranges) == 0
 
 # Tests for other missing functions
+
 def test_get_available_dates():
     # Test with empty/invalid data
     assert get_available_dates({}) == []
@@ -147,6 +150,7 @@ def test_calculate_weather_averages():
     assert avg_wind == 5.0   # (5 + 3 + 7) / 3
 
 # Tests for the process_forecast function with more edge cases
+
 def test_process_forecast():
     # Create mock forecast data
     mock_timeseries = [

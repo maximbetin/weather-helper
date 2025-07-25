@@ -59,6 +59,7 @@ BORDER = {
     'focus_color': COLORS['primary_light'],
 }
 
+
 def apply_theme(root):
     """Apply the modern theme to the root window and its widgets."""
     style = ttk.Style()
@@ -153,6 +154,19 @@ def apply_theme(root):
               bordercolor=[('focus', COLORS['primary_light']),
                            ('!focus', COLORS['border'])])
 
+    # Checkbox styling
+    style.configure('Toggle.TCheckbutton',
+                    background=COLORS['background'],
+                    foreground=COLORS['text'],
+                    font=FONTS['body'],
+                    padding=(PADDING['small'], PADDING['tiny']))
+
+    style.map('Toggle.TCheckbutton',
+              background=[('active', COLORS['background']),
+                          ('selected', COLORS['background'])],
+              foreground=[('active', COLORS['primary']),
+                          ('selected', COLORS['primary'])])
+
     # Create a custom style for the Treeview
     style.configure('Custom.Treeview',
                     background=COLORS['surface'],
@@ -182,6 +196,7 @@ def apply_theme(root):
                     padding=(PADDING['small'], PADDING['tiny']),
                     relief='flat',
                     borderwidth=0)
+
 
 def get_rating_color(rating: str) -> str:
     """Get the color for a specific rating."""

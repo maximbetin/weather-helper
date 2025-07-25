@@ -11,6 +11,7 @@ from typing import Any, Optional, Union
 from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAYS, NumericType, T, get_timezone, safe_average
 from src.core.models import DailyReport, HourlyWeather
 
+
 def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[float], Optional[float]]:
     """Calculate average temperature and wind speed for a list of hours.
 
@@ -23,6 +24,7 @@ def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[fl
     temps = [h.temp for h in hours if h.temp is not None]
     winds = [h.wind for h in hours if h.wind is not None]
     return safe_average(temps), safe_average(winds)
+
 
 def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> Optional[T]:  # type: ignore
     """Get a value from a list of ranges."""
@@ -41,12 +43,14 @@ def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], in
                 return result_value
     return ranges[-1][1] if ranges and ranges[-1][0] is None else None
 
+
 def _calculate_score(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> int:
     """Calculate score based on a value and a list of ranges."""
     return _get_value_from_ranges(value, ranges, inclusive) or 0
 
+
 def temp_score(temp: Optional[NumericType]) -> int:
-    """Rate temperature for outdoor comfort on a scale of -12 to 6.
+    """Rate temperature for outdoor comfort on a scale of -15 to 8.
 
     Args:
         temp: Temperature in Celsius
@@ -55,23 +59,25 @@ def temp_score(temp: Optional[NumericType]) -> int:
         Integer score representing temperature comfort
     """
     temp_ranges = [
-        ((18, 23), 6),    # Ideal temperature (reduced from 8)
-        ((15, 18), 4),    # Slightly cool but pleasant (reduced from 6)
-        ((23, 26), 4),    # Slightly warm but pleasant (reduced from 6)
-        ((10, 15), 2),    # Cool (reduced from 4)
-        ((26, 30), 1),    # Warm (reduced from 3)
-        ((5, 10), -1),    # Cold (reduced from 0)
-        ((30, 33), -3),   # Hot (reduced from -2)
-        ((0, 5), -6),     # Very cold (reduced from -5)
-        ((33, 36), -6),   # Very hot (reduced from -5)
-        ((-5, 0), -9),    # Extremely cold (reduced from -8)
-        ((36, 40), -9),   # Extremely hot (reduced from -8)
-        (None, -12)       # Beyond extreme temperatures (reduced from -10)
+        ((20, 24), 8),    # Ideal temperature range (expanded from 18-23)
+        ((17, 20), 6),    # Cool but very pleasant
+        ((24, 27), 6),    # Warm but very pleasant
+        ((15, 17), 4),    # Cool but comfortable
+        ((27, 30), 4),    # Warm but comfortable
+        ((10, 15), 2),    # Cool but acceptable
+        ((30, 33), 1),    # Hot but manageable
+        ((5, 10), -1),    # Cold
+        ((33, 36), -3),   # Very hot
+        ((0, 5), -6),     # Very cold
+        ((36, 40), -9),   # Extremely hot
+        ((-5, 0), -9),    # Extremely cold
+        (None, -15)       # Beyond extreme temperatures
     ]
     return _calculate_score(temp, temp_ranges, inclusive=True)
 
+
 def wind_score(wind_speed: Optional[NumericType]) -> int:
-    """Rate wind speed comfort on a scale of -10 to 0.
+    """Rate wind speed comfort on a scale of -8 to 2.
 
     Args:
         wind_speed: Wind speed in m/s
@@ -80,20 +86,20 @@ def wind_score(wind_speed: Optional[NumericType]) -> int:
         Integer score representing wind comfort
     """
     wind_ranges = [
-        ((0, 1), 0),      # Calm
-        ((1, 2), 0),      # Light air (unchanged from -1)
-        ((2, 3.5), -1),   # Light breeze (unchanged from -2)
-        ((3.5, 5), -1),   # Gentle breeze (improved from -3)
-        ((5, 8), -3),     # Moderate breeze (improved from -5)
-        ((8, 10.5), -5),  # Fresh breeze (improved from -7)
-        ((10.5, 13), -7),  # Strong breeze (improved from -8)
-        ((13, 15.5), -8),  # Near gale (improved from -9)
-        (None, -10)       # Gale and above (unchanged)
+        ((1, 3), 2),      # Light breeze - ideal for outdoor activities
+        ((0, 1), 1),      # Calm - good but can feel stuffy
+        ((3, 5), 0),      # Gentle breeze - neutral
+        ((5, 8), -2),     # Moderate breeze - noticeable but acceptable
+        ((8, 12), -4),    # Fresh breeze - can be challenging
+        ((12, 16), -6),   # Strong breeze - difficult for many activities
+        ((16, 20), -7),   # Near gale - very challenging
+        (None, -8)        # Gale and above - dangerous
     ]
     return _calculate_score(wind_speed, wind_ranges)
 
+
 def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
-    """Rate cloud coverage for outdoor activities on a scale of -6 to 4.
+    """Rate cloud coverage for outdoor activities on a scale of -3 to 4.
 
     Args:
         cloud_coverage: Cloud coverage percentage (0-100)
@@ -102,17 +108,18 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
         Integer score representing cloud cover impact
     """
     cloud_ranges = [
-        ((0, 10), 4),     # Clear (unchanged)
-        ((10, 25), 3),    # Few clouds (improved from 2)
-        ((25, 50), 2),    # Partly cloudy (improved from 0)
-        ((50, 75), 0),    # Mostly cloudy (improved from -2)
-        ((75, 90), -2),   # Very cloudy (improved from -4)
-        (None, -4)        # Overcast (improved from -6)
+        ((10, 30), 4),    # Few to scattered clouds - ideal (protection from sun, good visibility)
+        ((0, 10), 3),     # Clear skies - very good but can be hot
+        ((30, 60), 2),    # Partly cloudy - good conditions
+        ((60, 80), 0),    # Mostly cloudy - neutral
+        ((80, 95), -1),   # Very cloudy - slightly gloomy
+        (None, -3)        # Overcast - gloomy
     ]
     return _calculate_score(cloud_coverage, cloud_ranges)
 
+
 def precip_amount_score(amount: Optional[NumericType]) -> int:
-    """Rate precipitation amount on a scale of -15 to 6.
+    """Rate precipitation amount on a scale of -12 to 6.
 
     Args:
         amount: Precipitation amount in millimeters
@@ -122,16 +129,17 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
     """
     amount_ranges = [
         ((0, 0), 6),        # No precipitation - highest bonus
-        ((0, 0.1), 4),      # Trace amounts
-        ((0.1, 0.5), 2),    # Very light
-        ((0.5, 1.0), 0),    # Light drizzle
-        ((1.0, 2.5), -3),   # Light rain
-        ((2.5, 5.0), -6),   # Moderate rain
-        ((5.0, 10.0), -9),  # Heavy rain
-        ((10.0, 20.0), -12),  # Very heavy rain
-        (None, -15)         # Extreme precipitation
+        ((0, 0.1), 4),      # Trace amounts - barely noticeable
+        ((0.1, 0.5), 2),    # Very light - minimal impact
+        ((0.5, 1.0), 0),    # Light drizzle - noticeable but manageable
+        ((1.0, 2.5), -2),   # Light rain - requires some preparation
+        ((2.5, 5.0), -4),   # Moderate rain - significant impact
+        ((5.0, 10.0), -6),  # Heavy rain - major impact
+        ((10.0, 20.0), -8),  # Very heavy rain - severe impact
+        (None, -12)         # Extreme precipitation - dangerous
     ]
-    return _calculate_score(amount, amount_ranges)
+    return _calculate_score(amount, amount_ranges, inclusive=True)
+
 
 def get_rating_info(score: Union[int, float, None]) -> str:
     """Return standardized rating description based on score.
@@ -153,6 +161,7 @@ def get_rating_info(score: Union[int, float, None]) -> str:
         (None, "Poor")                         # Below 1.0 is poor
     ]
     return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
+
 
 def _find_best_block(sorted_hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
     """Find the best continuous block of weather."""
@@ -197,6 +206,7 @@ def _find_best_block(sorted_hours: list[HourlyWeather], min_duration: int = 1) -
                 }
     return best_block
 
+
 def find_optimal_weather_block(hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
     """Find the optimal weather block for outdoor activities.
 
@@ -215,6 +225,7 @@ def find_optimal_weather_block(hours: list[HourlyWeather], min_duration: int = 1
 
     sorted_hours = sorted(hours, key=lambda x: x.time)
     return _find_best_block(sorted_hours, min_duration)
+
 
 def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
     """Create an HourlyWeather object from a forecast timeseries entry."""
@@ -248,6 +259,7 @@ def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
         precip_amount_score=precip_amount_score(final_precipitation_amount)
     )
 
+
 def _process_timeseries(forecast_timeseries: list[dict[str, Any]]) -> dict[date, list[HourlyWeather]]:
     """Process forecast timeseries data into a dictionary of daily forecasts."""
     daily_forecasts = defaultdict(list)
@@ -264,6 +276,7 @@ def _process_timeseries(forecast_timeseries: list[dict[str, Any]]) -> dict[date,
         daily_forecasts[forecast_date].append(hourly_weather)
 
     return daily_forecasts
+
 
 def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
     """Process weather forecast data into daily summaries and hourly blocks."""
@@ -286,17 +299,20 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
         "day_scores": day_scores_reports
     }
 
+
 def get_available_dates(processed_forecast: dict) -> list[date]:
     """Return all available dates for a processed forecast."""
     if not processed_forecast or "daily_forecasts" not in processed_forecast:
         return []
     return sorted(processed_forecast["daily_forecasts"].keys())
 
+
 def get_time_blocks_for_date(processed_forecast: dict, d: date) -> list[HourlyWeather]:
     """Return all HourlyWeather blocks for a given date."""
     if not processed_forecast or "daily_forecasts" not in processed_forecast:
         return []
     return sorted(processed_forecast["daily_forecasts"].get(d, []), key=lambda h: h.hour)
+
 
 def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_variance: float = 7.0) -> list[dict[str, Any]]:
     """Find blocks of hours with consistent scores (without drastic changes).
@@ -359,6 +375,7 @@ def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_varianc
 
     return blocks
 
+
 def _find_optimal_consistent_block(sorted_hours: list[HourlyWeather]) -> Optional[dict[str, Any]]:
     """Find the optimal block that balances score, duration, and consistency.
 
@@ -419,6 +436,7 @@ def _find_optimal_consistent_block(sorted_hours: list[HourlyWeather]) -> Optiona
             }
 
     return best_block
+
 
 def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date, top_n: int = 5) -> list[dict]:
     """Return the top N locations for a given date, prioritizing consistent score blocks."""

@@ -13,17 +13,17 @@ NumericType = Union[int, float]
 T = TypeVar('T')
 
 # API settings
+USER_AGENT = "WeatherHelper/1.0"
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 API_URL_COMPACT = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
-USER_AGENT = "WeatherHelper/1.0"
 
 # Time zone
 TIMEZONE = "Europe/Madrid"
 
 # Weather display settings
-DAYLIGHT_START_HOUR = 8
-DAYLIGHT_END_HOUR = 20
 FORECAST_DAYS = 7  # Max days for forecast processing
+DAYLIGHT_END_HOUR = 20
+DAYLIGHT_START_HOUR = 8
 
 # Utility functions
 
