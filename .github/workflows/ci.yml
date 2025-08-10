@@ -74,11 +74,11 @@ jobs:
 
       - name: Build Executable
         run: |
-          pyinstaller --onefile --windowed weather_helper.py
+          pyinstaller --onedir --windowed --clean --noupx weather_helper.py
 
       - name: Package Executable
         run: |
-          Compress-Archive -Path dist\weather_helper.exe -DestinationPath dist\weather_helper.zip
+          Compress-Archive -Path dist\weather_helper -DestinationPath dist\weather_helper.zip
 
       - name: Configure Git
         run: |

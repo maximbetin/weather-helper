@@ -19,31 +19,83 @@ time for outdoor activities.
 
 ## Installation and Usage
 
-### 1. **Clone the repository:**
+### Method 1: Direct Installation (Recommended)
+
+#### 1. **Clone the repository:**
 
 ```bash
 git clone https://github.com/maximbetin/weather-helper.git
 cd weather-helper
 ```
 
-### 2. **Create a virtual environment (recommended):**
+#### 2. **Create a virtual environment (recommended):**
 
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. **Install dependencies:**
+#### 3. **Install dependencies:**
 
 ```bash
 pip install .
 ```
 
-### 4. **Run the application:**
+#### 4. **Run the application:**
 
 ```bash
 python weather_helper.py
 ```
+
+### Method 2: Using pipx (Alternative)
+
+If you encounter malware warnings with the executable, you can install and run the application
+directly using pipx:
+
+```bash
+# Install pipx if you don't have it
+python -m pip install --user pipx
+python -m pipx ensurepath
+
+# Install weather-helper
+pipx install .
+
+# Run the application
+weather-helper
+```
+
+**Note**: pipx installs the application in an isolated environment and runs it directly from source,
+avoiding executable-related security warnings.
+
+### Method 3: From Pre-built Release
+
+Download the latest release from the
+[Releases page](https://github.com/maximbetin/weather-helper/releases):
+
+1. Download `weather_helper.zip` from the latest release
+2. Extract the zip file to a folder
+3. Run `weather_helper.exe` from the extracted folder
+
+**Security Note**: The executable is built using `--onedir` with `--clean --noupx` flags to minimize
+false positive malware detections. If you still get warnings, use the pipx method above.
+
+### Troubleshooting Malware Warnings
+
+If you encounter malware warnings when downloading or running the executable:
+
+1. **Use pipx installation** (Method 2 above) - This runs the application directly from source code
+2. **Check file hash** - Verify the downloaded file matches the SHA256 hash in the release
+3. **Submit to VirusTotal** - Upload the file to [VirusTotal](https://www.virustotal.com/) for
+   community verification
+4. **Report false positives** - If you're confident it's safe, report the false positive to your
+   antivirus vendor
+
+**Why does this happen?**
+
+- PyInstaller bundles Python code into executables, which can trigger heuristic malware detection
+- The `--onedir` approach creates a more transparent structure that's less likely to trigger
+  warnings
+- Using `--clean --noupx` flags reduces compression and obfuscation that can cause false positives
 
 ### Testing
 
@@ -61,13 +113,34 @@ The test suite includes:
 
 ### Building Executables
 
-The application can be built into standalone executables using PyInstaller:
+The application can be built into standalone executables using PyInstaller. To minimize false
+positive malware detections, we use the `--onedir` approach:
+
+**Option 1: Using the build script (Recommended)**
 
 ```bash
-pyinstaller --onefile --windowed weather_helper.py
+python build.py
 ```
 
-The executable will be created in the `dist` directory.
+**Option 2: Manual PyInstaller command**
+
+```bash
+pyinstaller --onedir --windowed --clean --noupx weather_helper.py
+```
+
+**Build Flags Explained:**
+
+- `--onedir`: Creates a directory with the executable and all dependencies (reduces malware false
+  positives)
+- `--windowed`: Prevents console window from appearing on Windows
+- `--clean`: Cleans PyInstaller cache before building
+- `--noupx`: Disables UPX compression (often flagged by antivirus software)
+
+The executable and dependencies will be created in the `dist/weather_helper/` directory. This
+approach creates a more transparent structure that's less likely to trigger security warnings.
+
+**Note**: The `--onedir` approach creates a folder containing the executable and all required files,
+rather than a single .exe file. This is more secure and less likely to be flagged as malware.
 
 ### CI/CD Pipeline
 
@@ -76,8 +149,13 @@ The project uses GitHub Actions for continuous integration and deployment:
 - Tests are run on every commit
 - When a commit is pushed to main:
   - Tests are run on Windows
-  - Executables are built for Windows
-  - A new release is created with the executables
+  - Executables are built for Windows using `--onedir` approach
+  - A new release is created with the executable directory as a zip file
+
+**Release Assets:**
+
+- `weather_helper.zip`: Contains the entire executable directory with all dependencies
+- This approach provides better transparency and reduces malware false positives
 
 ### Project Structure
 
@@ -88,6 +166,7 @@ weather-helper/
 │   └── gui/            # GUI components and theming
 ├── tests/              # Test suite
 ├── pyproject.toml      # Project metadata and dependencies
+├── build.py            # Build script for creating executables
 └── README.md           # This file
 ```
 

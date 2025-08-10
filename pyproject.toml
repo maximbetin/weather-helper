@@ -13,6 +13,11 @@ dependencies = [
     "pyinstaller==6.14.1"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pipx"
+]
+
 [tool.pytest.ini_options]
 pythonpath = [
     "."
