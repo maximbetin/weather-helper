@@ -203,11 +203,3 @@ The application also identifies the best continuous time periods:
 
 This system helps users find not just good individual hours, but sustained periods of favorable
 weather for extended outdoor activities.
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run the tests
-5. Submit a pull request
