@@ -108,7 +108,7 @@ def test_make_request_request_exception():
     with patch(
         "requests.get",
         side_effect=requests.exceptions.RequestException("Network error"),
-    ) as mock_get:
+    ) as mock_get:  # noqa: F841
         result = _make_request("http://test.url", location, headers)
 
         assert result is None

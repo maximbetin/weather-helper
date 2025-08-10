@@ -1,5 +1,5 @@
 import tkinter as tk
-from datetime import date, datetime
+from datetime import datetime
 
 import pytest
 
@@ -25,7 +25,7 @@ def sample_hourly_weather():
 @pytest.fixture
 def sample_forecast_data():
     """Fixture providing sample forecast data for testing."""
-    test_date = date(2024, 3, 15)
+    # test_date = date(2024, 3, 15)  # Unused variable removed
     return {
         "properties": {
             "timeseries": [

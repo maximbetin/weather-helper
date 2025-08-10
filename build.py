@@ -60,7 +60,7 @@ def main():
             "--windowed",  # No console window on Windows
             "--clean",  # Clean cache before building
             "--noupx",  # Disable UPX compression (often flagged)
-            "--name=weather_helper",  # Set output name
+            "--name=WeatherHelper",  # Set output name
             "weather_helper.py",
         ]
     else:
@@ -70,7 +70,7 @@ def main():
             "--windowed",  # No console window on Windows
             "--clean",  # Clean cache before building
             "--noupx",  # Disable UPX compression (often flagged)
-            "--name=weather_helper",  # Set output name
+            "--name=WeatherHelper",  # Set output name
             "weather_helper.py",
         ]
 
@@ -83,7 +83,7 @@ def main():
         result = subprocess.run(cmd, check=True)
         print("\n✅ Build completed successfully!")
         print("\nOutput location: dist/weather_helper/")
-        print("Run the executable from: dist/weather_helper/weather_helper.exe")
+        print("Run the executable from: dist/weather_helper/WeatherHelper.exe")
         print("\nNote: The --onedir approach creates a folder with the executable")
         print("and all dependencies, which is more transparent and secure.")
 

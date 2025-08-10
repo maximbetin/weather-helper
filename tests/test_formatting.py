@@ -170,7 +170,7 @@ class TestToolTipAdvanced:
         # Mock Toplevel and Label creation
         with (
             patch("tkinter.Toplevel") as mock_toplevel,
-            patch("tkinter.Label") as mock_label,
+            patch("tkinter.Label") as mock_label,  # noqa: F841
         ):
             mock_top = MagicMock()
             mock_toplevel.return_value = mock_top
@@ -205,7 +205,7 @@ class TestToolTipAdvanced:
 
         with (
             patch("tkinter.Toplevel") as mock_toplevel,
-            patch("tkinter.Label") as mock_label,
+            patch("tkinter.Label") as mock_label,  # noqa: F841
         ):
             mock_top = MagicMock()
             mock_toplevel.return_value = mock_top
@@ -247,7 +247,7 @@ class TestToolTipAdvanced:
 
     def test_tooltip_hasattr_check(self, mock_widget):
         """Test the hasattr check for bbox method."""
-        tooltip = ToolTip(mock_widget, "Test tooltip")
+        _ = ToolTip(mock_widget, "Test tooltip")  # noqa: F841
 
         # Test with bbox method present
         assert hasattr(mock_widget, "bbox")

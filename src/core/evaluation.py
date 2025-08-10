@@ -314,16 +314,18 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
     daily_forecasts = _process_timeseries(forecast_timeseries)
 
     day_scores_reports = {}
-    for date, hours_list in daily_forecasts.items():
+    for forecast_date, hours_list in daily_forecasts.items():
         daylight_h = [
             h for h in hours_list if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
         ]
         if not daylight_h:
             continue
         day_report = DailyReport(
-            datetime.combine(date, datetime.min.time()), daylight_h, location_name
+            datetime.combine(forecast_date, datetime.min.time()),
+            daylight_h,
+            location_name,
         )
-        day_scores_reports[date] = day_report
+        day_scores_reports[forecast_date] = day_report
 
     return {"daily_forecasts": daily_forecasts, "day_scores": day_scores_reports}
 

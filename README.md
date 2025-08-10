@@ -72,9 +72,9 @@ avoiding executable-related security warnings.
 Download the latest release from the
 [Releases page](https://github.com/maximbetin/weather-helper/releases):
 
-1. Download `weather_helper.zip` from the latest release
+1. Download `WeatherHelper.zip` from the latest release
 2. Extract the zip file to a folder
-3. Run `weather_helper.exe` from the extracted folder
+3. Run `WeatherHelper.exe` from the extracted folder
 
 **Security Note**: The executable is built using `--onedir` with `--clean --noupx` flags to minimize
 false positive malware detections. If you still get warnings, use the pipx method above.
@@ -116,13 +116,13 @@ The test suite includes:
 The application can be built into standalone executables using PyInstaller. To minimize false
 positive malware detections, we use the `--onedir` approach:
 
-**Option 1: Using the build script (Recommended)**
+**Option 1: Using the build script (Recommended)**:
 
 ```bash
 python build.py
 ```
 
-**Option 2: Manual PyInstaller command**
+**Option 2: Manual PyInstaller command**:
 
 ```bash
 pyinstaller --onedir --windowed --clean --noupx weather_helper.py
@@ -154,7 +154,7 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 **Release Assets:**
 
-- `weather_helper.zip`: Contains the entire executable directory with all dependencies
+- `WeatherHelper.zip`: Contains the entire executable directory with all dependencies
 - This approach provides better transparency and reduces malware false positives
 
 ### Project Structure

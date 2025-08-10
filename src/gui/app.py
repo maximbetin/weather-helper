@@ -388,7 +388,10 @@ class WeatherHelperApp:
                 progress = (loaded_count / self.total_locations) * 100
                 self.root.after(0, lambda p=progress: self.progress_var.set(p))
                 self.root.after(
-                    0, lambda l=loc.name: self._update_status(f"Loading {l}...")
+                    0,
+                    lambda loc_name=loc.name: self._update_status(
+                        f"Loading {loc_name}..."
+                    ),
                 )
 
                 raw = fetch_weather_data(loc)
@@ -614,7 +617,7 @@ class WeatherHelperApp:
             name_label.config(
                 text=loc_data.get("location_name", "Unknown"),
                 foreground=score_color,
-                font=FONTS["subheading"],
+                font=("Segoe UI", 14, "bold"),
             )
 
             # Set score with conditional display
@@ -624,7 +627,7 @@ class WeatherHelperApp:
                 score_text = rating
 
             score_label.config(
-                text=score_text, foreground=score_color, font=FONTS["small_bold"]
+                text=score_text, foreground=score_color, font=("Segoe UI", 9, "bold")
             )
 
             # Set details with color

@@ -78,7 +78,7 @@ jobs:
 
       - name: Package Executable
         run: |
-          Compress-Archive -Path dist\weather_helper -DestinationPath dist\weather_helper.zip
+          Compress-Archive -Path dist\weather_helper -DestinationPath dist\WeatherHelper.zip
 
       - name: Configure Git
         run: |
@@ -109,6 +109,6 @@ jobs:
 
             This release includes:
             - Windows Executable
-          files: dist/weather_helper.zip
+          files: dist/WeatherHelper.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
