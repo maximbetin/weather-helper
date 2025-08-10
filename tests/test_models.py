@@ -6,6 +6,7 @@ from datetime import datetime
 
 from src.core.models import DailyReport, HourlyWeather
 
+
 def test_daily_report_empty():
     """Test DailyReport with empty daylight hours."""
     test_date = datetime(2024, 3, 15)
@@ -13,11 +14,12 @@ def test_daily_report_empty():
 
     assert report.date == test_date
     assert report.location_name == "Test Location"
-    assert report.avg_score == -float('inf')
+    assert report.avg_score == -float("inf")
     assert report.likely_rain_hours == 0
     assert report.min_temp is None
     assert report.max_temp is None
     assert report.avg_temp is None
+
 
 def test_daily_report_calculations():
     """Test DailyReport calculations with sample data."""
@@ -36,7 +38,7 @@ def test_daily_report_calculations():
             wind_score=-3,
             cloud_score=3,
             precip_amount_score=4,
-            precipitation_amount=0.0
+            precipitation_amount=0.0,
         ),
         HourlyWeather(
             time=base_time.replace(hour=9),
@@ -47,7 +49,7 @@ def test_daily_report_calculations():
             wind_score=-3,
             cloud_score=2,
             precip_amount_score=4,
-            precipitation_amount=0.0
+            precipitation_amount=0.0,
         ),
         HourlyWeather(
             time=base_time.replace(hour=10),
@@ -58,7 +60,7 @@ def test_daily_report_calculations():
             wind_score=-3,
             cloud_score=0,
             precip_amount_score=2,
-            precipitation_amount=0.0
+            precipitation_amount=0.0,
         ),
         HourlyWeather(
             time=base_time.replace(hour=11),
@@ -69,7 +71,7 @@ def test_daily_report_calculations():
             wind_score=-5,
             cloud_score=-2,
             precip_amount_score=-3,
-            precipitation_amount=1.0
+            precipitation_amount=1.0,
         ),
         HourlyWeather(
             time=base_time.replace(hour=12),
@@ -80,8 +82,8 @@ def test_daily_report_calculations():
             wind_score=-5,
             cloud_score=-4,
             precip_amount_score=-6,
-            precipitation_amount=2.0
-        )
+            precipitation_amount=2.0,
+        ),
     ]
 
     report = DailyReport(test_date, hours, "Test Location")
@@ -101,6 +103,7 @@ def test_daily_report_calculations():
     expected_avg = sum(expected_scores) / len(expected_scores)
     assert abs(report.avg_score - expected_avg) < 0.001
 
+
 def test_daily_report_weather_description():
     """Test weather description generation based on conditions."""
     test_date = datetime(2024, 3, 15)
@@ -112,7 +115,10 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=25,
             precipitation_amount=0.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_warm = DailyReport(test_date, hours_warm, "Test")
@@ -124,7 +130,10 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=20,
             precipitation_amount=0.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_pleasant = DailyReport(test_date, hours_pleasant, "Test")
@@ -136,7 +145,10 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=15,
             precipitation_amount=0.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_cool = DailyReport(test_date, hours_cool, "Test")
@@ -148,7 +160,10 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=5,
             precipitation_amount=0.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_cold = DailyReport(test_date, hours_cold, "Test")
@@ -160,7 +175,10 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=20,
             precipitation_amount=1.5,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_rain = DailyReport(test_date, hours_rain, "Test")
@@ -172,14 +190,20 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=20,
             precipitation_amount=1.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         ),
         HourlyWeather(
             time=base_time.replace(hour=9),
             temp=20,
             precipitation_amount=2.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
-        )
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
+        ),
     ]
     report_multiple_rain = DailyReport(test_date, hours_multiple_rain, "Test")
     assert report_multiple_rain.weather_description == "Rain (2h)"
@@ -190,11 +214,15 @@ def test_daily_report_weather_description():
             time=base_time,
             temp=None,
             precipitation_amount=0.0,
-            temp_score=1, wind_score=1, cloud_score=1, precip_amount_score=1
+            temp_score=1,
+            wind_score=1,
+            cloud_score=1,
+            precip_amount_score=1,
         )
     ]
     report_none_temp = DailyReport(test_date, hours_none_temp, "Test")
     assert report_none_temp.weather_description == "Mixed"
+
 
 def test_hourly_weather_score_calculation():
     """Test that HourlyWeather calculates total score correctly."""
@@ -203,10 +231,11 @@ def test_hourly_weather_score_calculation():
         temp_score=5,
         wind_score=-2,
         cloud_score=3,
-        precip_amount_score=1
+        precip_amount_score=1,
     )
 
     assert hour.total_score == 7  # 5 + (-2) + 3 + 1
+
 
 def test_hourly_weather_hour_extraction():
     """Test that hour is correctly extracted from datetime."""

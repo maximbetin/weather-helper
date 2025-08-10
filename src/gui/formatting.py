@@ -1,11 +1,13 @@
 """
 This module contains utility functions for formatting data for display in the GUI.
 """
+
 import tkinter as tk
 from datetime import date, datetime
 from typing import Optional, Union
 
 from src.core.config import NumericType
+
 
 class ToolTip:
     """Simple tooltip implementation for GUI widgets."""
@@ -22,7 +24,9 @@ class ToolTip:
         if self.tooltip_window:
             return
 
-        x, y, _, _ = self.widget.bbox("insert") if hasattr(self.widget, 'bbox') else (0, 0, 0, 0)
+        x, y, _, _ = (
+            self.widget.bbox("insert") if hasattr(self.widget, "bbox") else (0, 0, 0, 0)
+        )
         x += self.widget.winfo_rootx() + 20
         y += self.widget.winfo_rooty() + 20
 
@@ -33,12 +37,12 @@ class ToolTip:
         label = tk.Label(
             tw,
             text=self.text,
-            justify='left',
+            justify="left",
             background="#ffffe0",
-            relief='solid',
+            relief="solid",
             borderwidth=1,
             font=("Segoe UI", 8),
-            wraplength=300
+            wraplength=300,
         )
         label.pack(ipadx=1)
 
@@ -48,9 +52,11 @@ class ToolTip:
             self.tooltip_window.destroy()
             self.tooltip_window = None
 
+
 def add_tooltip(widget, text):
     """Add a tooltip to a widget."""
     return ToolTip(widget, text)
+
 
 def format_time(dt: datetime) -> str:
     """Format a datetime object to display time.
@@ -62,6 +68,7 @@ def format_time(dt: datetime) -> str:
         str: Formatted time string (e.g., "14:30")
     """
     return dt.strftime("%H:%M")
+
 
 def format_date(d: Union[date, datetime]) -> str:
     """Format a date or datetime object.
@@ -77,6 +84,7 @@ def format_date(d: Union[date, datetime]) -> str:
 
     return d.strftime("%a, %d %b")
 
+
 def format_duration(hours: int) -> str:
     """Format duration in hours with proper pluralization.
 
@@ -90,6 +98,7 @@ def format_duration(hours: int) -> str:
         return "1 hour"
     else:
         return f"{hours} hours"
+
 
 def format_temperature(temp: Optional[NumericType], unit: str = "°C") -> str:
     """Format temperature with proper unit and fallback.
@@ -105,6 +114,7 @@ def format_temperature(temp: Optional[NumericType], unit: str = "°C") -> str:
         return f"{temp:.1f}{unit}"
     return "N/A"
 
+
 def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
     """Format percentage value with proper fallback.
 
@@ -118,6 +128,7 @@ def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
     if value is not None:
         return f"{value:.0f}{suffix}"
     return "N/A"
+
 
 def format_wind_speed(speed: Optional[NumericType], unit: str = " m/s") -> str:
     """Format wind speed with proper unit and fallback.

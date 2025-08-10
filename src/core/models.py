@@ -9,9 +9,11 @@ from typing import Optional
 
 from src.core.config import NumericType, safe_average
 
+
 @dataclass
 class HourlyWeather:
     """Represents hourly weather data with calculated scores."""
+
     time: datetime
     temp: Optional[NumericType] = None
     wind: Optional[NumericType] = None
@@ -31,12 +33,22 @@ class HourlyWeather:
 
     def _calculate_total_score(self) -> NumericType:
         """Calculate the total score from individual component scores."""
-        return sum([self.temp_score, self.wind_score, self.cloud_score, self.precip_amount_score])
+        return sum(
+            [
+                self.temp_score,
+                self.wind_score,
+                self.cloud_score,
+                self.precip_amount_score,
+            ]
+        )
+
 
 class DailyReport:
     """Represents a daily weather report with calculated statistics."""
 
-    def __init__(self, date: datetime, daylight_hours: list[HourlyWeather], location_name: str):
+    def __init__(
+        self, date: datetime, daylight_hours: list[HourlyWeather], location_name: str
+    ):
         self.date = date
         self.daylight_hours = daylight_hours
         self.location_name = location_name
@@ -70,7 +82,7 @@ class DailyReport:
 
     def _initialize_empty_report(self) -> None:
         """Initialize default values for an empty report (no daylight hours)."""
-        self.avg_score: NumericType = -float('inf')
+        self.avg_score: NumericType = -float("inf")
         self.likely_rain_hours: int = 0
         self.min_temp: Optional[NumericType] = None
         self.max_temp: Optional[NumericType] = None
@@ -78,10 +90,16 @@ class DailyReport:
 
     def _calculate_all_stats(self) -> None:
         """Calculate all statistics in a single pass through the data."""
-        self.likely_rain_hours = sum(1 for hour in self.daylight_hours if isinstance(
-          hour.precipitation_amount, (int, float)) and hour.precipitation_amount > 0.5)
+        self.likely_rain_hours = sum(
+            1
+            for hour in self.daylight_hours
+            if isinstance(hour.precipitation_amount, (int, float))
+            and hour.precipitation_amount > 0.5
+        )
 
-        valid_temps = [hour.temp for hour in self.daylight_hours if hour.temp is not None]
+        valid_temps = [
+            hour.temp for hour in self.daylight_hours if hour.temp is not None
+        ]
 
         total_score = sum(hour.total_score for hour in self.daylight_hours)
 

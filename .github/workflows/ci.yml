@@ -4,9 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - '**.py'
-      - 'pyproject.toml'
-      - '.github/workflows/**'
+      - "**.py"
+      - "pyproject.toml"
+      - ".github/workflows/**"
 
 jobs:
   build:
@@ -24,7 +24,7 @@ jobs:
       - name: Set Up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13.4'
+          python-version: "3.13.4"
 
       - name: Install Dependencies
         run: |
