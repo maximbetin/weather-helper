@@ -4,13 +4,12 @@ Configuration constants and type definitions for the Weather Helper application.
 
 from datetime import date, datetime
 from functools import lru_cache
-from typing import TypeVar, Union
+from typing import Union
 
 import pytz
 
 # Type definitions
 NumericType = Union[int, float]
-T = TypeVar('T')
 
 # API settings
 USER_AGENT = "WeatherHelper/1.0"

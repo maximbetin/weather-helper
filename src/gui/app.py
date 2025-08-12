@@ -14,7 +14,7 @@ from src.core.config import get_timezone
 from src.core.evaluation import get_available_dates, get_rating_info, get_time_blocks_for_date, get_top_locations_for_date, process_forecast
 from src.core.locations import LOCATIONS
 from src.core.weather_api import fetch_weather_data
-from src.gui.formatting import add_tooltip, format_date, format_percentage, format_temperature, format_wind_speed
+from src.gui.formatting import add_tooltip, format_date
 from src.gui.themes import COLORS, FONTS, PADDING, apply_theme, get_rating_color
 
 class WeatherHelperApp:
