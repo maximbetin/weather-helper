@@ -26,7 +26,7 @@ def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[fl
     return safe_average(temps), safe_average(winds)
 
 
-def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> Optional[T]:  # type: ignore
+def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> Optional[Any]:
     """Get a value from a list of ranges."""
     if value is None or not isinstance(value, (int, float)):
         return None

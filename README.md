@@ -1,45 +1,49 @@
-[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
-
 # Weather Helper
+
+[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
 
 ## Overview
 
-The Weather Helper is a desktop application that provides detailed weather forecasts for various locations. It allows users to compare weather conditions across multiple locations and find the best time for outdoor activities.
+The Weather Helper is a desktop application that provides detailed weather forecasts for various
+locations. It allows users to compare weather conditions across multiple locations and find the best
+time for outdoor activities.
 
 ## Features
 
-- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature, wind speed, cloud coverage, and precipitation amount.
+- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature,
+  wind speed, cloud coverage, and precipitation amount.
 - **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
-- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a scoring system.
+- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities
+  based on a scoring system.
 - **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
 
 ## Installation and Usage
 
-1. **Clone the repository:**
+1. **Clone the repository**:
 
-  ```bash
-  git clone https://github.com/maximbetin/weather-helper.git
-  cd weather-helper
-  ```
+```bash
+git clone https://github.com/maximbetin/weather-helper.git
+cd weather-helper
+```
 
-2. **Create a virtual environment (recommended):**
+2. **Create a virtual environment (recommended)**:
 
-  ```bash
-  python -m venv venv
-  source venv/bin/activate  # On Windows: venv\Scripts\activate
-  ```
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-3. **Install dependencies:**
+3. **Install dependencies**:
 
-  ```bash
-  pip install .
-  ```
+```bash
+pip install .
+```
 
-4. **Run the application:**
+4. **Run the application**:
 
-  ```bash
-  python weather_helper.py
-  ```
+```bash
+python weather_helper.py
+```
 
 ## Testing
 
@@ -50,6 +54,7 @@ pytest
 ```
 
 The test suite includes:
+
 - Unit tests for core functionality
 - API integration tests (mocked)
 - Data processing tests
@@ -76,7 +81,7 @@ The project uses GitHub Actions for continuous integration and deployment:
 
 ## Project Structure
 
-```
+```bash
 weather-helper/
 ├── src/
 │   ├── core/           # Core business logic and data models
@@ -99,11 +104,13 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor activities. Each hour receives a total score based on four key factors.
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor
+activities. Each hour receives a total score based on four key factors.
 
 ### Individual Component Scores
 
 #### 1. Temperature Score (-15 to +8 points)
+
 Evaluates temperature comfort for outdoor activities:
 
 | Temperature (°C) | Score | Description         |
@@ -120,6 +127,7 @@ Evaluates temperature comfort for outdoor activities:
 | <-5°C, >40°C     | -15   | Beyond extreme      |
 
 #### 2. Wind Score (-8 to +2 points)
+
 Assesses wind comfort for outdoor activities:
 
 | Wind Speed (m/s) | Score | Description             |
@@ -134,6 +142,7 @@ Assesses wind comfort for outdoor activities:
 | >20 m/s          | -8    | Gale and above          |
 
 #### 3. Cloud Coverage Score (-3 to +4 points)
+
 Evaluates sky conditions for outdoor activities:
 
 | Cloud Coverage | Score | Description                     |
@@ -146,6 +155,7 @@ Evaluates sky conditions for outdoor activities:
 | 95-100%        | -3    | Overcast                        |
 
 #### 4. Precipitation Score (-12 to +6 points)
+
 Assesses precipitation impact on outdoor activities:
 
 | Precipitation (mm) | Score | Description           |
@@ -163,7 +173,8 @@ Assesses precipitation impact on outdoor activities:
 ### Total Score Calculation
 
 Each hour's **total score** is the sum of all four component scores:
-```
+
+```text
 Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
 ```
 
@@ -190,16 +201,5 @@ The application also identifies the best continuous time periods:
 3. **Consistency Check**: Prioritizes blocks with stable scores (low variance)
 4. **Combined Scoring**: Balances quality, duration, and consistency
 
-This system helps users find not just good individual hours, but sustained periods of favorable weather for extended outdoor activities.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run the tests
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This system helps users find not just good individual hours, but sustained periods of favorable
+weather for extended outdoor activities.
