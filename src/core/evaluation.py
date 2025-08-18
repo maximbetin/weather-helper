@@ -59,7 +59,7 @@ def temp_score(temp: Optional[NumericType]) -> int:
         Integer score representing temperature comfort
     """
     temp_ranges = [
-        ((20, 24), 8),    # Ideal temperature range (expanded from 18-23)
+        ((20, 24), 7),    # Ideal temperature range
         ((17, 20), 6),    # Cool but very pleasant
         ((24, 27), 6),    # Warm but very pleasant
         ((15, 17), 4),    # Cool but comfortable
@@ -128,7 +128,7 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
         Integer score representing precipitation amount impact
     """
     amount_ranges = [
-        ((0, 0), 6),        # No precipitation - highest bonus
+        ((0, 0), 5),        # No precipitation - high bonus
         ((0, 0.1), 4),      # Trace amounts - barely noticeable
         ((0.1, 0.5), 2),    # Very light - minimal impact
         ((0.5, 1.0), 0),    # Light drizzle - noticeable but manageable
@@ -154,11 +154,11 @@ def get_rating_info(score: Union[int, float, None]) -> str:
         return "N/A"
 
     rating_ranges = [
-        ((12.0, float('inf')), "Excellent"),   # 80% of new max (15 points)
-        ((8.0, 12.0), "Very Good"),            # 53-80% of max - more selective
-        ((4.0, 8.0), "Good"),                  # 27-53% of max - reasonable threshold
-        ((1.0, 4.0), "Fair"),                  # 7-27% of max - low but positive
-        (None, "Poor")                         # Below 1.0 is poor
+        ((15.0, float('inf')), "Excellent"),   # 79% of max (19 points) - truly exceptional
+        ((11.0, 15.0), "Very Good"),           # 58-79% of max - genuinely good
+        ((6.0, 11.0), "Good"),                 # 32-58% of max - decent conditions
+        ((2.0, 6.0), "Fair"),                  # 11-32% of max - marginal conditions
+        (None, "Poor")                         # Below 2.0 is poor
     ]
     return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 

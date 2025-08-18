@@ -4,7 +4,7 @@ from src.core.evaluation import cloud_score, precip_amount_score, temp_score, wi
 
 
 @pytest.mark.parametrize("temp, expected_score", [
-    (22, 8),   # Ideal temperature
+    (22, 7),   # Ideal temperature
     (19, 6),   # Cool but very pleasant
     (25, 6),   # Warm but very pleasant
     (16, 4),   # Cool but comfortable
@@ -52,7 +52,7 @@ def test_cloud_score(clouds, expected_score):
 
 
 @pytest.mark.parametrize("precip, expected_score", [
-    (0, 6),     # No precipitation - best
+    (0, 5),     # No precipitation - best
     (0.05, 4),  # Trace amounts - barely noticeable
     (0.3, 2),   # Very light - minimal impact
     (0.7, 0),   # Light drizzle - manageable

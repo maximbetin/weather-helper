@@ -109,13 +109,13 @@ activities. Each hour receives a total score based on four key factors.
 
 ### Individual Component Scores
 
-#### 1. Temperature Score (-15 to +8 points)
+#### 1. Temperature Score (-15 to +7 points)
 
 Evaluates temperature comfort for outdoor activities:
 
 | Temperature (°C) | Score | Description         |
 | ---------------- | ----- | ------------------- |
-| 20-24°C          | +8    | Ideal temperature   |
+| 20-24°C          | +7    | Ideal temperature   |
 | 17-20°C, 24-27°C | +6    | Very pleasant       |
 | 15-17°C, 27-30°C | +4    | Comfortable         |
 | 10-15°C          | +2    | Cool but acceptable |
@@ -154,13 +154,13 @@ Evaluates sky conditions for outdoor activities:
 | 80-95%         | -1    | Very cloudy                     |
 | 95-100%        | -3    | Overcast                        |
 
-#### 4. Precipitation Score (-12 to +6 points)
+#### 4. Precipitation Score (-12 to +5 points)
 
 Assesses precipitation impact on outdoor activities:
 
 | Precipitation (mm) | Score | Description           |
 | ------------------ | ----- | --------------------- |
-| 0 mm               | +6    | No precipitation      |
+| 0 mm               | +5    | No precipitation      |
 | 0-0.1 mm           | +4    | Trace amounts         |
 | 0.1-0.5 mm         | +2    | Very light            |
 | 0.5-1.0 mm         | 0     | Light drizzle         |
@@ -178,7 +178,7 @@ Each hour's **total score** is the sum of all four component scores:
 Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
 ```
 
-**Possible range**: -38 to +20 points per hour
+**Possible range**: -38 to +19 points per hour
 
 ### Overall Rating System
 
@@ -186,11 +186,11 @@ The total scores are converted to descriptive ratings:
 
 | Score Range | Rating    |
 | ----------- | --------- |
-| 12+         | Excellent |
-| 8-12        | Very Good |
-| 4-8         | Good      |
-| 1-4         | Fair      |
-| <1          | Poor      |
+| 15+         | Excellent |
+| 11-15       | Very Good |
+| 6-11        | Good      |
+| 2-6         | Fair      |
+| <2          | Poor      |
 
 ### Optimal Weather Block Detection
 
