@@ -1,6 +1,6 @@
 """
 Main GUI application class for the weather helper.
-Handles window setup and main widget initialization with enhanced UX.
+Handles window setup and main widget initialization.
 """
 
 import threading
@@ -8,10 +8,13 @@ import tkinter as tk
 import tkinter.messagebox as messagebox
 from datetime import date, datetime, timezone
 from tkinter import ttk
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.core.config import get_timezone
-from src.core.evaluation import get_available_dates, get_rating_info, get_time_blocks_for_date, get_top_locations_for_date, process_forecast
+from src.core.evaluation import (
+    get_available_dates, get_rating_info, get_time_blocks_for_date,
+    get_top_locations_for_date, process_forecast
+)
 from src.core.locations import LOCATIONS
 from src.core.weather_api import fetch_weather_data
 from src.gui.formatting import add_tooltip, format_date
@@ -26,7 +29,6 @@ class WeatherHelperApp:
 
         # Initialize data and UI state
         self._init_data_storage()
-        self._init_loading_state()
         self._setup_ui()
 
         # Start loading data asynchronously
@@ -35,17 +37,15 @@ class WeatherHelperApp:
     def _init_data_storage(self):
         """Initialize data storage attributes."""
         self.all_location_processed: Dict[str, Any] = {}
-        self.selected_location_key: Optional[str] = None
+        self.selected_location_key: str = ""
         self.selected_date = None
-        self.date_map: Dict[str, Any] = {}
+        self.date_map: Dict[str, date] = {}
         self.loading_errors: Dict[str, str] = {}
-        self.show_scores = tk.BooleanVar(value=False)  # Add toggle for score visibility
+        self.show_scores = tk.BooleanVar(value=False)
+        self.loaded_locations: set = set()
+        self.total_locations: int = len(LOCATIONS)
 
-    def _init_loading_state(self):
-        """Initialize loading state management."""
-        self.is_loading = False
-        self.loaded_locations = set()
-        self.total_locations = len(LOCATIONS)
+
 
     def _setup_ui(self):
         """Setup the main UI layout and widgets."""
@@ -56,42 +56,46 @@ class WeatherHelperApp:
         self._setup_main_table()  # Create main content container first
         self._setup_selectors()   # Then add selectors to it
         self._setup_side_panel()  # Finally setup side panel
+        
+
 
     def _setup_window(self):
-        """Configure the main window settings with better positioning."""
+        """Configure the main window settings."""
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        window_width = 1400  # Increased for better layout
-        window_height = 900  # Increased for better content visibility
+        window_width = 1400
+        window_height = 1100
 
         # Center the window
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-        # Set minimum window size to ensure proper layout
-        self.root.minsize(1300, 850)
+        # Disable resizing to prevent window from becoming too small
+        self.root.resizable(False, False)
 
-        # Configure resizing behavior
+        # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
+
+
 
     def _create_main_layout(self):
         """Create the main layout structure."""
         self.main_frame = ttk.Frame(self.root, padding=PADDING['large'])
         self.main_frame.grid(row=0, column=0, sticky="nsew")
 
-        # Configure grid weights for proper resizing
-        self.main_frame.columnconfigure(0, weight=0, minsize=360)  # Side panel - optimized width
+        # Configure grid weights
+        self.main_frame.columnconfigure(0, weight=0, minsize=360)  # Side panel
         self.main_frame.columnconfigure(1, weight=1)  # Main content
 
-        # Row configuration - sidebar starts from row 1
+        # Row configuration
         self.main_frame.rowconfigure(0, weight=0)  # Title
-        self.main_frame.rowconfigure(1, weight=1)  # Content area (sidebar and main table)
+        self.main_frame.rowconfigure(1, weight=1)  # Content area
         self.main_frame.rowconfigure(2, weight=0)  # Status bar
 
     def _setup_title_area(self):
-        """Setup the compact title area."""
+        """Setup the title area."""
         title_frame = ttk.Frame(self.main_frame)
         title_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, PADDING['small']))
         title_frame.columnconfigure(0, weight=1)
@@ -104,7 +108,6 @@ class WeatherHelperApp:
         )
         self.title_label.grid(row=0, column=0, sticky="ew")
 
-        # Subtitle with current info
         self.subtitle_label = ttk.Label(
             title_frame,
             text="Loading weather data...",
@@ -114,12 +117,11 @@ class WeatherHelperApp:
         self.subtitle_label.grid(row=1, column=0, sticky="ew", pady=(PADDING['small'], 0))
 
     def _setup_status_bar(self):
-        """Setup the status bar for better user feedback."""
+        """Setup the status bar."""
         self.status_frame = ttk.Frame(self.main_frame)
         self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(PADDING['medium'], 0))
         self.status_frame.columnconfigure(1, weight=1)
 
-        # Progress bar for loading
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(
             self.status_frame,
@@ -129,7 +131,6 @@ class WeatherHelperApp:
         )
         self.progress_bar.grid(row=0, column=0, padx=(0, PADDING['medium']))
 
-        # Status text
         self.status_label = ttk.Label(
             self.status_frame,
             text="Initializing...",
@@ -139,14 +140,13 @@ class WeatherHelperApp:
         self.status_label.grid(row=0, column=1, sticky="ew")
 
     def _setup_selectors(self):
-        """Setup enhanced location and date selectors in new layout."""
-        # Selectors in main content area
+        """Setup location and date selectors."""
         selector_frame = ttk.Frame(self.main_content_container, style='Card.TFrame', padding=PADDING['medium'])
         selector_frame.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['small']))
         selector_frame.columnconfigure(1, weight=1)
         selector_frame.columnconfigure(3, weight=1)
 
-        # Location selector with improved styling
+        # Location selector
         ttk.Label(
             selector_frame,
             text="Location:",
@@ -165,7 +165,7 @@ class WeatherHelperApp:
         self.location_dropdown.bind("<<ComboboxSelected>>", self.on_location_change)
         add_tooltip(self.location_dropdown, "Select a location to view weather forecast")
 
-        # Date selector with improved styling
+        # Date selector
         ttk.Label(
             selector_frame,
             text="Date:",
@@ -184,7 +184,7 @@ class WeatherHelperApp:
         self.date_dropdown.bind("<<ComboboxSelected>>", self.on_date_change)
         add_tooltip(self.date_dropdown, "Select a date to view hourly weather data")
 
-        # Score visibility toggle checkbox
+        # Score visibility toggle
         self.score_toggle = ttk.Checkbutton(
             selector_frame,
             text="Show scoring values",
@@ -200,37 +200,32 @@ class WeatherHelperApp:
         self._update_displays()
 
     def _setup_side_panel(self):
-        """Setup the side panel with enhanced visual design."""
-        # Create side panel with proper styling
+        """Setup the side panel."""
         self.side_panel = ttk.Frame(self.main_frame, style='Sidebar.TFrame', padding=PADDING['small'])
         self.side_panel.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING['small']))
         self.side_panel.columnconfigure(0, weight=1)
 
-        # Title for side panel
         title_label = ttk.Label(
             self.side_panel,
-            text="Top 5 Locations",
+            text="Top 10 Locations",
             style='Heading.TLabel',
             anchor="center"
         )
         title_label.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['small']))
 
-        # Initialize list to store location entries
         self.location_frames = []
         self.side_panel_entries = []
 
-        for i in range(5):
-            # Create container frame for each location with minimal padding
+        for i in range(10):
             loc_frame = ttk.Frame(self.side_panel, padding=(PADDING['small'], PADDING['small']))
             loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['tiny'])
             loc_frame.columnconfigure(1, weight=1)
             loc_frame.rowconfigure(0, weight=0)
             loc_frame.rowconfigure(1, weight=0)
-            loc_frame.rowconfigure(2, weight=0)  # Changed from weight=1 to weight=0
+            loc_frame.rowconfigure(2, weight=0)
 
             self.location_frames.append(loc_frame)
 
-            # Rank number with better styling
             rank_label = ttk.Label(
                 loc_frame,
                 text="",
@@ -240,7 +235,6 @@ class WeatherHelperApp:
             )
             rank_label.grid(row=0, column=0, sticky="w")
 
-            # Location name (larger text)
             name_label = ttk.Label(
                 loc_frame,
                 text="",
@@ -249,7 +243,6 @@ class WeatherHelperApp:
             )
             name_label.grid(row=0, column=1, sticky="ew", padx=(PADDING['small'], 0))
 
-            # Score (smaller text)
             score_label = ttk.Label(
                 loc_frame,
                 text="",
@@ -258,7 +251,6 @@ class WeatherHelperApp:
             )
             score_label.grid(row=1, column=1, sticky="ew", padx=(PADDING['small'], 0))
 
-            # Best time details aligned properly under location name
             details_label = ttk.Label(
                 loc_frame,
                 text="",
@@ -266,31 +258,26 @@ class WeatherHelperApp:
                 foreground=COLORS['text_secondary'],
                 anchor="nw",
                 justify="left",
-                wraplength=280  # Increased for better text display
+                wraplength=280
             )
             details_label.grid(row=2, column=1, sticky="nw", pady=(PADDING['tiny'], 0), padx=(PADDING['small'], 0))
 
             self.side_panel_entries.append((rank_label, name_label, score_label, details_label))
 
     def _setup_main_table(self):
-        """Setup the enhanced main table with better styling."""
-        # Create main content container for selectors and table
+        """Setup the main table."""
         self.main_content_container = ttk.Frame(self.main_frame)
         self.main_content_container.grid(row=1, column=1, sticky="nsew")
         self.main_content_container.columnconfigure(0, weight=1)
         self.main_content_container.rowconfigure(0, weight=0)  # Selectors
         self.main_content_container.rowconfigure(1, weight=1)  # Table
 
-        # Table container
         table_frame = ttk.Frame(self.main_content_container, style='Card.TFrame', padding=PADDING['small'])
         table_frame.grid(row=1, column=0, sticky="nsew")
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
 
-        # Simplified table with essential data and scores in parentheses
-        columns = (
-            "Time", "Temp", "Wind", "Clouds", "Rain"
-        )
+        columns = ("Time", "Temp", "Wind", "Clouds", "Rain")
         self.main_table = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -300,14 +287,14 @@ class WeatherHelperApp:
         )
         self.main_table.grid(row=0, column=0, sticky="nsew")
 
-        # Configure row colors FIRST before any data is added
+        # Configure row colors
         self.main_table.tag_configure('Excellent', foreground=COLORS['excellent'])
         self.main_table.tag_configure('VeryGood', foreground=COLORS['very_good'])
         self.main_table.tag_configure('Good', foreground=COLORS['good'])
         self.main_table.tag_configure('Fair', foreground=COLORS['fair'])
         self.main_table.tag_configure('Poor', foreground=COLORS['poor'])
 
-        # Enhanced column configuration with proper alignments
+        # Column configuration
         col_configs = {
             "Time": {"width": 100, "anchor": "center", "stretch": False},
             "Temp": {"width": 120, "anchor": "center", "stretch": True},
@@ -316,7 +303,6 @@ class WeatherHelperApp:
             "Rain": {"width": 120, "anchor": "center", "stretch": True}
         }
 
-        # Set column headings with clear labels
         headings = {
             "Time": "Time",
             "Temp": "Temperature",
@@ -336,17 +322,10 @@ class WeatherHelperApp:
                 stretch=config["stretch"]
             )
 
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.main_table.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns")
-        self.main_table.configure(yscrollcommand=scrollbar.set)
-
     def _start_data_loading(self):
         """Start loading weather data in a background thread."""
-        self.is_loading = True
         self._update_status("Loading weather data...")
 
-        # Use threading to prevent UI freezing
         loading_thread = threading.Thread(target=self._load_all_forecasts_threaded)
         loading_thread.daemon = True
         loading_thread.start()
@@ -357,7 +336,6 @@ class WeatherHelperApp:
 
         for loc_key, loc in LOCATIONS.items():
             try:
-                # Update progress
                 progress = (loaded_count / self.total_locations) * 100
                 self.root.after(0, lambda p=progress: self.progress_var.set(p))
                 self.root.after(0, lambda l=loc.name: self._update_status(f"Loading {l}..."))
@@ -378,12 +356,10 @@ class WeatherHelperApp:
 
             loaded_count += 1
 
-        # Update UI on main thread when complete
         self.root.after(0, self._on_loading_complete)
 
     def _on_loading_complete(self):
         """Handle completion of data loading."""
-        self.is_loading = False
         self.progress_var.set(100)
 
         loaded_count = len(self.loaded_locations)
@@ -399,7 +375,6 @@ class WeatherHelperApp:
             self.subtitle_label.config(text="No weather data available")
             messagebox.showerror("Error", "Failed to load weather data. Please check your internet connection.")
 
-        # Hide progress bar after a delay
         self.root.after(2000, lambda: self.progress_bar.grid_remove())
 
     def _update_status(self, message: str):
@@ -424,14 +399,14 @@ class WeatherHelperApp:
             self.on_location_change()
 
     def on_location_change(self, event=None):
-        """Handle location selection change with better error handling."""
+        """Handle location selection change."""
         try:
             selected_name = self.location_var.get()
             if not selected_name:
                 return
 
             # Find the selected location key
-            self.selected_location_key = None
+            self.selected_location_key = ""
             for key, loc in LOCATIONS.items():
                 if loc.name == selected_name:
                     self.selected_location_key = key
@@ -460,7 +435,7 @@ class WeatherHelperApp:
             self._update_status(f"Error changing location: {str(e)}")
 
     def _populate_date_selector(self):
-        """Populate the date selector with improved error handling."""
+        """Populate the date selector."""
         try:
             if not self.selected_location_key:
                 self.date_dropdown['values'] = []
@@ -479,7 +454,6 @@ class WeatherHelperApp:
                 self.date_map = {}
                 return
 
-            # Create date mapping with better formatting
             self.date_map = {format_date(d): d for d in available_dates}
             date_strs = list(self.date_map.keys())
 
@@ -492,7 +466,7 @@ class WeatherHelperApp:
             self._update_status(f"Error loading dates: {str(e)}")
 
     def on_date_change(self, event=None):
-        """Handle date selection change with improved error handling."""
+        """Handle date selection change."""
         try:
             selected_str = self.date_var.get()
             if not selected_str:
@@ -517,7 +491,7 @@ class WeatherHelperApp:
             self._update_status(f"Error updating displays: {str(e)}")
 
     def _update_side_panel(self):
-        """Update the side panel with enhanced visual design."""
+        """Update the side panel."""
         # Clear existing entries
         for rank_label, name_label, score_label, details_label in self.side_panel_entries:
             rank_label.config(text="")
@@ -532,7 +506,7 @@ class WeatherHelperApp:
             top_locs = get_top_locations_for_date(
                 self.all_location_processed,
                 self.selected_date,
-                top_n=5
+                top_n=10
             )
 
             for i, (rank_label, name_label, score_label, details_label) in enumerate(self.side_panel_entries):
@@ -546,22 +520,18 @@ class WeatherHelperApp:
     def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label: ttk.Label, name_label: ttk.Label, score_label: ttk.Label, details_label: ttk.Label):
         """Populate a single location entry in the side panel."""
         try:
-            # Set rank number
             rank_label.config(text=f"{rank}.")
 
-            # Get score and rating
             score = loc_data.get("combined_score", 0)
             rating = get_rating_info(score)
             score_color = get_rating_color(rating)
 
-            # Set location name with color
             name_label.config(
                 text=loc_data.get("location_name", "Unknown"),
                 foreground=score_color,
                 font=FONTS['subheading']
             )
 
-            # Set score with conditional display
             if self.show_scores.get():
                 score_text = f"{rating} ({score:.1f})"
             else:
@@ -573,7 +543,6 @@ class WeatherHelperApp:
                 font=FONTS['small_bold']
             )
 
-            # Set details with color
             details = self._get_location_details(loc_data)
             details_label.config(
                 text=details,
@@ -587,20 +556,11 @@ class WeatherHelperApp:
             details_label.config(text=str(e))
 
     def _filter_daylight_hours(self, hours_for_day: List, selected_date: date) -> List:
-        """Filter hours for daylight and future times with consistent logic.
-
-        Args:
-            hours_for_day: List of hourly weather data
-            selected_date: The selected date
-
-        Returns:
-            Filtered list of hours
-        """
+        """Filter hours for daylight and future times."""
         local_tz = get_timezone()
         now_utc = datetime.now(timezone.utc)
         now_local = now_utc.astimezone(local_tz)
 
-        # Filter for daylight hours and future times
         if selected_date == now_local.date():
             # Show future hours, plus current hour if we're in the first half of it
             return [
@@ -634,7 +594,6 @@ class WeatherHelperApp:
             if not filtered_blocks:
                 return "No daylight data available"
 
-            # Find optimal consistent block (same as Top 5 calculation)
             from src.core.evaluation import _find_optimal_consistent_block
             optimal_block = _find_optimal_consistent_block(filtered_blocks)
 
@@ -645,15 +604,11 @@ class WeatherHelperApp:
                 duration = optimal_block.get("duration", 1)
                 temp = optimal_block.get("temp")
 
-                # Format based on duration
                 if duration == 1:
-                    # Single hour - make it clear
                     details = f"Best: {start_time} (1h)"
                 else:
-                    # Multiple hours - show range
                     details = f"{start_time}-{end_time} ({duration}h)"
 
-                # Add practical outdoor activity info instead of weather symbols
                 info_parts = []
                 if temp is not None:
                     info_parts.append(f"{temp:.1f}°C")
@@ -662,12 +617,10 @@ class WeatherHelperApp:
                     details += f" | {' | '.join(info_parts)}"
 
             else:
-                # If no optimal block found, show best single hour
                 local_tz = get_timezone()
                 best_hour = max(filtered_blocks, key=lambda h: h.total_score)
                 time_str = best_hour.time.astimezone(local_tz).strftime('%H:%M')
 
-                # Format single hour with practical info
                 details = f"Best hour: {time_str}"
                 info_parts = []
                 if best_hour.temp is not None:
@@ -682,7 +635,7 @@ class WeatherHelperApp:
             return "Error loading details"
 
     def _update_main_table(self):
-        """Update the main table with enhanced formatting and error handling."""
+        """Update the main table."""
         # Clear existing entries
         for row in self.main_table.get_children():
             self.main_table.delete(row)
@@ -699,10 +652,8 @@ class WeatherHelperApp:
             if not time_blocks:
                 return
 
-            # Filter for daylight hours and future times
             filtered_blocks = self._filter_daylight_hours(time_blocks, self.selected_date)
 
-            # Populate table with enhanced formatting
             for hour in filtered_blocks:
                 self._add_table_row(hour)
 
@@ -710,15 +661,13 @@ class WeatherHelperApp:
             self._update_status(f"Error updating table: {str(e)}")
 
     def _add_table_row(self, hour):
-        """Add a single row to the main table with proper formatting."""
+        """Add a single row to the main table."""
         try:
-            # Format time with conditional score display
             if self.show_scores.get():
                 time_str = f"{hour.time.strftime('%H:%M')} ({hour.total_score:+.0f})"
             else:
                 time_str = hour.time.strftime('%H:%M')
 
-            # Format values with conditional score display
             if self.show_scores.get():
                 temp = f"{hour.temp:.1f}°C ({hour.temp_score:+.0f})" if hour.temp is not None else "N/A"
                 wind = f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})" if hour.wind is not None else "N/A"
@@ -730,7 +679,6 @@ class WeatherHelperApp:
                 clouds = f"{hour.cloud_coverage:.0f}%" if hour.cloud_coverage is not None else "N/A"
                 rain = f"{hour.precipitation_amount:.1f}mm" if hour.precipitation_amount is not None else "N/A"
 
-            # Determine tag based on score thresholds
             if hour.total_score >= 12:
                 tag = 'Excellent'
             elif hour.total_score >= 8:
@@ -742,17 +690,13 @@ class WeatherHelperApp:
             else:
                 tag = 'Poor'
 
-            # Insert row with proper tag
             self.main_table.insert(
                 "", "end",
-                values=(
-                    time_str, temp, wind, clouds, rain
-                ),
+                values=(time_str, temp, wind, clouds, rain),
                 tags=(tag,)
             )
 
         except Exception as e:
-            # Add error row for debugging
             self.main_table.insert(
                 "", "end",
                 values=("Error", "Error", "Error", "Error", "Error"),

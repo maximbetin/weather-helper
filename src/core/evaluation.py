@@ -438,7 +438,7 @@ def _find_optimal_consistent_block(sorted_hours: list[HourlyWeather]) -> Optiona
     return best_block
 
 
-def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date, top_n: int = 5) -> list[dict]:
+def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date, top_n: int = 10) -> list[dict]:
     """Return the top N locations for a given date, prioritizing consistent score blocks."""
     results = []
     # Get current time for filtering
