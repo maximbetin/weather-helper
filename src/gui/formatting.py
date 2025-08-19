@@ -7,6 +7,7 @@ from typing import Optional, Union
 
 from src.core.config import NumericType
 
+
 class ToolTip:
     """Simple tooltip implementation for GUI widgets."""
 
@@ -48,9 +49,11 @@ class ToolTip:
             self.tooltip_window.destroy()
             self.tooltip_window = None
 
+
 def add_tooltip(widget, text):
     """Add a tooltip to a widget."""
     return ToolTip(widget, text)
+
 
 def format_time(dt: datetime) -> str:
     """Format a datetime object to display time.
@@ -77,6 +80,7 @@ def format_date(d: Union[date, datetime]) -> str:
 
     return d.strftime("%a, %d %b")
 
+
 def format_duration(hours: int) -> str:
     """Format duration in hours with proper pluralization.
 
@@ -90,6 +94,7 @@ def format_duration(hours: int) -> str:
         return "1 hour"
     else:
         return f"{hours} hours"
+
 
 def format_temperature(temp: Optional[NumericType], unit: str = "°C") -> str:
     """Format temperature with proper unit and fallback.
@@ -105,6 +110,7 @@ def format_temperature(temp: Optional[NumericType], unit: str = "°C") -> str:
         return f"{temp:.1f}{unit}"
     return "N/A"
 
+
 def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
     """Format percentage value with proper fallback.
 
@@ -118,6 +124,7 @@ def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
     if value is not None:
         return f"{value:.0f}{suffix}"
     return "N/A"
+
 
 def format_wind_speed(speed: Optional[NumericType], unit: str = " m/s") -> str:
     """Format wind speed with proper unit and fallback.

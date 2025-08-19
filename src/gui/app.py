@@ -13,12 +13,13 @@ from typing import Any, Dict, List
 from src.core.config import get_timezone
 from src.core.evaluation import (
     get_available_dates, get_rating_info, get_time_blocks_for_date,
-    get_top_locations_for_date, process_forecast
+    get_top_locations_for_date, process_forecast, _find_optimal_consistent_block
 )
 from src.core.locations import LOCATIONS
 from src.core.weather_api import fetch_weather_data
 from src.gui.formatting import add_tooltip, format_date
 from src.gui.themes import COLORS, FONTS, PADDING, apply_theme, get_rating_color
+
 
 class WeatherHelperApp:
     def __init__(self):
@@ -45,8 +46,6 @@ class WeatherHelperApp:
         self.loaded_locations: set = set()
         self.total_locations: int = len(LOCATIONS)
 
-
-
     def _setup_ui(self):
         """Setup the main UI layout and widgets."""
         self._setup_window()
@@ -56,8 +55,6 @@ class WeatherHelperApp:
         self._setup_main_table()  # Create main content container first
         self._setup_selectors()   # Then add selectors to it
         self._setup_side_panel()  # Finally setup side panel
-        
-
 
     def _setup_window(self):
         """Configure the main window settings."""
@@ -77,8 +74,6 @@ class WeatherHelperApp:
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-
-
 
     def _create_main_layout(self):
         """Create the main layout structure."""
@@ -337,8 +332,8 @@ class WeatherHelperApp:
         for loc_key, loc in LOCATIONS.items():
             try:
                 progress = (loaded_count / self.total_locations) * 100
-                self.root.after(0, lambda p=progress: self.progress_var.set(p))
-                self.root.after(0, lambda l=loc.name: self._update_status(f"Loading {l}..."))
+                self.root.after(0, lambda: self.progress_var.set(progress))
+                self.root.after(0, lambda: self._update_status(f"Loading {loc.name}..."))
 
                 raw = fetch_weather_data(loc)
                 if raw is not None:
@@ -375,7 +370,7 @@ class WeatherHelperApp:
             self.subtitle_label.config(text="No weather data available")
             messagebox.showerror("Error", "Failed to load weather data. Please check your internet connection.")
 
-        self.root.after(2000, lambda: self.progress_bar.grid_remove())
+        self.root.after(2000, self.progress_bar.grid_remove)
 
     def _update_status(self, message: str):
         """Update the status bar message."""
@@ -389,7 +384,6 @@ class WeatherHelperApp:
         location_names = [
             LOCATIONS[loc_key].name
             for loc_key in self.loaded_locations
-            if loc_key in LOCATIONS
         ]
         location_names.sort()  # Sort alphabetically for better UX
 
@@ -406,11 +400,9 @@ class WeatherHelperApp:
                 return
 
             # Find the selected location key
-            self.selected_location_key = ""
-            for key, loc in LOCATIONS.items():
-                if loc.name == selected_name:
-                    self.selected_location_key = key
-                    break
+            self.selected_location_key = next(
+                (key for key, loc in LOCATIONS.items() if loc.name == selected_name), ""
+            )
 
             if not self.selected_location_key:
                 self._update_status(f"Location '{selected_name}' not found")
@@ -422,11 +414,12 @@ class WeatherHelperApp:
 
             # Try to maintain the same date if available
             if previous_date and previous_date in self.date_map.values():
-                for date_str, date_obj in self.date_map.items():
-                    if date_obj == previous_date:
-                        self.date_var.set(date_str)
-                        self.selected_date = previous_date
-                        break
+                date_str = next(
+                    (d_str for d_str, d_obj in self.date_map.items() if d_obj == previous_date), None
+                )
+                if date_str:
+                    self.date_var.set(date_str)
+                    self.selected_date = previous_date
 
             self._update_displays()
             self._update_status(f"Selected {selected_name}")
@@ -594,11 +587,11 @@ class WeatherHelperApp:
             if not filtered_blocks:
                 return "No daylight data available"
 
-            from src.core.evaluation import _find_optimal_consistent_block
             optimal_block = _find_optimal_consistent_block(filtered_blocks)
 
+            local_tz = get_timezone()
+            
             if optimal_block:
-                local_tz = get_timezone()
                 start_time = optimal_block["start"].astimezone(local_tz).strftime('%H:%M')
                 end_time = optimal_block["end"].astimezone(local_tz).strftime('%H:%M')
                 duration = optimal_block.get("duration", 1)
@@ -617,7 +610,6 @@ class WeatherHelperApp:
                     details += f" | {' | '.join(info_parts)}"
 
             else:
-                local_tz = get_timezone()
                 best_hour = max(filtered_blocks, key=lambda h: h.total_score)
                 time_str = best_hour.time.astimezone(local_tz).strftime('%H:%M')
 
@@ -660,15 +652,20 @@ class WeatherHelperApp:
         except Exception as e:
             self._update_status(f"Error updating table: {str(e)}")
 
+
     def _add_table_row(self, hour):
         """Add a single row to the main table."""
         try:
-            if self.show_scores.get():
+            show_scores = self.show_scores.get()
+            
+            # Format time with optional score
+            if show_scores:
                 time_str = f"{hour.time.strftime('%H:%M')} ({hour.total_score:+.0f})"
             else:
                 time_str = hour.time.strftime('%H:%M')
 
-            if self.show_scores.get():
+            # Format weather data with optional scores
+            if show_scores:
                 temp = f"{hour.temp:.1f}°C ({hour.temp_score:+.0f})" if hour.temp is not None else "N/A"
                 wind = f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})" if hour.wind is not None else "N/A"
                 clouds = f"{hour.cloud_coverage:.0f}% ({hour.cloud_score:+.0f})" if hour.cloud_coverage is not None else "N/A"
@@ -696,12 +693,13 @@ class WeatherHelperApp:
                 tags=(tag,)
             )
 
-        except Exception as e:
+        except Exception:
             self.main_table.insert(
                 "", "end",
                 values=("Error", "Error", "Error", "Error", "Error"),
                 tags=('Poor',)
             )
+
 
     def run(self):
         """Start the application main loop."""
@@ -709,6 +707,7 @@ class WeatherHelperApp:
             self.root.mainloop()
         except Exception as e:
             messagebox.showerror("Critical Error", f"Application error: {str(e)}")
+
 
 def main():
     """Main entry point for the application."""

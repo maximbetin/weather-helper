@@ -26,18 +26,22 @@ DAYLIGHT_START_HOUR = 8
 
 # Utility functions
 
+
 @lru_cache(maxsize=None)
 def get_timezone():
     """Get the application timezone object."""
     return pytz.timezone(TIMEZONE)
 
+
 def get_current_datetime() -> datetime:
     """Get the current datetime in the application timezone."""
     return datetime.now(get_timezone())
 
+
 def get_current_date() -> date:
     """Get the current date in the application timezone."""
     return get_current_datetime().date()
+
 
 def safe_average(values: list[NumericType]) -> float | None:
     """Calculate the average of a list of values, handling empty lists."""

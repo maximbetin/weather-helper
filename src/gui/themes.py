@@ -67,10 +67,10 @@ def apply_theme(root):
     # Use a modern theme as base
     try:
         style.theme_use('vista')  # Windows modern theme
-    except:
+    except Exception:
         try:
             style.theme_use('clam')  # Cross-platform modern theme
-        except:
+        except Exception:
             style.theme_use('default')
 
     # Configure root window

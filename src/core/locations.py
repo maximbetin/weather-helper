@@ -3,6 +3,7 @@ Defines the Location class and the dictionary of known locations.
 """
 from typing import Dict, NamedTuple
 
+
 class Location(NamedTuple):
     """Represents a geographical location with coordinates.
 
@@ -16,6 +17,7 @@ class Location(NamedTuple):
     name: str
     lat: float
     lon: float
+
 
 # Define locations (only Spanish locations have been tested so far)
 LOCATIONS: Dict[str, Location] = {

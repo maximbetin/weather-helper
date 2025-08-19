@@ -215,8 +215,7 @@ def test_get_top_locations_for_date_no_data():
     assert result == []
 
 def test_get_top_locations_for_date_less_than_n():
-    # This test would need more complex setup with valid location data
-    # For now, testing the basic structure
+    # Test with empty data and custom top_n parameter
     result = get_top_locations_for_date({}, date(2024, 3, 15), top_n=3)
     assert isinstance(result, list)
 

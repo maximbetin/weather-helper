@@ -9,6 +9,7 @@ from typing import Optional
 
 from src.core.config import NumericType, safe_average
 
+
 @dataclass
 class HourlyWeather:
     """Represents hourly weather data with calculated scores."""
@@ -31,7 +32,8 @@ class HourlyWeather:
 
     def _calculate_total_score(self) -> NumericType:
         """Calculate the total score from individual component scores."""
-        return sum([self.temp_score, self.wind_score, self.cloud_score, self.precip_amount_score])
+        return self.temp_score + self.wind_score + self.cloud_score + self.precip_amount_score
+
 
 class DailyReport:
     """Represents a daily weather report with calculated statistics."""
@@ -40,7 +42,6 @@ class DailyReport:
         self.date = date
         self.daylight_hours = daylight_hours
         self.location_name = location_name
-        self.day_name = date.strftime("%A")
 
         if not daylight_hours:
             self._initialize_empty_report()
@@ -79,7 +80,7 @@ class DailyReport:
     def _calculate_all_stats(self) -> None:
         """Calculate all statistics in a single pass through the data."""
         self.likely_rain_hours = sum(1 for hour in self.daylight_hours if isinstance(
-          hour.precipitation_amount, (int, float)) and hour.precipitation_amount > 0.5)
+            hour.precipitation_amount, (int, float)) and hour.precipitation_amount > 0.5)
 
         valid_temps = [hour.temp for hour in self.daylight_hours if hour.temp is not None]
 

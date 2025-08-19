@@ -163,48 +163,7 @@ def get_rating_info(score: Union[int, float, None]) -> str:
     return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
-def _find_best_block(sorted_hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
-    """Find the best continuous block of weather."""
-    best_block = None
-    max_score = -float('inf')
 
-    for i in range(len(sorted_hours)):
-        for j in range(i + min_duration - 1, len(sorted_hours)):
-            block = sorted_hours[i:j + 1]
-            if not block or len(block) < min_duration:
-                continue
-
-            # For multi-hour blocks, require all hours to be non-negative
-            if min_duration > 1 and any(h.total_score < 0 for h in block):
-                continue
-
-            avg_score = sum(h.total_score for h in block) / len(block)
-            if avg_score < 0:
-                continue
-
-            duration = len(block)
-            duration_factor = 1 + math.log(duration) / 4.0 if duration > 1 else 1
-            combined_score = avg_score * duration_factor
-            combined_score = min(combined_score, avg_score * 1.5)
-
-            if duration < min_duration:
-                continue
-
-            if combined_score > max_score:
-                max_score = combined_score
-                avg_temp, avg_wind = _calculate_weather_averages(block)
-
-                best_block = {
-                  'block': block,
-                  'start': block[0].time,
-                  'end': block[-1].time,
-                  'avg_score': avg_score,
-                  'duration': duration,
-                  'combined_score': combined_score,
-                  'temp': avg_temp,
-                  'wind': avg_wind
-                }
-    return best_block
 
 
 def find_optimal_weather_block(hours: list[HourlyWeather], min_duration: int = 1) -> Optional[dict[str, Any]]:
@@ -224,7 +183,15 @@ def find_optimal_weather_block(hours: list[HourlyWeather], min_duration: int = 1
         return None
 
     sorted_hours = sorted(hours, key=lambda x: x.time)
-    return _find_best_block(sorted_hours, min_duration)
+    
+    # Use the more sophisticated consistent block logic
+    optimal_block = _find_optimal_consistent_block(sorted_hours)
+    
+    # If no consistent block found or duration is too short, return None
+    if not optimal_block or optimal_block['duration'] < min_duration:
+        return None
+        
+    return optimal_block
 
 
 def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
@@ -287,12 +254,12 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
     daily_forecasts = _process_timeseries(forecast_timeseries)
 
     day_scores_reports = {}
-    for date, hours_list in daily_forecasts.items():
+    for forecast_date, hours_list in daily_forecasts.items():
         daylight_h = [h for h in hours_list if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR]
         if not daylight_h:
             continue
-        day_report = DailyReport(datetime.combine(date, datetime.min.time()), daylight_h, location_name)
-        day_scores_reports[date] = day_report
+        day_report = DailyReport(datetime.combine(forecast_date, datetime.min.time()), daylight_h, location_name)
+        day_scores_reports[forecast_date] = day_report
 
     return {
         "daily_forecasts": daily_forecasts,
@@ -362,15 +329,15 @@ def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_varianc
                 avg_temp, avg_wind = _calculate_weather_averages(block)
 
                 blocks.append({
-                  'block': block,
-                  'start': block[0].time,
-                  'end': block[-1].time,
-                  'avg_score': avg_score,
-                  'duration': len(block),
-                  'consistency': 1 / (1 + std_dev),  # Higher is more consistent
-                  'variance': std_dev,
-                  'temp': avg_temp,
-                  'wind': avg_wind
+                    'block': block,
+                    'start': block[0].time,
+                    'end': block[-1].time,
+                    'avg_score': avg_score,
+                    'duration': len(block),
+                    'consistency': 1 / (1 + std_dev),  # Higher is more consistent
+                    'variance': std_dev,
+                    'temp': avg_temp,
+                    'wind': avg_wind
                 })
 
     return blocks
@@ -461,10 +428,9 @@ def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date,
                 # Show future hours, plus current hour if we're in the first half of it
                 filtered_hours = [
                     h for h in hours_for_day
-                    if 8 <= h.hour <= 20 and (
-                        h.time.astimezone(local_tz) > now_local or
-                        (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
-                    )
+                    if (8 <= h.hour <= 20 and
+                        (h.time.astimezone(local_tz) > now_local or
+                         (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)))
                 ]
             else:
                 filtered_hours = [h for h in hours_for_day if 8 <= h.hour <= 20]
@@ -505,14 +471,14 @@ def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date,
                 avg_temp, avg_wind = _calculate_weather_averages(filtered_hours)
 
                 optimal_block = {
-                  'block': filtered_hours,
-                  'start': filtered_hours[0].time,
-                  'end': filtered_hours[-1].time,
-                  'avg_score': location_score,
-                  'duration': duration,
-                  'consistency': consistency,
-                  'temp': avg_temp,
-                  'wind': avg_wind
+                    'block': filtered_hours,
+                    'start': filtered_hours[0].time,
+                    'end': filtered_hours[-1].time,
+                    'avg_score': location_score,
+                    'duration': duration,
+                    'consistency': consistency,
+                    'temp': avg_temp,
+                    'wind': avg_wind
                 }
 
             results.append({

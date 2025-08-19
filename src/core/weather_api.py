@@ -17,6 +17,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('weather_api')
 
+
 def _make_request(url: str, location: Location, headers: Dict[str, str]) -> Optional[Dict[str, Any]]:
     """Make a request to the weather API and return the JSON response."""
     try:
@@ -26,6 +27,7 @@ def _make_request(url: str, location: Location, headers: Dict[str, str]) -> Opti
     except (requests.exceptions.RequestException, ValueError) as e:
         logger.error(f"Error fetching forecast from {url} for {location.name}: {e}")
         return None
+
 
 def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
     """Fetch weather data for a specific location, falling back to compact endpoint if complete returns insufficient data.
