@@ -129,15 +129,15 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
         Integer score representing precipitation amount impact
     """
     amount_ranges = [
-        ((0, 0), 5),        # No precipitation - high bonus
-        ((0, 0.1), 3),      # Trace amounts - barely noticeable (reduced from 4)
-        ((0.1, 0.5), 0),    # Very light - minimal impact (reduced from 2)
-        ((0.5, 1.0), -2),   # Light drizzle - noticeable but manageable (was 0)
-        ((1.0, 2.5), -5),   # Light rain - requires preparation (was -2)
-        ((2.5, 5.0), -8),   # Moderate rain - significant impact (was -4)
-        ((5.0, 10.0), -11), # Heavy rain - major impact (was -6)
-        ((10.0, 20.0), -13), # Very heavy rain - severe impact (was -8)
-        (None, -15)          # Extreme precipitation - dangerous (was -12)
+        ((0, 0), 5),        # No precipitation - best
+        ((0, 0.1), 4),      # Trace amounts - barely noticeable
+        ((0.1, 0.5), 2),    # Very light - minimal impact
+        ((0.5, 1.0), 0),    # Light drizzle - manageable
+        ((1.0, 2.5), -2),   # Light rain - needs preparation
+        ((2.5, 5.0), -4),   # Moderate rain - significant impact
+        ((5.0, 10.0), -6),  # Heavy rain - major impact
+        ((10.0, 20.0), -8), # Very heavy rain - severe impact
+        (None, -12)          # Extreme precipitation - dangerous
     ]
     return _calculate_score(amount, amount_ranges, inclusive=True)
 

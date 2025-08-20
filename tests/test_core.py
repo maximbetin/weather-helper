@@ -130,24 +130,27 @@ def test_get_time_blocks_for_date():
 
 def test_calculate_weather_averages():
     # Test with empty list
-    avg_temp, avg_wind = _calculate_weather_averages([])
+    avg_temp, avg_wind, avg_humidity = _calculate_weather_averages([])
     assert avg_temp is None
     assert avg_wind is None
+    assert avg_humidity is None
 
     # Test with hours that have None values
-    hour1 = HourlyWeather(time=datetime(2024, 3, 15, 10), temp=None, wind=None)
-    avg_temp, avg_wind = _calculate_weather_averages([hour1])
+    hour1 = HourlyWeather(time=datetime(2024, 3, 15, 10), temp=None, wind=None, relative_humidity=None)
+    avg_temp, avg_wind, avg_humidity = _calculate_weather_averages([hour1])
     assert avg_temp is None
     assert avg_wind is None
+    assert avg_humidity is None
 
     # Test with valid data
-    hour1 = HourlyWeather(time=datetime(2024, 3, 15, 10), temp=20, wind=5)
-    hour2 = HourlyWeather(time=datetime(2024, 3, 15, 11), temp=22, wind=3)
-    hour3 = HourlyWeather(time=datetime(2024, 3, 15, 12), temp=None, wind=7)  # Mixed None values
+    hour1 = HourlyWeather(time=datetime(2024, 3, 15, 10), temp=20, wind=5, relative_humidity=60)
+    hour2 = HourlyWeather(time=datetime(2024, 3, 15, 11), temp=22, wind=3, relative_humidity=55)
+    hour3 = HourlyWeather(time=datetime(2024, 3, 15, 12), temp=None, wind=7, relative_humidity=65)  # Mixed None values
 
-    avg_temp, avg_wind = _calculate_weather_averages([hour1, hour2, hour3])
+    avg_temp, avg_wind, avg_humidity = _calculate_weather_averages([hour1, hour2, hour3])
     assert avg_temp == 21.0  # (20 + 22) / 2
     assert avg_wind == 5.0   # (5 + 3 + 7) / 3
+    assert avg_humidity == 60.0  # (60 + 55 + 65) / 3
 
 # Tests for the process_forecast function with more edge cases
 
