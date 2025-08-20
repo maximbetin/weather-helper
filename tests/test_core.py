@@ -161,7 +161,8 @@ def test_process_forecast():
                     "details": {
                         "air_temperature": 20,
                         "wind_speed": 5,
-                        "cloud_area_fraction": 30
+                        "cloud_area_fraction": 30,
+                        "relative_humidity": 65
                     }
                 },
                 "next_1_hours": {
@@ -176,7 +177,8 @@ def test_process_forecast():
                     "details": {
                         "air_temperature": 22,
                         "wind_speed": 3,
-                        "cloud_area_fraction": 20
+                        "cloud_area_fraction": 20,
+                        "relative_humidity": 55
                     }
                 },
                 "next_1_hours": {

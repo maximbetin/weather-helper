@@ -272,7 +272,7 @@ class WeatherHelperApp:
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
 
-        columns = ("Time", "Temp", "Wind", "Clouds", "Rain")
+        columns = ("Time", "Temp", "Wind", "Clouds", "Rain", "Humidity")
         self.main_table = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -295,7 +295,8 @@ class WeatherHelperApp:
             "Temp": {"width": 120, "anchor": "center", "stretch": True},
             "Wind": {"width": 120, "anchor": "center", "stretch": True},
             "Clouds": {"width": 120, "anchor": "center", "stretch": True},
-            "Rain": {"width": 120, "anchor": "center", "stretch": True}
+            "Rain": {"width": 120, "anchor": "center", "stretch": True},
+            "Humidity": {"width": 120, "anchor": "center", "stretch": True}
         }
 
         headings = {
@@ -303,7 +304,8 @@ class WeatherHelperApp:
             "Temp": "Temperature",
             "Wind": "Wind Speed",
             "Clouds": "Cloud Coverage",
-            "Rain": "Precipitation"
+            "Rain": "Precipitation",
+            "Humidity": "Humidity"
         }
 
         for col in columns:
@@ -670,33 +672,35 @@ class WeatherHelperApp:
                 wind = f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})" if hour.wind is not None else "N/A"
                 clouds = f"{hour.cloud_coverage:.0f}% ({hour.cloud_score:+.0f})" if hour.cloud_coverage is not None else "N/A"
                 rain = f"{hour.precipitation_amount:.1f}mm ({hour.precip_amount_score:+.0f})" if hour.precipitation_amount is not None else "N/A"
+                humidity = f"{hour.relative_humidity:.0f}% ({hour.humidity_score:+.0f})" if hour.relative_humidity is not None else "N/A"
             else:
                 temp = f"{hour.temp:.1f}°C" if hour.temp is not None else "N/A"
                 wind = f"{hour.wind:.1f}m/s" if hour.wind is not None else "N/A"
                 clouds = f"{hour.cloud_coverage:.0f}%" if hour.cloud_coverage is not None else "N/A"
                 rain = f"{hour.precipitation_amount:.1f}mm" if hour.precipitation_amount is not None else "N/A"
+                humidity = f"{hour.relative_humidity:.0f}%" if hour.relative_humidity is not None else "N/A"
 
-            if hour.total_score >= 12:
+            if hour.total_score >= 18:
                 tag = 'Excellent'
-            elif hour.total_score >= 8:
+            elif hour.total_score >= 13:
                 tag = 'VeryGood'
-            elif hour.total_score >= 4:
+            elif hour.total_score >= 7:
                 tag = 'Good'
-            elif hour.total_score >= 1:
+            elif hour.total_score >= 2:
                 tag = 'Fair'
             else:
                 tag = 'Poor'
 
             self.main_table.insert(
                 "", "end",
-                values=(time_str, temp, wind, clouds, rain),
+                values=(time_str, temp, wind, clouds, rain, humidity),
                 tags=(tag,)
             )
 
         except Exception:
             self.main_table.insert(
                 "", "end",
-                values=("Error", "Error", "Error", "Error", "Error"),
+                values=("Error", "Error", "Error", "Error", "Error", "Error"),
                 tags=('Poor',)
             )
 

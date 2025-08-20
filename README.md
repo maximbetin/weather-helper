@@ -11,11 +11,12 @@ time for outdoor activities.
 ## Features
 
 - **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature,
-  wind speed, cloud coverage, and precipitation amount.
+  wind speed, cloud coverage, precipitation amount, and relative humidity.
 - **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities
-  based on a scoring system.
+  based on a comprehensive scoring system that considers temperature, wind, clouds, precipitation, and humidity.
 - **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
+- **Comprehensive Data Display**: View all weather parameters including humidity in an organized table format.
 
 ## Installation and Usage
 
@@ -105,7 +106,7 @@ weather-helper/
 ## Weather Scoring System
 
 The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor
-activities. Each hour receives a total score based on four key factors.
+activities. Each hour receives a total score based on five key factors.
 
 ### Individual Component Scores
 
@@ -154,31 +155,46 @@ Evaluates sky conditions for outdoor activities:
 | 80-95%         | -1    | Very cloudy                     |
 | 95-100%        | -3    | Overcast                        |
 
-#### 4. Precipitation Score (-12 to +5 points)
+#### 4. Precipitation Score (-15 to +5 points)
 
 Assesses precipitation impact on outdoor activities:
 
 | Precipitation (mm) | Score | Description           |
 | ------------------ | ----- | --------------------- |
 | 0 mm               | +5    | No precipitation      |
-| 0-0.1 mm           | +4    | Trace amounts         |
-| 0.1-0.5 mm         | +2    | Very light            |
-| 0.5-1.0 mm         | 0     | Light drizzle         |
-| 1.0-2.5 mm         | -2    | Light rain            |
-| 2.5-5.0 mm         | -4    | Moderate rain         |
-| 5.0-10.0 mm        | -6    | Heavy rain            |
-| 10.0-20.0 mm       | -8    | Very heavy rain       |
-| >20.0 mm           | -12   | Extreme precipitation |
+| 0-0.1 mm           | +3    | Trace amounts         |
+| 0.1-0.5 mm         | 0     | Very light            |
+| 0.5-1.0 mm         | -2    | Light drizzle         |
+| 1.0-2.5 mm         | -5    | Light rain            |
+| 2.5-5.0 mm         | -8    | Moderate rain         |
+| 5.0-10.0 mm        | -11   | Heavy rain            |
+| 10.0-20.0 mm       | -13   | Very heavy rain       |
+| >20.0 mm           | -15   | Extreme precipitation |
+
+#### 5. Humidity Score (-4 to +3 points)
+
+Evaluates relative humidity comfort, optimized for maritime climates like Asturias:
+
+| Relative Humidity | Score | Description                    |
+| ----------------- | ----- | ------------------------------ |
+| 40-60%            | +3    | Ideal humidity range           |
+| 30-40%            | +2    | Low humidity (good)            |
+| 60-70%            | +1    | Moderate humidity (acceptable) |
+| 20-30%, 70-80%    | 0     | Very low/high (neutral)        |
+| 80-85%, 15-20%    | -1    | Very high/low (noticeable)     |
+| 85-90%, 10-15%    | -2    | Extremely high/low             |
+| 90-95%, 5-10%     | -3    | Near saturation/zero           |
+| >95%, <5%         | -4    | Beyond extreme levels          |
 
 ### Total Score Calculation
 
-Each hour's **total score** is the sum of all four component scores:
+Each hour's **total score** is the sum of all five component scores:
 
 ```text
-Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
+Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score + Humidity Score
 ```
 
-**Possible range**: -38 to +19 points per hour
+**Possible range**: -42 to +23 points per hour
 
 ### Overall Rating System
 
@@ -186,10 +202,10 @@ The total scores are converted to descriptive ratings:
 
 | Score Range | Rating    |
 | ----------- | --------- |
-| 15+         | Excellent |
-| 11-15       | Very Good |
-| 6-11        | Good      |
-| 2-6         | Fair      |
+| 18+         | Excellent |
+| 13-18       | Very Good |
+| 7-13        | Good      |
+| 2-7         | Fair      |
 | <2          | Poor      |
 
 ### Optimal Weather Block Detection

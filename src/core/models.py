@@ -18,10 +18,12 @@ class HourlyWeather:
     wind: Optional[NumericType] = None
     cloud_coverage: Optional[NumericType] = None
     precipitation_amount: Optional[NumericType] = None
+    relative_humidity: Optional[NumericType] = None
     temp_score: NumericType = 0
     wind_score: NumericType = 0
     cloud_score: NumericType = 0
     precip_amount_score: NumericType = 0
+    humidity_score: NumericType = 0
     total_score: NumericType = field(init=False)
     hour: int = field(init=False)
 
@@ -32,7 +34,7 @@ class HourlyWeather:
 
     def _calculate_total_score(self) -> NumericType:
         """Calculate the total score from individual component scores."""
-        return self.temp_score + self.wind_score + self.cloud_score + self.precip_amount_score
+        return self.temp_score + self.wind_score + self.cloud_score + self.precip_amount_score + self.humidity_score
 
 
 class DailyReport:

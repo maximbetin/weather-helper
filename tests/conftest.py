@@ -14,10 +14,12 @@ def sample_hourly_weather():
         wind=5,
         cloud_coverage=20,
         precipitation_amount=0,
+        relative_humidity=60,
         temp_score=8,
         wind_score=9,
         cloud_score=10,
-        precip_amount_score=6
+        precip_amount_score=6,
+        humidity_score=1
     )
 
 @pytest.fixture

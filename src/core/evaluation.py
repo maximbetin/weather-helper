@@ -12,18 +12,19 @@ from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR, FORECAST_DAY
 from src.core.models import DailyReport, HourlyWeather
 
 
-def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[float], Optional[float]]:
-    """Calculate average temperature and wind speed for a list of hours.
+def _calculate_weather_averages(hours: list[HourlyWeather]) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """Calculate average temperature, wind speed, and humidity for a list of hours.
 
     Args:
         hours: List of HourlyWeather objects
 
     Returns:
-        Tuple of (avg_temp, avg_wind) or (None, None) if no valid data
+        Tuple of (avg_temp, avg_wind, avg_humidity) or (None, None, None) if no valid data
     """
     temps = [h.temp for h in hours if h.temp is not None]
     winds = [h.wind for h in hours if h.wind is not None]
-    return safe_average(temps), safe_average(winds)
+    humidities = [h.relative_humidity for h in hours if h.relative_humidity is not None]
+    return safe_average(temps), safe_average(winds), safe_average(humidities)
 
 
 def _get_value_from_ranges(value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False) -> Optional[Any]:
@@ -119,7 +120,7 @@ def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
 
 
 def precip_amount_score(amount: Optional[NumericType]) -> int:
-    """Rate precipitation amount on a scale of -12 to 6.
+    """Rate precipitation amount on a scale of -15 to 5.
 
     Args:
         amount: Precipitation amount in millimeters
@@ -129,16 +130,45 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
     """
     amount_ranges = [
         ((0, 0), 5),        # No precipitation - high bonus
-        ((0, 0.1), 4),      # Trace amounts - barely noticeable
-        ((0.1, 0.5), 2),    # Very light - minimal impact
-        ((0.5, 1.0), 0),    # Light drizzle - noticeable but manageable
-        ((1.0, 2.5), -2),   # Light rain - requires some preparation
-        ((2.5, 5.0), -4),   # Moderate rain - significant impact
-        ((5.0, 10.0), -6),  # Heavy rain - major impact
-        ((10.0, 20.0), -8),  # Very heavy rain - severe impact
-        (None, -12)         # Extreme precipitation - dangerous
+        ((0, 0.1), 3),      # Trace amounts - barely noticeable (reduced from 4)
+        ((0.1, 0.5), 0),    # Very light - minimal impact (reduced from 2)
+        ((0.5, 1.0), -2),   # Light drizzle - noticeable but manageable (was 0)
+        ((1.0, 2.5), -5),   # Light rain - requires preparation (was -2)
+        ((2.5, 5.0), -8),   # Moderate rain - significant impact (was -4)
+        ((5.0, 10.0), -11), # Heavy rain - major impact (was -6)
+        ((10.0, 20.0), -13), # Very heavy rain - severe impact (was -8)
+        (None, -15)          # Extreme precipitation - dangerous (was -12)
     ]
     return _calculate_score(amount, amount_ranges, inclusive=True)
+
+
+def humidity_score(relative_humidity: Optional[NumericType]) -> int:
+    """Rate relative humidity for outdoor comfort on a scale of -4 to 3.
+    
+    Designed for Asturias' humid maritime climate where moderate humidity is common
+    and expected, but extreme humidity can significantly impact comfort.
+
+    Args:
+        relative_humidity: Relative humidity percentage (0-100)
+
+    Returns:
+        Integer score representing humidity comfort
+    """
+    humidity_ranges = [
+        ((40, 60), 3),      # Ideal humidity range - very comfortable
+        ((30, 40), 2),      # Low humidity - good but can feel dry
+        ((60, 70), 1),      # Moderate humidity - acceptable, typical for Asturias
+        ((20, 30), 0),      # Very low humidity - neutral
+        ((70, 80), 0),      # High humidity - neutral, common in maritime climates
+        ((80, 85), -1),     # Very high humidity - noticeable discomfort
+        ((15, 20), -1),     # Very low humidity - can cause dryness
+        ((85, 90), -2),     # Extremely high humidity - significant discomfort
+        ((10, 15), -2),     # Extremely low humidity - can cause irritation
+        ((90, 95), -3),     # Near saturation - very uncomfortable
+        ((5, 10), -3),      # Near zero - very uncomfortable
+        (None, -4)          # Beyond extreme humidity levels
+    ]
+    return _calculate_score(relative_humidity, humidity_ranges, inclusive=True)
 
 
 def get_rating_info(score: Union[int, float, None]) -> str:
@@ -154,10 +184,10 @@ def get_rating_info(score: Union[int, float, None]) -> str:
         return "N/A"
 
     rating_ranges = [
-        ((15.0, float('inf')), "Excellent"),   # 79% of max (19 points) - truly exceptional
-        ((11.0, 15.0), "Very Good"),           # 58-79% of max - genuinely good
-        ((6.0, 11.0), "Good"),                 # 32-58% of max - decent conditions
-        ((2.0, 6.0), "Fair"),                  # 11-32% of max - marginal conditions
+        ((18.0, float('inf')), "Excellent"),   # 78% of max (23 points) - truly exceptional
+        ((13.0, 18.0), "Very Good"),           # 57-78% of max - genuinely good
+        ((7.0, 13.0), "Good"),                 # 30-57% of max - decent conditions
+        ((2.0, 7.0), "Fair"),                  # 9-30% of max - marginal conditions
         (None, "Poor")                         # Below 2.0 is poor
     ]
     return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
@@ -202,6 +232,7 @@ def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
     temp = instant_details.get("air_temperature")
     wind = instant_details.get("wind_speed")
     cloud_coverage = instant_details.get("cloud_area_fraction")
+    relative_humidity = instant_details.get("relative_humidity")
 
     next_1h = entry["data"].get("next_1_hours", {})
     next_1h_details = next_1h.get("details", {})
@@ -220,10 +251,12 @@ def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
         wind=wind,
         cloud_coverage=cloud_coverage,
         precipitation_amount=final_precipitation_amount,
+        relative_humidity=relative_humidity,
         temp_score=temp_score(temp),
         wind_score=wind_score(wind),
         cloud_score=cloud_score(cloud_coverage),
-        precip_amount_score=precip_amount_score(final_precipitation_amount)
+        precip_amount_score=precip_amount_score(final_precipitation_amount),
+        humidity_score=humidity_score(relative_humidity)
     )
 
 
@@ -326,7 +359,7 @@ def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_varianc
             # Check if block is consistent (low variance)
             if std_dev <= adjusted_variance_threshold:
                 # Calculate additional stats for the block
-                avg_temp, avg_wind = _calculate_weather_averages(block)
+                avg_temp, avg_wind, avg_humidity = _calculate_weather_averages(block)
 
                 blocks.append({
                     'block': block,
@@ -337,7 +370,8 @@ def _find_consistent_blocks(sorted_hours: list[HourlyWeather], max_score_varianc
                     'consistency': 1 / (1 + std_dev),  # Higher is more consistent
                     'variance': std_dev,
                     'temp': avg_temp,
-                    'wind': avg_wind
+                    'wind': avg_wind,
+                    'humidity': avg_humidity
                 })
 
     return blocks
@@ -356,7 +390,8 @@ def _find_optimal_consistent_block(sorted_hours: list[HourlyWeather]) -> Optiona
         return None
 
     # Find all consistent blocks with more lenient variance threshold
-    consistent_blocks = _find_consistent_blocks(sorted_hours, max_score_variance=7.0)
+    # Adjusted for new scoring range that includes humidity (-42 to 23)
+    consistent_blocks = _find_consistent_blocks(sorted_hours, max_score_variance=8.0)
 
     if not consistent_blocks:
         return None
@@ -468,7 +503,7 @@ def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date,
                 final_location_score = location_score  # No bonus for fallback case
 
                 # Create fallback optimal_block for details
-                avg_temp, avg_wind = _calculate_weather_averages(filtered_hours)
+                avg_temp, avg_wind, avg_humidity = _calculate_weather_averages(filtered_hours)
 
                 optimal_block = {
                     'block': filtered_hours,
@@ -478,7 +513,8 @@ def get_top_locations_for_date(all_location_processed: dict[str, dict], d: date,
                     'duration': duration,
                     'consistency': consistency,
                     'temp': avg_temp,
-                    'wind': avg_wind
+                    'wind': avg_wind,
+                    'humidity': avg_humidity
                 }
 
             results.append({
