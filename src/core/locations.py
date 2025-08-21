@@ -27,11 +27,8 @@ LOCATIONS: Dict[str, Location] = {
     "aviles": Location("aviles", "Avilés", 43.5567, -5.9256),
     "luarca": Location("luarca", "Luarca", 43.5420, -6.5359),
     "luanco": Location("luanco", "Luanco", 43.6137, -5.7929),
-    "madrid": Location("madrid", "Madrid", 40.4167, -3.7037),
     "salinas": Location("salinas", "Salinas", 43.5753, -5.9585),
     "alicante": Location("alicante", "Alicante", 38.3452, -0.4830),
-    "valencia": Location("valencia", "Valencia", 39.4739, -0.3796),
-    "barcelona": Location("barcelona", "Barcelona", 41.3887, 2.1589),
     "cudillero": Location("cudillero", "Cudillero", 43.5629, -6.1453),
     "ribadesella": Location("ribadesella", "Ribadesella", 43.4631, -5.0567),
 }
