@@ -6,8 +6,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.gui.formatting import ToolTip, add_tooltip, format_date, format_duration, format_percentage, format_temperature, format_time, format_wind_speed
+from src.gui.formatting import (
+    ToolTip,
+    add_tooltip,
+    format_date,
+    format_duration,
+    format_percentage,
+    format_temperature,
+    format_time,
+    format_wind_speed,
+)
 from src.gui.themes import get_rating_color
+
 
 def test_format_temperature():
     """Test temperature formatting."""
@@ -17,6 +27,7 @@ def test_format_temperature():
     assert format_temperature(-5.3) == "-5.3°C"
     assert format_temperature(15, "°F") == "15.0°F"
 
+
 def test_format_percentage():
     """Test percentage formatting."""
     assert format_percentage(75.6) == "76%"
@@ -25,11 +36,13 @@ def test_format_percentage():
     assert format_percentage(100) == "100%"
     assert format_percentage(50.4, " percent") == "50 percent"
 
+
 def test_format_percentage_additional():
     """Test additional percentage formatting edge cases."""
     assert format_percentage(99.9) == "100%"
     assert format_percentage(0.1) == "0%"
     assert format_percentage(50.5) == "50%"  # Tests rounding (rounds to nearest even)
+
 
 def test_format_wind_speed():
     """Test wind speed formatting."""
@@ -37,6 +50,7 @@ def test_format_wind_speed():
     assert format_wind_speed(None) == "N/A"
     assert format_wind_speed(0) == "0.0 m/s"
     assert format_wind_speed(12.7, " km/h") == "12.7 km/h"
+
 
 def test_format_time():
     """Test time formatting."""
@@ -48,6 +62,7 @@ def test_format_time():
 
     dt_noon = datetime(2024, 3, 15, 12, 15)
     assert format_time(dt_noon) == "12:15"
+
 
 def test_format_date():
     """Test date formatting."""
@@ -63,6 +78,7 @@ def test_format_date():
     d_jan = date(2024, 1, 1)
     assert format_date(d_jan) == "Mon, 01 Jan"
 
+
 def test_format_duration():
     """Test duration formatting with proper pluralization."""
     assert format_duration(1) == "1 hour"
@@ -70,14 +86,16 @@ def test_format_duration():
     assert format_duration(2) == "2 hours"
     assert format_duration(24) == "24 hours"
 
+
 def test_get_rating_color():
     """Test color assignment for ratings."""
     assert get_rating_color("Excellent") == "#15803d"  # Darker Green
     assert get_rating_color("Very Good") == "#65a30d"  # Darker Yellow-Green
-    assert get_rating_color("Good") == "#ca8a04"       # Darker Yellow
-    assert get_rating_color("Fair") == "#ea580c"       # Darker Orange
-    assert get_rating_color("Poor") == "#b91c1c"       # Darker Red
-    assert get_rating_color("Unknown") == "#1e293b"    # text color (default)
+    assert get_rating_color("Good") == "#ca8a04"  # Darker Yellow
+    assert get_rating_color("Fair") == "#ea580c"  # Darker Orange
+    assert get_rating_color("Poor") == "#b91c1c"  # Darker Red
+    assert get_rating_color("Unknown") == "#1e293b"  # text color (default)
+
 
 def test_tooltip_creation():
     """Test tooltip creation."""
@@ -96,6 +114,7 @@ def test_tooltip_creation():
     mock_widget.bind.assert_any_call("<Enter>", tooltip.on_enter)
     mock_widget.bind.assert_any_call("<Leave>", tooltip.on_leave)
 
+
 def test_add_tooltip():
     """Test add_tooltip convenience function."""
     mock_widget = MagicMock()
@@ -105,6 +124,7 @@ def test_add_tooltip():
 
     assert isinstance(tooltip, ToolTip)
     assert tooltip.text == "Test tooltip"
+
 
 class TestTooltipWidget:
     """Test tooltip widget behavior with a real tkinter widget."""
@@ -129,6 +149,7 @@ class TestTooltipWidget:
         tooltip.on_leave()
         assert tooltip.tooltip_window is None
 
+
 class TestToolTipAdvanced:
     """Advanced tests for ToolTip functionality."""
 
@@ -147,9 +168,10 @@ class TestToolTipAdvanced:
         tooltip = ToolTip(mock_widget, "Test tooltip")
 
         # Mock Toplevel and Label creation
-        with patch('tkinter.Toplevel') as mock_toplevel, \
-                patch('tkinter.Label') as mock_label:
-
+        with (
+            patch("tkinter.Toplevel") as mock_toplevel,
+            patch("tkinter.Label") as mock_label,
+        ):
             mock_top = MagicMock()
             mock_toplevel.return_value = mock_top
             mock_lbl = MagicMock()
@@ -161,13 +183,15 @@ class TestToolTipAdvanced:
             # Verify Toplevel was created with correct position
             mock_toplevel.assert_called_once_with(mock_widget)
             mock_top.wm_overrideredirect.assert_called_once_with(True)
-            mock_top.wm_geometry.assert_called_once_with("+130+240")  # 100+10+20, 200+20+20
+            mock_top.wm_geometry.assert_called_once_with(
+                "+130+240"
+            )  # 100+10+20, 200+20+20
 
             # Verify Label was created with correct text
             mock_label.assert_called_once()
             call_args = mock_label.call_args[1]
-            assert call_args['text'] == "Test tooltip"
-            assert call_args['background'] == "#ffffe0"
+            assert call_args["text"] == "Test tooltip"
+            assert call_args["background"] == "#ffffe0"
 
             # Verify tooltip_window is set
             assert tooltip.tooltip_window == mock_top
@@ -179,9 +203,10 @@ class TestToolTipAdvanced:
 
         tooltip = ToolTip(mock_widget, "Test tooltip")
 
-        with patch('tkinter.Toplevel') as mock_toplevel, \
-                patch('tkinter.Label') as mock_label:
-
+        with (
+            patch("tkinter.Toplevel") as mock_toplevel,
+            patch("tkinter.Label") as mock_label,  # noqa: F841
+        ):
             mock_top = MagicMock()
             mock_toplevel.return_value = mock_top
 
@@ -189,14 +214,16 @@ class TestToolTipAdvanced:
             tooltip.on_enter()
 
             # Should use default bbox values (0, 0, 0, 0)
-            mock_top.wm_geometry.assert_called_once_with("+120+220")  # 100+0+20, 200+0+20
+            mock_top.wm_geometry.assert_called_once_with(
+                "+120+220"
+            )  # 100+0+20, 200+0+20
 
     def test_tooltip_on_enter_already_exists(self, mock_widget):
         """Test tooltip on_enter when tooltip window already exists."""
         tooltip = ToolTip(mock_widget, "Test tooltip")
         tooltip.tooltip_window = MagicMock()  # Simulate existing tooltip
 
-        with patch('tkinter.Toplevel') as mock_toplevel:
+        with patch("tkinter.Toplevel") as mock_toplevel:
             # Test on_enter - should return early
             tooltip.on_enter()
 
@@ -220,11 +247,11 @@ class TestToolTipAdvanced:
 
     def test_tooltip_hasattr_check(self, mock_widget):
         """Test the hasattr check for bbox method."""
-        tooltip = ToolTip(mock_widget, "Test tooltip")
+        tooltip = ToolTip(mock_widget, "Test tooltip")  # noqa: F841
 
         # Test with bbox method present
-        assert hasattr(mock_widget, 'bbox')
+        assert hasattr(mock_widget, "bbox")
 
         # Remove bbox and test
         del mock_widget.bbox
-        assert not hasattr(mock_widget, 'bbox')
+        assert not hasattr(mock_widget, "bbox")

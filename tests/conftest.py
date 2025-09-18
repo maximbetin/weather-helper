@@ -5,6 +5,7 @@ import pytest
 
 from src.core.models import HourlyWeather
 
+
 @pytest.fixture
 def sample_hourly_weather():
     """Fixture providing a sample HourlyWeather object for testing."""
@@ -19,13 +20,14 @@ def sample_hourly_weather():
         wind_score=9,
         cloud_score=10,
         precip_amount_score=6,
-        humidity_score=1
+        humidity_score=1,
     )
+
 
 @pytest.fixture
 def sample_forecast_data():
     """Fixture providing sample forecast data for testing."""
-    test_date = date(2024, 3, 15)
+    test_date = date(2024, 3, 15)  # noqa: F841
     return {
         "properties": {
             "timeseries": [
@@ -37,23 +39,22 @@ def sample_forecast_data():
                                 "air_temperature": 20,
                                 "wind_speed": 5,
                                 "relative_humidity": 60,
-                                "cloud_area_fraction": 20
+                                "cloud_area_fraction": 20,
                             }
                         },
                         "next_1_hours": {
-                            "summary": {
-                                "symbol_code": "clearsky"
-                            },
+                            "summary": {"symbol_code": "clearsky"},
                             "details": {
                                 "precipitation_amount": 0,
-                                "probability_of_precipitation": 0
-                            }
-                        }
-                    }
+                                "probability_of_precipitation": 0,
+                            },
+                        },
+                    },
                 }
             ]
         }
     }
+
 
 @pytest.fixture(scope="session")
 def tk_root():

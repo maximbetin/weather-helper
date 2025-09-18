@@ -24,9 +24,8 @@ FORECAST_DAYS = 7  # Max days for forecast processing
 DAYLIGHT_END_HOUR = 20
 DAYLIGHT_START_HOUR = 8
 
+
 # Utility functions
-
-
 @lru_cache(maxsize=None)
 def get_timezone():
     """Get the application timezone object."""

@@ -12,8 +12,12 @@ from typing import Any, Dict, List
 
 from src.core.config import get_timezone
 from src.core.evaluation import (
-    get_available_dates, get_rating_info, get_time_blocks_for_date,
-    get_top_locations_for_date, process_forecast, _find_optimal_consistent_block
+    _find_optimal_consistent_block,
+    get_available_dates,
+    get_rating_info,
+    get_time_blocks_for_date,
+    get_top_locations_for_date,
+    process_forecast,
 )
 from src.core.locations import LOCATIONS
 from src.core.weather_api import fetch_weather_data
@@ -53,7 +57,7 @@ class WeatherHelperApp:
         self._setup_title_area()
         self._setup_status_bar()
         self._setup_main_table()  # Create main content container first
-        self._setup_selectors()   # Then add selectors to it
+        self._setup_selectors()  # Then add selectors to it
         self._setup_side_panel()  # Finally setup side panel
 
     def _setup_window(self):
@@ -77,7 +81,7 @@ class WeatherHelperApp:
 
     def _create_main_layout(self):
         """Create the main layout structure."""
-        self.main_frame = ttk.Frame(self.root, padding=PADDING['large'])
+        self.main_frame = ttk.Frame(self.root, padding=PADDING["large"])
         self.main_frame.grid(row=0, column=0, sticky="nsew")
 
         # Configure grid weights
@@ -92,88 +96,90 @@ class WeatherHelperApp:
     def _setup_title_area(self):
         """Setup the title area."""
         title_frame = ttk.Frame(self.main_frame)
-        title_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, PADDING['small']))
+        title_frame.grid(
+            row=0, column=0, columnspan=2, sticky="ew", pady=(0, PADDING["small"])
+        )
         title_frame.columnconfigure(0, weight=1)
 
         self.title_label = ttk.Label(
-            title_frame,
-            text="Weather Helper",
-            style='Title.TLabel',
-            anchor="center"
+            title_frame, text="Weather Helper", style="Title.TLabel", anchor="center"
         )
         self.title_label.grid(row=0, column=0, sticky="ew")
 
         self.subtitle_label = ttk.Label(
             title_frame,
             text="Loading weather data...",
-            style='Secondary.TLabel',
-            anchor="center"
+            style="Secondary.TLabel",
+            anchor="center",
         )
-        self.subtitle_label.grid(row=1, column=0, sticky="ew", pady=(PADDING['small'], 0))
+        self.subtitle_label.grid(
+            row=1, column=0, sticky="ew", pady=(PADDING["small"], 0)
+        )
 
     def _setup_status_bar(self):
         """Setup the status bar."""
         self.status_frame = ttk.Frame(self.main_frame)
-        self.status_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(PADDING['medium'], 0))
+        self.status_frame.grid(
+            row=2, column=0, columnspan=2, sticky="ew", pady=(PADDING["medium"], 0)
+        )
         self.status_frame.columnconfigure(1, weight=1)
 
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(
             self.status_frame,
-            mode='determinate',
+            mode="determinate",
             variable=self.progress_var,
-            length=200
+            length=200,
         )
-        self.progress_bar.grid(row=0, column=0, padx=(0, PADDING['medium']))
+        self.progress_bar.grid(row=0, column=0, padx=(0, PADDING["medium"]))
 
         self.status_label = ttk.Label(
-            self.status_frame,
-            text="Initializing...",
-            style='Status.TLabel',
-            anchor="w"
+            self.status_frame, text="Initializing...", style="Status.TLabel", anchor="w"
         )
         self.status_label.grid(row=0, column=1, sticky="ew")
 
     def _setup_selectors(self):
         """Setup location and date selectors."""
-        selector_frame = ttk.Frame(self.main_content_container, style='Card.TFrame', padding=PADDING['medium'])
-        selector_frame.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['small']))
+        selector_frame = ttk.Frame(
+            self.main_content_container, style="Card.TFrame", padding=PADDING["medium"]
+        )
+        selector_frame.grid(row=0, column=0, sticky="ew", pady=(0, PADDING["small"]))
         selector_frame.columnconfigure(1, weight=1)
         selector_frame.columnconfigure(3, weight=1)
 
         # Location selector
-        ttk.Label(
-            selector_frame,
-            text="Location:",
-            font=FONTS['body_bold']
-        ).grid(row=0, column=0, padx=(0, PADDING['small']), sticky="w")
+        ttk.Label(selector_frame, text="Location:", font=FONTS["body_bold"]).grid(
+            row=0, column=0, padx=(0, PADDING["small"]), sticky="w"
+        )
 
         self.location_var = tk.StringVar()
         self.location_dropdown = ttk.Combobox(
             selector_frame,
             textvariable=self.location_var,
             state="readonly",
-            font=FONTS['body'],
-            width=25
+            font=FONTS["body"],
+            width=25,
         )
-        self.location_dropdown.grid(row=0, column=1, sticky="ew", padx=(0, PADDING['large']))
+        self.location_dropdown.grid(
+            row=0, column=1, sticky="ew", padx=(0, PADDING["large"])
+        )
         self.location_dropdown.bind("<<ComboboxSelected>>", self.on_location_change)
-        add_tooltip(self.location_dropdown, "Select a location to view weather forecast")
+        add_tooltip(
+            self.location_dropdown, "Select a location to view weather forecast"
+        )
 
         # Date selector
-        ttk.Label(
-            selector_frame,
-            text="Date:",
-            font=FONTS['body_bold']
-        ).grid(row=0, column=2, padx=(0, PADDING['small']), sticky="w")
+        ttk.Label(selector_frame, text="Date:", font=FONTS["body_bold"]).grid(
+            row=0, column=2, padx=(0, PADDING["small"]), sticky="w"
+        )
 
         self.date_var = tk.StringVar()
         self.date_dropdown = ttk.Combobox(
             selector_frame,
             textvariable=self.date_var,
             state="readonly",
-            font=FONTS['body'],
-            width=20
+            font=FONTS["body"],
+            width=20,
         )
         self.date_dropdown.grid(row=0, column=3, sticky="ew")
         self.date_dropdown.bind("<<ComboboxSelected>>", self.on_date_change)
@@ -185,10 +191,15 @@ class WeatherHelperApp:
             text="Show scoring values",
             variable=self.show_scores,
             command=self._on_score_toggle_change,
-            style='Toggle.TCheckbutton'
+            style="Toggle.TCheckbutton",
         )
-        self.score_toggle.grid(row=1, column=0, columnspan=4, sticky="w", pady=(PADDING['small'], 0))
-        add_tooltip(self.score_toggle, "Toggle to show/hide the scoring values for each weather parameter")
+        self.score_toggle.grid(
+            row=1, column=0, columnspan=4, sticky="w", pady=(PADDING["small"], 0)
+        )
+        add_tooltip(
+            self.score_toggle,
+            "Toggle to show/hide the scoring values for each weather parameter",
+        )
 
     def _on_score_toggle_change(self):
         """Handle the score visibility toggle."""
@@ -196,24 +207,28 @@ class WeatherHelperApp:
 
     def _setup_side_panel(self):
         """Setup the side panel."""
-        self.side_panel = ttk.Frame(self.main_frame, style='Sidebar.TFrame', padding=PADDING['small'])
-        self.side_panel.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING['small']))
+        self.side_panel = ttk.Frame(
+            self.main_frame, style="Sidebar.TFrame", padding=PADDING["small"]
+        )
+        self.side_panel.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING["small"]))
         self.side_panel.columnconfigure(0, weight=1)
 
         title_label = ttk.Label(
             self.side_panel,
             text="Top 10 Locations",
-            style='Heading.TLabel',
-            anchor="center"
+            style="Heading.TLabel",
+            anchor="center",
         )
-        title_label.grid(row=0, column=0, sticky="ew", pady=(0, PADDING['small']))
+        title_label.grid(row=0, column=0, sticky="ew", pady=(0, PADDING["small"]))
 
         self.location_frames = []
         self.side_panel_entries = []
 
         for i in range(10):
-            loc_frame = ttk.Frame(self.side_panel, padding=(PADDING['small'], PADDING['small']))
-            loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING['tiny'])
+            loc_frame = ttk.Frame(
+                self.side_panel, padding=(PADDING["small"], PADDING["small"])
+            )
+            loc_frame.grid(row=i + 1, column=0, sticky="ew", pady=PADDING["tiny"])
             loc_frame.columnconfigure(1, weight=1)
             loc_frame.rowconfigure(0, weight=0)
             loc_frame.rowconfigure(1, weight=0)
@@ -224,40 +239,40 @@ class WeatherHelperApp:
             rank_label = ttk.Label(
                 loc_frame,
                 text="",
-                font=FONTS['body_bold'],
-                foreground=COLORS['text_secondary'],
-                width=3
+                font=FONTS["body_bold"],
+                foreground=COLORS["text_secondary"],
+                width=3,
             )
             rank_label.grid(row=0, column=0, sticky="w")
 
             name_label = ttk.Label(
-                loc_frame,
-                text="",
-                font=FONTS['subheading'],
-                anchor="w"
+                loc_frame, text="", font=FONTS["subheading"], anchor="w"
             )
-            name_label.grid(row=0, column=1, sticky="ew", padx=(PADDING['small'], 0))
+            name_label.grid(row=0, column=1, sticky="ew", padx=(PADDING["small"], 0))
 
-            score_label = ttk.Label(
-                loc_frame,
-                text="",
-                font=FONTS['small'],
-                anchor="w"
-            )
-            score_label.grid(row=1, column=1, sticky="ew", padx=(PADDING['small'], 0))
+            score_label = ttk.Label(loc_frame, text="", font=FONTS["small"], anchor="w")
+            score_label.grid(row=1, column=1, sticky="ew", padx=(PADDING["small"], 0))
 
             details_label = ttk.Label(
                 loc_frame,
                 text="",
-                font=FONTS['small'],
-                foreground=COLORS['text_secondary'],
+                font=FONTS["small"],
+                foreground=COLORS["text_secondary"],
                 anchor="nw",
                 justify="left",
-                wraplength=280
+                wraplength=280,
             )
-            details_label.grid(row=2, column=1, sticky="nw", pady=(PADDING['tiny'], 0), padx=(PADDING['small'], 0))
+            details_label.grid(
+                row=2,
+                column=1,
+                sticky="nw",
+                pady=(PADDING["tiny"], 0),
+                padx=(PADDING["small"], 0),
+            )
 
-            self.side_panel_entries.append((rank_label, name_label, score_label, details_label))
+            self.side_panel_entries.append(
+                (rank_label, name_label, score_label, details_label)
+            )
 
     def _setup_main_table(self):
         """Setup the main table."""
@@ -267,7 +282,9 @@ class WeatherHelperApp:
         self.main_content_container.rowconfigure(0, weight=0)  # Selectors
         self.main_content_container.rowconfigure(1, weight=1)  # Table
 
-        table_frame = ttk.Frame(self.main_content_container, style='Card.TFrame', padding=PADDING['small'])
+        table_frame = ttk.Frame(
+            self.main_content_container, style="Card.TFrame", padding=PADDING["small"]
+        )
         table_frame.grid(row=1, column=0, sticky="nsew")
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
@@ -278,16 +295,16 @@ class WeatherHelperApp:
             columns=columns,
             show="headings",
             height=20,
-            style='Custom.Treeview'
+            style="Custom.Treeview",
         )
         self.main_table.grid(row=0, column=0, sticky="nsew")
 
         # Configure row colors
-        self.main_table.tag_configure('Excellent', foreground=COLORS['excellent'])
-        self.main_table.tag_configure('VeryGood', foreground=COLORS['very_good'])
-        self.main_table.tag_configure('Good', foreground=COLORS['good'])
-        self.main_table.tag_configure('Fair', foreground=COLORS['fair'])
-        self.main_table.tag_configure('Poor', foreground=COLORS['poor'])
+        self.main_table.tag_configure("Excellent", foreground=COLORS["excellent"])
+        self.main_table.tag_configure("VeryGood", foreground=COLORS["very_good"])
+        self.main_table.tag_configure("Good", foreground=COLORS["good"])
+        self.main_table.tag_configure("Fair", foreground=COLORS["fair"])
+        self.main_table.tag_configure("Poor", foreground=COLORS["poor"])
 
         # Column configuration
         col_configs = {
@@ -296,7 +313,7 @@ class WeatherHelperApp:
             "Wind": {"width": 120, "anchor": "center", "stretch": True},
             "Clouds": {"width": 120, "anchor": "center", "stretch": True},
             "Rain": {"width": 120, "anchor": "center", "stretch": True},
-            "Humidity": {"width": 120, "anchor": "center", "stretch": True}
+            "Humidity": {"width": 120, "anchor": "center", "stretch": True},
         }
 
         headings = {
@@ -305,7 +322,7 @@ class WeatherHelperApp:
             "Wind": "Wind Speed",
             "Clouds": "Cloud Coverage",
             "Rain": "Precipitation",
-            "Humidity": "Humidity"
+            "Humidity": "Humidity",
         }
 
         for col in columns:
@@ -316,7 +333,7 @@ class WeatherHelperApp:
                 anchor=config["anchor"],
                 width=config["width"],
                 minwidth=config["width"],
-                stretch=config["stretch"]
+                stretch=config["stretch"],
             )
 
     def _start_data_loading(self):
@@ -335,7 +352,9 @@ class WeatherHelperApp:
             try:
                 progress = (loaded_count / self.total_locations) * 100
                 self.root.after(0, lambda: self.progress_var.set(progress))
-                self.root.after(0, lambda: self._update_status(f"Loading {loc.name}..."))
+                self.root.after(
+                    0, lambda: self._update_status(f"Loading {loc.name}...")
+                )
 
                 raw = fetch_weather_data(loc)
                 if raw is not None:
@@ -363,14 +382,21 @@ class WeatherHelperApp:
         error_count = len(self.loading_errors)
 
         if loaded_count > 0:
-            self._update_status(f"Loaded {loaded_count} locations successfully" +
-                                (f" ({error_count} failed)" if error_count > 0 else ""))
+            self._update_status(
+                f"Loaded {loaded_count} locations successfully"
+                + (f" ({error_count} failed)" if error_count > 0 else "")
+            )
             self._populate_location_selector()
-            self.subtitle_label.config(text=f"Weather data for {loaded_count} locations")
+            self.subtitle_label.config(
+                text=f"Weather data for {loaded_count} locations"
+            )
         else:
             self._update_status("Failed to load any weather data")
             self.subtitle_label.config(text="No weather data available")
-            messagebox.showerror("Error", "Failed to load weather data. Please check your internet connection.")
+            messagebox.showerror(
+                "Error",
+                "Failed to load weather data. Please check your internet connection.",
+            )
 
         self.root.after(2000, self.progress_bar.grid_remove)
 
@@ -383,13 +409,10 @@ class WeatherHelperApp:
         if not self.loaded_locations:
             return
 
-        location_names = [
-            LOCATIONS[loc_key].name
-            for loc_key in self.loaded_locations
-        ]
+        location_names = [LOCATIONS[loc_key].name for loc_key in self.loaded_locations]
         location_names.sort()  # Sort alphabetically for better UX
 
-        self.location_dropdown['values'] = location_names
+        self.location_dropdown["values"] = location_names
         if location_names:
             self.location_var.set(location_names[0])
             self.on_location_change()
@@ -417,7 +440,12 @@ class WeatherHelperApp:
             # Try to maintain the same date if available
             if previous_date and previous_date in self.date_map.values():
                 date_str = next(
-                    (d_str for d_str, d_obj in self.date_map.items() if d_obj == previous_date), None
+                    (
+                        d_str
+                        for d_str, d_obj in self.date_map.items()
+                        if d_obj == previous_date
+                    ),
+                    None,
                 )
                 if date_str:
                     self.date_var.set(date_str)
@@ -433,26 +461,26 @@ class WeatherHelperApp:
         """Populate the date selector."""
         try:
             if not self.selected_location_key:
-                self.date_dropdown['values'] = []
+                self.date_dropdown["values"] = []
                 self.date_map = {}
                 return
 
             processed = self.all_location_processed.get(self.selected_location_key)
             if not processed:
-                self.date_dropdown['values'] = []
+                self.date_dropdown["values"] = []
                 self.date_map = {}
                 return
 
             available_dates = get_available_dates(processed)
             if not available_dates:
-                self.date_dropdown['values'] = []
+                self.date_dropdown["values"] = []
                 self.date_map = {}
                 return
 
             self.date_map = {format_date(d): d for d in available_dates}
             date_strs = list(self.date_map.keys())
 
-            self.date_dropdown['values'] = date_strs
+            self.date_dropdown["values"] = date_strs
             if date_strs:
                 self.date_var.set(date_strs[0])
                 self.on_date_change()
@@ -488,7 +516,12 @@ class WeatherHelperApp:
     def _update_side_panel(self):
         """Update the side panel."""
         # Clear existing entries
-        for rank_label, name_label, score_label, details_label in self.side_panel_entries:
+        for (
+            rank_label,
+            name_label,
+            score_label,
+            details_label,
+        ) in self.side_panel_entries:
             rank_label.config(text="")
             name_label.config(text="")
             score_label.config(text="")
@@ -499,20 +532,35 @@ class WeatherHelperApp:
 
         try:
             top_locs = get_top_locations_for_date(
-                self.all_location_processed,
-                self.selected_date,
-                top_n=10
+                self.all_location_processed, self.selected_date, top_n=10
             )
 
-            for i, (rank_label, name_label, score_label, details_label) in enumerate(self.side_panel_entries):
+            for i, (rank_label, name_label, score_label, details_label) in enumerate(
+                self.side_panel_entries
+            ):
                 if i < len(top_locs):
                     loc_data = top_locs[i]
-                    self._populate_location_entry(i + 1, loc_data, rank_label, name_label, score_label, details_label)
+                    self._populate_location_entry(
+                        i + 1,
+                        loc_data,
+                        rank_label,
+                        name_label,
+                        score_label,
+                        details_label,
+                    )
 
         except Exception as e:
             self._update_status(f"Error updating rankings: {str(e)}")
 
-    def _populate_location_entry(self, rank: int, loc_data: Dict, rank_label: ttk.Label, name_label: ttk.Label, score_label: ttk.Label, details_label: ttk.Label):
+    def _populate_location_entry(
+        self,
+        rank: int,
+        loc_data: Dict,
+        rank_label: ttk.Label,
+        name_label: ttk.Label,
+        score_label: ttk.Label,
+        details_label: ttk.Label,
+    ):
         """Populate a single location entry in the side panel."""
         try:
             rank_label.config(text=f"{rank}.")
@@ -524,7 +572,7 @@ class WeatherHelperApp:
             name_label.config(
                 text=loc_data.get("location_name", "Unknown"),
                 foreground=score_color,
-                font=FONTS['subheading']
+                font=FONTS["subheading"],
             )
 
             if self.show_scores.get():
@@ -533,16 +581,11 @@ class WeatherHelperApp:
                 score_text = rating
 
             score_label.config(
-                text=score_text,
-                foreground=score_color,
-                font=FONTS['small_bold']
+                text=score_text, foreground=score_color, font=FONTS["small_bold"]
             )
 
             details = self._get_location_details(loc_data)
-            details_label.config(
-                text=details,
-                foreground=score_color
-            )
+            details_label.config(text=details, foreground=score_color)
 
         except Exception as e:
             rank_label.config(text="")
@@ -559,10 +602,15 @@ class WeatherHelperApp:
         if selected_date == now_local.date():
             # Show future hours, plus current hour if we're in the first half of it
             return [
-                h for h in hours_for_day
-                if 8 <= h.time.hour <= 20 and (
-                    h.time.astimezone(local_tz) > now_local or
-                    (h.time.astimezone(local_tz).hour == now_local.hour and now_local.minute < 30)
+                h
+                for h in hours_for_day
+                if 8 <= h.time.hour <= 20
+                and (
+                    h.time.astimezone(local_tz) > now_local
+                    or (
+                        h.time.astimezone(local_tz).hour == now_local.hour
+                        and now_local.minute < 30
+                    )
                 )
             ]
         else:
@@ -571,7 +619,7 @@ class WeatherHelperApp:
     def _get_location_details(self, loc_data: Dict) -> str:
         """Get formatted details for a location entry."""
         try:
-            location_key = loc_data.get('location_key')
+            location_key = loc_data.get("location_key")
             if not location_key:
                 return "No details available"
 
@@ -584,7 +632,9 @@ class WeatherHelperApp:
             hours_for_day = daily_forecasts.get(self.selected_date, [])
 
             # Filter for daylight hours and future times
-            filtered_blocks = self._filter_daylight_hours(hours_for_day, self.selected_date)
+            filtered_blocks = self._filter_daylight_hours(
+                hours_for_day, self.selected_date
+            )
 
             if not filtered_blocks:
                 return "No daylight data available"
@@ -592,10 +642,12 @@ class WeatherHelperApp:
             optimal_block = _find_optimal_consistent_block(filtered_blocks)
 
             local_tz = get_timezone()
-            
+
             if optimal_block:
-                start_time = optimal_block["start"].astimezone(local_tz).strftime('%H:%M')
-                end_time = optimal_block["end"].astimezone(local_tz).strftime('%H:%M')
+                start_time = (
+                    optimal_block["start"].astimezone(local_tz).strftime("%H:%M")
+                )
+                end_time = optimal_block["end"].astimezone(local_tz).strftime("%H:%M")
                 duration = optimal_block.get("duration", 1)
                 temp = optimal_block.get("temp")
 
@@ -613,7 +665,7 @@ class WeatherHelperApp:
 
             else:
                 best_hour = max(filtered_blocks, key=lambda h: h.total_score)
-                time_str = best_hour.time.astimezone(local_tz).strftime('%H:%M')
+                time_str = best_hour.time.astimezone(local_tz).strftime("%H:%M")
 
                 details = f"Best hour: {time_str}"
                 info_parts = []
@@ -646,7 +698,9 @@ class WeatherHelperApp:
             if not time_blocks:
                 return
 
-            filtered_blocks = self._filter_daylight_hours(time_blocks, self.selected_date)
+            filtered_blocks = self._filter_daylight_hours(
+                time_blocks, self.selected_date
+            )
 
             for hour in filtered_blocks:
                 self._add_table_row(hour)
@@ -654,56 +708,88 @@ class WeatherHelperApp:
         except Exception as e:
             self._update_status(f"Error updating table: {str(e)}")
 
-
     def _add_table_row(self, hour):
         """Add a single row to the main table."""
         try:
             show_scores = self.show_scores.get()
-            
+
             # Format time with optional score
             if show_scores:
                 time_str = f"{hour.time.strftime('%H:%M')} ({hour.total_score:+.0f})"
             else:
-                time_str = hour.time.strftime('%H:%M')
+                time_str = hour.time.strftime("%H:%M")
 
             # Format weather data with optional scores
             if show_scores:
-                temp = f"{hour.temp:.1f}°C ({hour.temp_score:+.0f})" if hour.temp is not None else "N/A"
-                wind = f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})" if hour.wind is not None else "N/A"
-                clouds = f"{hour.cloud_coverage:.0f}% ({hour.cloud_score:+.0f})" if hour.cloud_coverage is not None else "N/A"
-                rain = f"{hour.precipitation_amount:.1f}mm ({hour.precip_amount_score:+.0f})" if hour.precipitation_amount is not None else "N/A"
-                humidity = f"{hour.relative_humidity:.0f}% ({hour.humidity_score:+.0f})" if hour.relative_humidity is not None else "N/A"
+                temp = (
+                    f"{hour.temp:.1f}°C ({hour.temp_score:+.0f})"
+                    if hour.temp is not None
+                    else "N/A"
+                )
+                wind = (
+                    f"{hour.wind:.1f}m/s ({hour.wind_score:+.0f})"
+                    if hour.wind is not None
+                    else "N/A"
+                )
+                clouds = (
+                    f"{hour.cloud_coverage:.0f}% ({hour.cloud_score:+.0f})"
+                    if hour.cloud_coverage is not None
+                    else "N/A"
+                )
+                rain = (
+                    f"{hour.precipitation_amount:.1f}mm ({hour.precip_amount_score:+.0f})"
+                    if hour.precipitation_amount is not None
+                    else "N/A"
+                )
+                humidity = (
+                    f"{hour.relative_humidity:.0f}% ({hour.humidity_score:+.0f})"
+                    if hour.relative_humidity is not None
+                    else "N/A"
+                )
             else:
                 temp = f"{hour.temp:.1f}°C" if hour.temp is not None else "N/A"
                 wind = f"{hour.wind:.1f}m/s" if hour.wind is not None else "N/A"
-                clouds = f"{hour.cloud_coverage:.0f}%" if hour.cloud_coverage is not None else "N/A"
-                rain = f"{hour.precipitation_amount:.1f}mm" if hour.precipitation_amount is not None else "N/A"
-                humidity = f"{hour.relative_humidity:.0f}%" if hour.relative_humidity is not None else "N/A"
+                clouds = (
+                    f"{hour.cloud_coverage:.0f}%"
+                    if hour.cloud_coverage is not None
+                    else "N/A"
+                )
+                rain = (
+                    f"{hour.precipitation_amount:.1f}mm"
+                    if hour.precipitation_amount is not None
+                    else "N/A"
+                )
+                humidity = (
+                    f"{hour.relative_humidity:.0f}%"
+                    if hour.relative_humidity is not None
+                    else "N/A"
+                )
 
             if hour.total_score >= 18:
-                tag = 'Excellent'
+                tag = "Excellent"
             elif hour.total_score >= 13:
-                tag = 'VeryGood'
+                tag = "VeryGood"
             elif hour.total_score >= 7:
-                tag = 'Good'
+                tag = "Good"
             elif hour.total_score >= 2:
-                tag = 'Fair'
+                tag = "Fair"
             else:
-                tag = 'Poor'
+                tag = "Poor"
 
             self.main_table.insert(
-                "", "end",
+                "",
+                "end",
                 values=(time_str, temp, wind, clouds, rain, humidity),
-                tags=(tag,)
+                tags=(tag,),
             )
 
         except Exception:
             self.main_table.insert(
-                "", "end",
+                "",
+                "end",
                 values=("Error", "Error", "Error", "Error", "Error", "Error"),
-                tags=('Poor',)
+                tags=("Poor",),
             )
-
 
     def run(self):
         """Start the application main loop."""
@@ -720,7 +806,10 @@ def main():
         app.run()
     except Exception as e:
         print(f"Failed to start application: {e}")
-        messagebox.showerror("Startup Error", f"Failed to start Weather Helper: {str(e)}")
+        messagebox.showerror(
+            "Startup Error", f"Failed to start Weather Helper: {str(e)}"
+        )
+
 
 if __name__ == "__main__":
     main()

@@ -14,9 +14,11 @@ time for outdoor activities.
   wind speed, cloud coverage, precipitation amount, and relative humidity.
 - **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities
-  based on a comprehensive scoring system that considers temperature, wind, clouds, precipitation, and humidity.
+  based on a comprehensive scoring system that considers temperature, wind, clouds, precipitation,
+  and humidity.
 - **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
-- **Comprehensive Data Display**: View all weather parameters including humidity in an organized table format.
+- **Comprehensive Data Display**: View all weather parameters including humidity in an organized
+  table format.
 
 ## Installation and Usage
 

@@ -12,13 +12,14 @@ from src.core.locations import Location
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger('weather_api')
+logger = logging.getLogger("weather_api")
 
 
-def _make_request(url: str, location: Location, headers: Dict[str, str]) -> Optional[Dict[str, Any]]:
+def _make_request(
+    url: str, location: Location, headers: Dict[str, str]
+) -> Optional[Dict[str, Any]]:
     """Make a request to the weather API and return the JSON response."""
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -41,14 +42,16 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
     lat = location.lat
     lon = location.lon
 
-    headers = {
-        "User-Agent": USER_AGENT
-    }
+    headers = {"User-Agent": USER_AGENT}
 
     # First try the complete endpoint
     complete_url = f"{API_URL}?lat={lat}&lon={lon}"
     data = _make_request(complete_url, location, headers)
-    if data and data.get("properties", {}).get("timeseries", []) and len(data["properties"]["timeseries"]) >= 5:
+    if (
+        data
+        and data.get("properties", {}).get("timeseries", [])
+        and len(data["properties"]["timeseries"]) >= 5
+    ):
         return data
 
     # Fallback to compact endpoint

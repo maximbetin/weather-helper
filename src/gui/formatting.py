@@ -1,6 +1,7 @@
 """
 This module contains utility functions for formatting data for display in the GUI.
 """
+
 import tkinter as tk
 from datetime import date, datetime
 from typing import Optional, Union
@@ -23,7 +24,9 @@ class ToolTip:
         if self.tooltip_window:
             return
 
-        x, y, _, _ = self.widget.bbox("insert") if hasattr(self.widget, 'bbox') else (0, 0, 0, 0)
+        x, y, _, _ = (
+            self.widget.bbox("insert") if hasattr(self.widget, "bbox") else (0, 0, 0, 0)
+        )
         x += self.widget.winfo_rootx() + 20
         y += self.widget.winfo_rooty() + 20
 
@@ -34,12 +37,12 @@ class ToolTip:
         label = tk.Label(
             tw,
             text=self.text,
-            justify='left',
+            justify="left",
             background="#ffffe0",
-            relief='solid',
+            relief="solid",
             borderwidth=1,
             font=("Segoe UI", 8),
-            wraplength=300
+            wraplength=300,
         )
         label.pack(ipadx=1)
 
@@ -65,6 +68,7 @@ def format_time(dt: datetime) -> str:
         str: Formatted time string (e.g., "14:30")
     """
     return dt.strftime("%H:%M")
+
 
 def format_date(d: Union[date, datetime]) -> str:
     """Format a date or datetime object.

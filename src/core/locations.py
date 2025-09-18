@@ -1,6 +1,7 @@
 """
 Defines the Location class and the dictionary of known locations.
 """
+
 from typing import Dict, NamedTuple
 
 
@@ -13,6 +14,7 @@ class Location(NamedTuple):
         lat: Latitude coordinate
         lon: Longitude coordinate
     """
+
     key: str
     name: str
     lat: float
