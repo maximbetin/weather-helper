@@ -89,15 +89,15 @@ class WeatherHelperApp:
         self.main_frame.columnconfigure(1, weight=1)  # Main content
 
         # Row configuration
-        self.main_frame.rowconfigure(0, weight=0)  # Title
-        self.main_frame.rowconfigure(1, weight=1)  # Content area
-        self.main_frame.rowconfigure(2, weight=0)  # Status bar
+        self.main_frame.rowconfigure(0, weight=0)  # Status bar (top)
+        self.main_frame.rowconfigure(1, weight=0)  # Title
+        self.main_frame.rowconfigure(2, weight=1)  # Content area
 
     def _setup_title_area(self):
         """Setup the title area."""
         title_frame = ttk.Frame(self.main_frame)
         title_frame.grid(
-            row=0, column=0, columnspan=2, sticky="ew", pady=(0, PADDING["small"])
+            row=1, column=0, columnspan=2, sticky="ew", pady=(0, PADDING["small"])
         )
         title_frame.columnconfigure(0, weight=1)
 
@@ -120,9 +120,10 @@ class WeatherHelperApp:
         """Setup the status bar."""
         self.status_frame = ttk.Frame(self.main_frame)
         self.status_frame.grid(
-            row=2, column=0, columnspan=2, sticky="ew", pady=(PADDING["medium"], 0)
+            row=0, column=0, columnspan=2, sticky="ew", pady=(0, PADDING["medium"])
         )
         self.status_frame.columnconfigure(1, weight=1)
+        self.status_frame.columnconfigure(2, weight=0)  # For author label
 
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(
@@ -137,6 +138,16 @@ class WeatherHelperApp:
             self.status_frame, text="Initializing...", style="Status.TLabel", anchor="w"
         )
         self.status_label.grid(row=0, column=1, sticky="ew")
+
+        # Add subtle author attribution to status bar
+        current_year = datetime.now().year
+        self.author_label = ttk.Label(
+            self.status_frame,
+            text=f"© {current_year} Maxim BK",
+            style="Author.TLabel",
+            anchor="e",
+        )
+        self.author_label.grid(row=0, column=2, sticky="e", padx=(PADDING["medium"], 0))
 
     def _setup_selectors(self):
         """Setup location and date selectors."""
@@ -210,7 +221,7 @@ class WeatherHelperApp:
         self.side_panel = ttk.Frame(
             self.main_frame, style="Sidebar.TFrame", padding=PADDING["small"]
         )
-        self.side_panel.grid(row=1, column=0, sticky="nsew", padx=(0, PADDING["small"]))
+        self.side_panel.grid(row=2, column=0, sticky="nsew", padx=(0, PADDING["small"]))
         self.side_panel.columnconfigure(0, weight=1)
 
         title_label = ttk.Label(
@@ -277,7 +288,7 @@ class WeatherHelperApp:
     def _setup_main_table(self):
         """Setup the main table."""
         self.main_content_container = ttk.Frame(self.main_frame)
-        self.main_content_container.grid(row=1, column=1, sticky="nsew")
+        self.main_content_container.grid(row=2, column=1, sticky="nsew")
         self.main_content_container.columnconfigure(0, weight=1)
         self.main_content_container.rowconfigure(0, weight=0)  # Selectors
         self.main_content_container.rowconfigure(1, weight=1)  # Table

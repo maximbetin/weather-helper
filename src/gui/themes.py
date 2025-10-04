@@ -224,15 +224,11 @@ def apply_theme(root):
     style.configure("Fair.Custom.Treeview", foreground=COLORS["fair"])
     style.configure("Poor.Custom.Treeview", foreground=COLORS["poor"])
 
-    # Status bar styling
     style.configure(
-        "Status.TLabel",
+        "Author.TLabel",
         background=COLORS["background"],
-        foreground=COLORS["text_secondary"],
+        foreground=COLORS["text_muted"],
         font=FONTS["small"],
-        padding=(PADDING["small"], PADDING["tiny"]),
-        relief="flat",
-        borderwidth=0,
     )
 
 
