@@ -141,6 +141,13 @@ def apply_theme(root):
         font=FONTS["small"],
     )
 
+    style.configure(
+        "Status.TLabel",
+        background=COLORS["background"],
+        foreground=COLORS["accent"],
+        font=FONTS["body_bold"],
+    )
+
     # Enhanced button styling
     style.configure(
         "TButton",
