@@ -10,7 +10,11 @@ from datetime import date, datetime, timezone
 from tkinter import ttk
 from typing import Any, Dict, List
 
-from src.core.config import get_timezone
+from src.core.config import (
+    DAYLIGHT_END_HOUR,
+    DAYLIGHT_START_HOUR,
+    get_timezone,
+)
 from src.core.evaluation import (
     _find_optimal_consistent_block,
     get_available_dates,
@@ -615,7 +619,7 @@ class WeatherHelperApp:
             return [
                 h
                 for h in hours_for_day
-                if 8 <= h.time.hour <= 20
+                if DAYLIGHT_START_HOUR <= h.time.hour <= DAYLIGHT_END_HOUR
                 and (
                     h.time.astimezone(local_tz) > now_local
                     or (
@@ -625,7 +629,11 @@ class WeatherHelperApp:
                 )
             ]
         else:
-            return [h for h in hours_for_day if 8 <= h.time.hour <= 20]
+            return [
+                h
+                for h in hours_for_day
+                if DAYLIGHT_START_HOUR <= h.time.hour <= DAYLIGHT_END_HOUR
+            ]
 
     def _get_location_details(self, loc_data: Dict) -> str:
         """Get formatted details for a location entry."""

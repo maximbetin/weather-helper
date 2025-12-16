@@ -13,6 +13,7 @@ from src.core.config import (
     DAYLIGHT_START_HOUR,
     FORECAST_DAYS,
     NumericType,
+    get_current_date,
     get_timezone,
     safe_average,
 )
@@ -283,7 +284,7 @@ def _process_timeseries(
 ) -> dict[date, list[HourlyWeather]]:
     """Process forecast timeseries data into a dictionary of daily forecasts."""
     daily_forecasts = defaultdict(list)
-    today = datetime.now().date()
+    today = get_current_date()
     end_date = today + timedelta(days=FORECAST_DAYS)
 
     for entry in forecast_timeseries:
@@ -506,7 +507,7 @@ def get_top_locations_for_date(
                     h
                     for h in hours_for_day
                     if (
-                        8 <= h.hour <= 20
+                        DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
                         and (
                             h.time.astimezone(local_tz) > now_local
                             or (
@@ -517,7 +518,11 @@ def get_top_locations_for_date(
                     )
                 ]
             else:
-                filtered_hours = [h for h in hours_for_day if 8 <= h.hour <= 20]
+                filtered_hours = [
+                    h
+                    for h in hours_for_day
+                    if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
+                ]
 
             if not filtered_hours:
                 continue
