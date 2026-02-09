@@ -32,6 +32,7 @@ ASTURIAS_LOCATIONS: Dict[str, Location] = {
     "salinas": Location("salinas", "Salinas", 43.5753, -5.9585),
     "cudillero": Location("cudillero", "Cudillero", 43.5629, -6.1453),
     "ribadesella": Location("ribadesella", "Ribadesella", 43.4631, -5.0567),
+    "cangas_de_onis": Location("cangas_de_onis", "Cangas de Onís", 43.3514, -5.1292),
 }
 
 # Rest of Spain
@@ -62,6 +63,12 @@ WORLDWIDE_OTHER_LOCATIONS: Dict[str, Location] = {
     "tokyo": Location("tokyo", "Tokyo", 35.6762, 139.6503),
     "berlin": Location("berlin", "Berlin", 52.5200, 13.4050),
     "rome": Location("rome", "Rome", 41.9028, 12.4964),
+    "amsterdam": Location("amsterdam", "Amsterdam", 52.3676, 4.9041),
+    "prague": Location("prague", "Prague", 50.0880, 14.4208),
+    "lisbon": Location("lisbon", "Lisbon", 38.7223, -9.1393),
+    "houston": Location("houston", "Houston", 29.7604, -95.3698),
+    "rio_de_janeiro": Location("rio_de_janeiro", "Rio de Janeiro", -22.9068, -43.1729),
+    "buenos_aires": Location("buenos_aires", "Buenos Aires", -34.6037, -58.3816),
 }
 
 # Combined lists

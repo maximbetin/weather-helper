@@ -34,5 +34,8 @@ def test_location_containment():
     # Check that we have the expected number of locations
     # Spain has 16 locations in OTHER list
     assert len(SPAIN_LOCATIONS) == 16 
-    # Worldwide has 6 OTHER locations + Madrid = 7
-    assert len(WORLDWIDE_LOCATIONS) == 7
+    # Worldwide has 12 OTHER locations + Madrid = 13
+    assert len(WORLDWIDE_LOCATIONS) == 13
+
+    # Asturias has 10 locations (previously 9)
+    assert len(ASTURIAS_LOCATIONS) == 10
