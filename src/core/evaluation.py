@@ -22,19 +22,26 @@ from src.core.models import DailyReport, HourlyWeather
 
 def _calculate_weather_averages(
     hours: list[HourlyWeather],
-) -> tuple[Optional[float], Optional[float], Optional[float]]:
-    """Calculate average temperature, wind speed, and humidity for a list of hours.
+) -> tuple[Optional[float], Optional[float], Optional[float], Optional[float]]:
+    """Calculate average temperature, wind speed, humidity, and precipitation for a list of hours.
 
     Args:
         hours: List of HourlyWeather objects
 
     Returns:
-        Tuple of (avg_temp, avg_wind, avg_humidity) or (None, None, None) if no valid data
+        Tuple of (avg_temp, avg_wind, avg_humidity, avg_precip) or (None, None, None, None)
     """
     temps = [h.temp for h in hours if h.temp is not None]
     winds = [h.wind for h in hours if h.wind is not None]
     humidities = [h.relative_humidity for h in hours if h.relative_humidity is not None]
-    return safe_average(temps), safe_average(winds), safe_average(humidities)
+    precips = [h.precipitation_amount for h in hours if h.precipitation_amount is not None]
+
+    return (
+        safe_average(temps),
+        safe_average(winds),
+        safe_average(humidities),
+        safe_average(precips)
+    )
 
 
 def _get_value_from_ranges(
@@ -393,7 +400,7 @@ def _find_consistent_blocks(
             # Check if block is consistent (low variance)
             if std_dev <= adjusted_variance_threshold:
                 # Calculate additional stats for the block
-                avg_temp, avg_wind, avg_humidity = _calculate_weather_averages(block)
+                avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages(block)
 
                 blocks.append(
                     {
@@ -407,6 +414,7 @@ def _find_consistent_blocks(
                         "temp": avg_temp,
                         "wind": avg_wind,
                         "humidity": avg_humidity,
+                        "precip": avg_precip,
                     }
                 )
 
@@ -561,7 +569,7 @@ def get_top_locations_for_date(
                 final_location_score = location_score  # No bonus for fallback case
 
                 # Create fallback optimal_block for details
-                avg_temp, avg_wind, avg_humidity = _calculate_weather_averages(
+                avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages(
                     filtered_hours
                 )
 
@@ -575,6 +583,7 @@ def get_top_locations_for_date(
                     "temp": avg_temp,
                     "wind": avg_wind,
                     "humidity": avg_humidity,
+                    "precip": avg_precip,
                 }
 
             results.append(
