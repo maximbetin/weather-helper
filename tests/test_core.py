@@ -290,34 +290,38 @@ def test_get_top_locations_for_date_no_matching_date():
 
 def test_normalize_score():
     """Test the score normalization logic."""
-    # Test key thresholds based on linear approximation: score * 4 + 8
-
+    # Test key thresholds based on piecewise linear mapping
+    
     # Max score
     assert normalize_score(23) == 100
     assert normalize_score(25) == 100  # Cap at 100
-
-    # Excellent threshold (18) -> 80
-    assert normalize_score(18) == 80
-
-    # Very Good threshold (13) -> 60
-    assert normalize_score(13) == 60
-
-    # Good threshold (7) -> 36
-    assert normalize_score(7) == 36
-
-    # Fair threshold (2) -> 16
-    assert normalize_score(2) == 16
-
+    
+    # Excellent threshold (18) -> 90
+    assert normalize_score(18) == 90
+    
+    # Very Good threshold (13) -> 80
+    assert normalize_score(13) == 80
+    
+    # Good threshold (7) -> 65
+    assert normalize_score(7) == 65
+    
+    # Fair threshold (2) -> 50
+    assert normalize_score(2) == 50
+    
     # Zero/Negative
-    assert normalize_score(-2) == 0  # Should be 0 (-2 * 4 + 8 = 0)
-    assert normalize_score(-10) == 0  # Cap at 0
-
+    # Score < 2: 50 + (score - 2) * 6
+    # -2 -> 50 + (-4)*6 = 26
+    assert normalize_score(-2) == 26
+    
+    # -10 -> 50 + (-12)*6 = -22 -> 0 (capped)
+    assert normalize_score(-10) == 0
+    
     # None
     assert normalize_score(None) == 0
-
-    # Test user reported values
-    # "17 out of 100" -> 17 raw score -> 17*4 + 8 = 76
-    assert normalize_score(17) == 76
-
-    # "3 out of 100" -> 3 raw score -> 3*4 + 8 = 20
-    assert normalize_score(3) == 20
+    
+    # Test user reported values with new logic
+    # "17" (Very Good) -> 80 + (17-13)*2 = 88
+    assert normalize_score(17) == 88
+    
+    # "3" (Fair) -> 50 + (3-2)*3 = 53
+    assert normalize_score(3) == 53

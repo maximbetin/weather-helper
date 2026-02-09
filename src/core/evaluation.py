@@ -221,17 +221,14 @@ def get_rating_info(score: Union[int, float, None]) -> str:
 
 
 def normalize_score(score: Union[int, float, None]) -> int:
-    """Normalize a raw score to a 0-100 scale.
+    """Normalize a raw score to a 0-100 scale using piecewise linear mapping.
 
     Mapping based on rating thresholds:
-    - Raw 23 (Max) -> 100
-    - Raw 18 (Excellent start) -> 80
-    - Raw 13 (Very Good start) -> 60
-    - Raw 7 (Good start) -> 36
-    - Raw 2 (Fair start) -> 16
-    - Raw < -2 -> 0
-
-    Formula approximation: score * 4 + 8
+    - Excellent (>= 18) -> 90-100
+    - Very Good (13-18) -> 80-90
+    - Good (7-13) -> 65-80
+    - Fair (2-7) -> 50-65
+    - Poor (< 2) -> < 50
 
     Args:
         score: Raw numeric score
@@ -241,12 +238,29 @@ def normalize_score(score: Union[int, float, None]) -> int:
     """
     if score is None:
         return 0
-    
-    # Linear approximation: score * 4 + 8
-    # 18 * 4 + 8 = 80
-    # 23 * 4 + 8 = 100
-    normalized = (score * 4) + 8
-    
+
+    if score >= 18:
+        # Map 18..23 to 90..100
+        # Slope: 10 / 5 = 2
+        normalized = 90 + (score - 18) * 2
+    elif score >= 13:
+        # Map 13..18 to 80..90
+        # Slope: 10 / 5 = 2
+        normalized = 80 + (score - 13) * 2
+    elif score >= 7:
+        # Map 7..13 to 65..80
+        # Slope: 15 / 6 = 2.5
+        normalized = 65 + (score - 7) * 2.5
+    elif score >= 2:
+        # Map 2..7 to 50..65
+        # Slope: 15 / 5 = 3
+        normalized = 50 + (score - 2) * 3
+    else:
+        # Map < 2 to < 50
+        # Slope: 50 / 8 = 6.25 (approx, mapping -6 to 0)
+        # Let's use 6 to be safe
+        normalized = 50 + (score - 2) * 6
+
     return max(0, min(100, int(round(normalized))))
 
 

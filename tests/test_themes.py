@@ -314,17 +314,6 @@ class TestApplyTheme:
 class TestThemeIntegration:
     """Integration tests for theme functionality."""
 
-    @pytest.fixture
-    def root(self):
-        """Create a real tkinter root for integration testing."""
-        root = tk.Tk()
-        root.withdraw()  # Hide the window
-        yield root
-        root.destroy()
-
-        # Verify root background was set
-        assert root.cget("background") == COLORS["background"]
-
     def test_theme_colors_valid(self):
         """Test that all theme colors are valid hex colors."""
         import re

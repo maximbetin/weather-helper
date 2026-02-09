@@ -129,17 +129,9 @@ def test_add_tooltip():
 class TestTooltipWidget:
     """Test tooltip widget behavior with a real tkinter widget."""
 
-    @pytest.fixture
-    def root(self):
-        """Create a temporary tkinter root for testing."""
-        root = tk.Tk()
-        root.withdraw()  # Hide the window
-        yield root
-        root.destroy()
-
-    def test_tooltip_widget_interaction(self, root):
+    def test_tooltip_widget_interaction(self, tk_root):
         """Test tooltip with actual tkinter widget."""
-        label = tk.Label(root, text="Test")
+        label = tk.Label(tk_root, text="Test")
         tooltip = ToolTip(label, "Test tooltip")
 
         # Test that tooltip_window starts as None
