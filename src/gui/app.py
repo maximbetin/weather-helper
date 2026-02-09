@@ -248,13 +248,50 @@ class WeatherHelperApp:
         self._update_displays()
 
     def _setup_side_panel(self):
-        """Setup the side panel."""
-        self.side_panel = ttk.Frame(
-            self.main_frame, style="Sidebar.TFrame", padding=PADDING["small"]
+        """Setup the side panel with scrollbar."""
+        # Main container for the side panel (Canvas + Scrollbar)
+        self.side_panel_container = ttk.Frame(
+            self.main_frame, style="Sidebar.TFrame"
         )
-        self.side_panel.grid(row=2, column=0, sticky="nsew", padx=(0, PADDING["small"]))
-        self.side_panel.columnconfigure(0, weight=1)
+        self.side_panel_container.grid(row=2, column=0, sticky="nsew", padx=(0, PADDING["small"]))
+        self.side_panel_container.columnconfigure(0, weight=1)
+        self.side_panel_container.rowconfigure(0, weight=1)
 
+        # Canvas for scrolling
+        canvas = tk.Canvas(self.side_panel_container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self.side_panel_container, orient="vertical", command=canvas.yview)
+
+        # Frame inside canvas
+        self.side_panel = ttk.Frame(canvas, style="Sidebar.TFrame", padding=PADDING["small"])
+
+        # Configure scrolling
+        self.side_panel.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        # Window inside canvas
+        canvas_frame = canvas.create_window((0, 0), window=self.side_panel, anchor="nw")
+
+        # Resize frame to match canvas width
+        def on_canvas_configure(event):
+            canvas.itemconfig(canvas_frame, width=event.width)
+
+        canvas.bind("<Configure>", on_canvas_configure)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Grid layout
+        canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+
+        # Mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        # Bind mousewheel to canvas and all its children
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        # Title
         title_label = ttk.Label(
             self.side_panel,
             text="Top 10 Locations",
@@ -302,7 +339,7 @@ class WeatherHelperApp:
                 foreground=COLORS["text_secondary"],
                 anchor="nw",
                 justify="left",
-                wraplength=280,
+                wraplength=260,  # Slightly reduced to account for scrollbar
             )
             details_label.grid(
                 row=2,
