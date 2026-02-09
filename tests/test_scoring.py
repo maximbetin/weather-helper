@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.evaluation import cloud_score, precip_amount_score, temp_score, wind_score
+from src.core.scoring import cloud_score, precip_amount_score, temp_score, wind_score
 
 
 @pytest.mark.parametrize(

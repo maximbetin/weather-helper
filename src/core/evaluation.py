@@ -6,18 +6,24 @@ Provides functions to process forecasts, evaluate time blocks, and rank location
 import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from src.core.config import (
     DAYLIGHT_END_HOUR,
     DAYLIGHT_START_HOUR,
     FORECAST_DAYS,
-    NumericType,
     get_current_date,
     get_timezone,
     safe_average,
 )
 from src.core.models import DailyReport, HourlyWeather
+from src.core.scoring import (
+    cloud_score,
+    humidity_score,
+    precip_amount_score,
+    temp_score,
+    wind_score,
+)
 
 
 def _calculate_weather_averages(
@@ -34,235 +40,16 @@ def _calculate_weather_averages(
     temps = [h.temp for h in hours if h.temp is not None]
     winds = [h.wind for h in hours if h.wind is not None]
     humidities = [h.relative_humidity for h in hours if h.relative_humidity is not None]
-    precips = [h.precipitation_amount for h in hours if h.precipitation_amount is not None]
+    precips = [
+        h.precipitation_amount for h in hours if h.precipitation_amount is not None
+    ]
 
     return (
         safe_average(temps),
         safe_average(winds),
         safe_average(humidities),
-        safe_average(precips)
+        safe_average(precips),
     )
-
-
-def _get_value_from_ranges(
-    value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False
-) -> Optional[Any]:
-    """Get a value from a list of ranges."""
-    if value is None or not isinstance(value, (int, float)):
-        return None
-
-    for range_tuple, result_value in ranges:
-        if range_tuple is None:  # Default case
-            return result_value
-        low, high = range_tuple
-        if inclusive:
-            if low <= value <= high:
-                return result_value
-        else:
-            if low <= value < high:
-                return result_value
-    return ranges[-1][1] if ranges and ranges[-1][0] is None else None
-
-
-def _calculate_score(
-    value: Optional[NumericType], ranges: list[tuple], inclusive: bool = False
-) -> int:
-    """Calculate score based on a value and a list of ranges."""
-    return _get_value_from_ranges(value, ranges, inclusive) or 0
-
-
-def temp_score(temp: Optional[NumericType]) -> int:
-    """Rate temperature for outdoor comfort on a scale of -15 to 8.
-
-    Args:
-        temp: Temperature in Celsius
-
-    Returns:
-        Integer score representing temperature comfort
-    """
-    temp_ranges = [
-        ((20, 24), 7),  # Ideal temperature range
-        ((17, 20), 6),  # Cool but very pleasant
-        ((24, 27), 6),  # Warm but very pleasant
-        ((15, 17), 4),  # Cool but comfortable
-        ((27, 30), 4),  # Warm but comfortable
-        ((10, 15), 2),  # Cool but acceptable
-        ((30, 33), 1),  # Hot but manageable
-        ((5, 10), -1),  # Cold
-        ((33, 36), -3),  # Very hot
-        ((0, 5), -6),  # Very cold
-        ((36, 40), -9),  # Extremely hot
-        ((-5, 0), -9),  # Extremely cold
-        (None, -15),  # Beyond extreme temperatures
-    ]
-    return _calculate_score(temp, temp_ranges, inclusive=True)
-
-
-def wind_score(wind_speed: Optional[NumericType]) -> int:
-    """Rate wind speed comfort on a scale of -8 to 2.
-
-    Args:
-        wind_speed: Wind speed in m/s
-
-    Returns:
-        Integer score representing wind comfort
-    """
-    wind_ranges = [
-        ((1, 3), 2),  # Light breeze - ideal for outdoor activities
-        ((0, 1), 1),  # Calm - good but can feel stuffy
-        ((3, 5), 0),  # Gentle breeze - neutral
-        ((5, 8), -2),  # Moderate breeze - noticeable but acceptable
-        ((8, 12), -4),  # Fresh breeze - can be challenging
-        ((12, 16), -6),  # Strong breeze - difficult for many activities
-        ((16, 20), -7),  # Near gale - very challenging
-        (None, -8),  # Gale and above - dangerous
-    ]
-    return _calculate_score(wind_speed, wind_ranges)
-
-
-def cloud_score(cloud_coverage: Optional[NumericType]) -> int:
-    """Rate cloud coverage for outdoor activities on a scale of -3 to 4.
-
-    Args:
-        cloud_coverage: Cloud coverage percentage (0-100)
-
-    Returns:
-        Integer score representing cloud cover impact
-    """
-    cloud_ranges = [
-        (
-            (10, 30),
-            4,
-        ),  # Few to scattered clouds - ideal (protection from sun, good visibility)
-        ((0, 10), 3),  # Clear skies - very good but can be hot
-        ((30, 60), 2),  # Partly cloudy - good conditions
-        ((60, 80), 0),  # Mostly cloudy - neutral
-        ((80, 95), -1),  # Very cloudy - slightly gloomy
-        (None, -3),  # Overcast - gloomy
-    ]
-    return _calculate_score(cloud_coverage, cloud_ranges)
-
-
-def precip_amount_score(amount: Optional[NumericType]) -> int:
-    """Rate precipitation amount on a scale of -15 to 5.
-
-    Args:
-        amount: Precipitation amount in millimeters
-
-    Returns:
-        Integer score representing precipitation amount impact
-    """
-    amount_ranges = [
-        ((0, 0), 5),  # No precipitation - best
-        ((0, 0.1), 4),  # Trace amounts - barely noticeable
-        ((0.1, 0.5), 2),  # Very light - minimal impact
-        ((0.5, 1.0), 0),  # Light drizzle - manageable
-        ((1.0, 2.5), -2),  # Light rain - needs preparation
-        ((2.5, 5.0), -4),  # Moderate rain - significant impact
-        ((5.0, 10.0), -6),  # Heavy rain - major impact
-        ((10.0, 20.0), -8),  # Very heavy rain - severe impact
-        (None, -12),  # Extreme precipitation - dangerous
-    ]
-    return _calculate_score(amount, amount_ranges, inclusive=True)
-
-
-def humidity_score(relative_humidity: Optional[NumericType]) -> int:
-    """Rate relative humidity for outdoor comfort on a scale of -4 to 3.
-
-    Designed for Asturias' humid maritime climate where moderate humidity is common
-    and expected, but extreme humidity can significantly impact comfort.
-
-    Args:
-        relative_humidity: Relative humidity percentage (0-100)
-
-    Returns:
-        Integer score representing humidity comfort
-    """
-    humidity_ranges = [
-        ((40, 60), 3),  # Ideal humidity range - very comfortable
-        ((30, 40), 2),  # Low humidity - good but can feel dry
-        ((60, 70), 1),  # Moderate humidity - acceptable, typical for Asturias
-        ((20, 30), 0),  # Very low humidity - neutral
-        ((70, 80), 0),  # High humidity - neutral, common in maritime climates
-        ((80, 85), -1),  # Very high humidity - noticeable discomfort
-        ((15, 20), -1),  # Very low humidity - can cause dryness
-        ((85, 90), -2),  # Extremely high humidity - significant discomfort
-        ((10, 15), -2),  # Extremely low humidity - can cause irritation
-        ((90, 95), -3),  # Near saturation - very uncomfortable
-        ((5, 10), -3),  # Near zero - very uncomfortable
-        (None, -4),  # Beyond extreme humidity levels
-    ]
-    return _calculate_score(relative_humidity, humidity_ranges, inclusive=True)
-
-
-def get_rating_info(score: Union[int, float, None]) -> str:
-    """Return standardized rating description based on score.
-
-    Args:
-        score: Numeric score to convert to rating
-
-    Returns:
-        Rating text (e.g., 'Excellent', 'Good', etc.)
-    """
-    if score is None:
-        return "N/A"
-
-    rating_ranges = [
-        (
-            (18.0, float("inf")),
-            "Excellent",
-        ),  # 78% of max (23 points) - truly exceptional
-        ((13.0, 18.0), "Very Good"),  # 57-78% of max - genuinely good
-        ((7.0, 13.0), "Good"),  # 30-57% of max - decent conditions
-        ((2.0, 7.0), "Fair"),  # 9-30% of max - marginal conditions
-        (None, "Poor"),  # Below 2.0 is poor
-    ]
-    return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
-
-
-def normalize_score(score: Union[int, float, None]) -> int:
-    """Normalize a raw score to a 0-100 scale using piecewise linear mapping.
-
-    Mapping based on rating thresholds:
-    - Excellent (>= 18) -> 90-100
-    - Very Good (13-18) -> 80-90
-    - Good (7-13) -> 65-80
-    - Fair (2-7) -> 50-65
-    - Poor (< 2) -> < 50
-
-    Args:
-        score: Raw numeric score
-
-    Returns:
-        Normalized integer score (0-100)
-    """
-    if score is None:
-        return 0
-
-    if score >= 18:
-        # Map 18..23 to 90..100
-        # Slope: 10 / 5 = 2
-        normalized = 90 + (score - 18) * 2
-    elif score >= 13:
-        # Map 13..18 to 80..90
-        # Slope: 10 / 5 = 2
-        normalized = 80 + (score - 13) * 2
-    elif score >= 7:
-        # Map 7..13 to 65..80
-        # Slope: 15 / 6 = 2.5
-        normalized = 65 + (score - 7) * 2.5
-    elif score >= 2:
-        # Map 2..7 to 50..65
-        # Slope: 15 / 5 = 3
-        normalized = 50 + (score - 2) * 3
-    else:
-        # Map < 2 to < 50
-        # Slope: 50 / 8 = 6.25 (approx, mapping -6 to 0)
-        # Let's use 6 to be safe
-        normalized = 50 + (score - 2) * 6
-
-    return max(0, min(100, int(round(normalized))))
-
 
 
 def find_optimal_weather_block(
@@ -445,7 +232,9 @@ def _find_consistent_blocks(
             # Check if block is consistent (low variance)
             if std_dev <= adjusted_variance_threshold:
                 # Calculate additional stats for the block
-                avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages(block)
+                avg_temp, avg_wind, avg_humidity, avg_precip = (
+                    _calculate_weather_averages(block)
+                )
 
                 blocks.append(
                     {
@@ -597,55 +386,26 @@ def get_top_locations_for_date(
                 elif duration == 3:
                     duration_bonus_multiplier = 1.2  # Small bonus for 3-hour blocks
                 elif duration == 2:
-                    duration_bonus_multiplier = (
-                        1.1  # Very small bonus for 2-hour blocks
-                    )
+                    duration_bonus_multiplier = 1.1  # Slight bonus for 2-hour blocks
 
-                # Apply the duration bonus to the location score for ranking
-                final_location_score = location_score * duration_bonus_multiplier
-
-            else:
-                # Fallback: use simple average if no consistent block found
-                location_score = sum(h.total_score for h in filtered_hours) / len(
-                    filtered_hours
-                )
-                duration = len(filtered_hours)
-                consistency = 0.5
-                final_location_score = location_score  # No bonus for fallback case
-
-                # Create fallback optimal_block for details
-                avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages(
-                    filtered_hours
+                # Combine score, duration bonus, and consistency
+                # We want score to be the dominant factor, but duration to help tie-break
+                final_score = (
+                    location_score * duration_bonus_multiplier * (0.9 + consistency * 0.1)
                 )
 
-                optimal_block = {
-                    "block": filtered_hours,
-                    "start": filtered_hours[0].time,
-                    "end": filtered_hours[-1].time,
-                    "avg_score": location_score,
-                    "duration": duration,
-                    "consistency": consistency,
-                    "temp": avg_temp,
-                    "wind": avg_wind,
-                    "humidity": avg_humidity,
-                    "precip": avg_precip,
-                }
+                results.append(
+                    {
+                        "location_key": loc_key,
+                        "location_name": report.location_name,
+                        "score": final_score,
+                        "raw_score": location_score,
+                        "optimal_block": optimal_block,
+                        "weather_desc": report.weather_description,
+                    }
+                )
 
-            results.append(
-                {
-                    "location_key": loc_key,
-                    "location_name": getattr(report, "location_name", loc_key),
-                    "avg_score": final_location_score,  # Use the duration-boosted score for ranking
-                    "combined_score": final_location_score,  # Same as avg for consistency
-                    "min_temp": getattr(report, "min_temp", None),
-                    "max_temp": getattr(report, "max_temp", None),
-                    "weather_description": getattr(report, "weather_description", ""),
-                    "optimal_block": optimal_block,
-                    "duration": duration,
-                    "consistency": consistency,
-                }
-            )
+    # Sort by score descending
+    results.sort(key=lambda x: x["score"], reverse=True)
 
-    # Sort by the final location score (which includes duration bonuses)
-    results.sort(key=lambda x: x["avg_score"], reverse=True)
     return results[:top_n]

@@ -90,22 +90,35 @@ class DailyReport:
 
     def _calculate_all_stats(self) -> None:
         """Calculate all statistics in a single pass through the data."""
-        self.likely_rain_hours = sum(
-            1
-            for hour in self.daylight_hours
-            if isinstance(hour.precipitation_amount, (int, float))
-            and hour.precipitation_amount > 0.5
-        )
+        rain_hours = 0
+        total_score = 0
+        valid_temps = []
 
-        valid_temps = [
-            hour.temp for hour in self.daylight_hours if hour.temp is not None
-        ]
+        for hour in self.daylight_hours:
+            # Rain calculation
+            if (
+                isinstance(hour.precipitation_amount, (int, float))
+                and hour.precipitation_amount > 0.5
+            ):
+                rain_hours += 1
 
-        total_score = sum(hour.total_score for hour in self.daylight_hours)
+            # Temp collection
+            if hour.temp is not None:
+                valid_temps.append(hour.temp)
 
-        self.min_temp = min(valid_temps) if valid_temps else None
-        self.max_temp = max(valid_temps) if valid_temps else None
-        self.avg_temp = safe_average(valid_temps)
+            # Score summation
+            total_score += hour.total_score
+
+        self.likely_rain_hours = rain_hours
+
+        if valid_temps:
+            self.min_temp = min(valid_temps)
+            self.max_temp = max(valid_temps)
+            self.avg_temp = safe_average(valid_temps)
+        else:
+            self.min_temp = None
+            self.max_temp = None
+            self.avg_temp = None
 
         num_hours = len(self.daylight_hours)
         self.avg_score = total_score / num_hours if num_hours > 0 else 0

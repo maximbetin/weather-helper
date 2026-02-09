@@ -18,12 +18,11 @@ from src.core.config import (
 from src.core.evaluation import (
     _find_optimal_consistent_block,
     get_available_dates,
-    get_rating_info,
     get_time_blocks_for_date,
     get_top_locations_for_date,
     process_forecast,
-    normalize_score,
 )
+from src.core.scoring import get_rating_info, normalize_score
 from src.core.locations import LOCATIONS, LOCATION_GROUPS
 from src.core.weather_api import fetch_weather_data
 from src.gui.formatting import add_tooltip, format_date
@@ -670,7 +669,7 @@ class WeatherHelperApp:
         rank_label.config(text=f"#{rank}")
         name_label.config(text=loc_data["location_name"])
 
-        total_score = loc_data["avg_score"]
+        total_score = loc_data.get("raw_score", loc_data.get("avg_score", 0))
         rating = get_rating_info(total_score)
         color = get_rating_color(rating)
 
@@ -694,12 +693,6 @@ class WeatherHelperApp:
             wind_val = best_block.get("wind")
             precip_val = best_block.get("precip")
 
-            details = (
-                f"Best time: {start_str} - {end_str}\n"
-                f"Temp: {temp_val:.1f}°C" if temp_val is not None else "Temp: N/A\n"
-                f"Wind: {wind_val:.1f} km/h\n" if wind_val is not None else "Wind: N/A\n"
-                f"Rain: {precip_val:.1f} mm" if precip_val is not None else "Rain: 0.0 mm"
-            )
             # Fix newline formatting in ternary
             details = (
                 f"Best time: {start_str} - {end_str}\n" +
