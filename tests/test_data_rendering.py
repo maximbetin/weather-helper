@@ -1,30 +1,12 @@
 import pytest
-import tkinter as tk
-from tkinter import ttk
 from unittest.mock import MagicMock, patch
 from datetime import datetime, date
 
-from src.gui.app import WeatherHelperApp
 from src.core.models import HourlyWeather
-from src.core.evaluation import get_rating_info
 
-class MockApp(WeatherHelperApp):
-    def __init__(self):
-        # Skip super init to avoid creating full Tkinter window
-        self.show_scores = MagicMock()
-        self.show_scores.get.return_value = True
-        self.main_table = MagicMock()
-        self.status_label = MagicMock()  # Add status_label mock
-        self.side_panel_entries = []
 
-        # Create mock labels for side panel
-        for _ in range(1):
-            self.side_panel_entries.append((
-                MagicMock(), MagicMock(), MagicMock(), MagicMock()
-            ))
-
-def test_populate_location_entry():
-    app = MockApp()
+def test_populate_location_entry(mock_app):
+    app = mock_app
 
     # Create sample data matching what get_top_locations_for_date returns
     loc_data = {
@@ -54,8 +36,8 @@ def test_populate_location_entry():
     assert "85.5" in score_args['text']
     assert "Excellent" in score_args['text'] or "Very Good" in score_args['text'] # Depending on threshold
 
-def test_update_main_table_rendering():
-    app = MockApp()
+def test_update_main_table_rendering(mock_app, create_hour):
+    app = mock_app
     app.selected_location_key = "test_loc"
     app.selected_date = date(2023, 1, 1)
 
@@ -63,20 +45,17 @@ def test_update_main_table_rendering():
     # We need a structure that get_time_blocks_for_date can consume
     # It takes a processed dict with "daily_forecasts"
 
-    # Create a real HourlyWeather object
-    hw = HourlyWeather(
+    # Create a real HourlyWeather object using helper
+    hw = create_hour(
         time=datetime(2023, 1, 1, 12, 0),
+        total_score=20, # 5+5+5+5
         temp=20.0,
-        wind=10.0,
-        cloud_coverage=50.0,
-        precipitation_amount=0.0,
-        relative_humidity=60.0,
-        temp_score=5,
-        wind_score=5,
-        cloud_score=5,
-        precip_amount_score=5,
-        humidity_score=5
+        wind=10.0
     )
+    # create_hour defaults: temp=20, wind=1. We override wind.
+    # We also need to set specific fields if the test checks them.
+    # The test checks: values[1] == "20.0°C", values[4] == "0.0 mm"
+    # create_hour sets precip=0.0 by default.
 
     processed_data = {
         "daily_forecasts": {
@@ -87,9 +66,6 @@ def test_update_main_table_rendering():
     app.all_location_processed = {"test_loc": processed_data}
 
     # Mock get_time_blocks_for_date to return our list directly
-    # Or rely on the real implementation if imported.
-    # Since we imported WeatherHelperApp, it uses the real imports.
-
     with patch('src.gui.app.get_time_blocks_for_date', return_value=[hw]):
         app._update_main_table()
 

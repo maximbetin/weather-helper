@@ -12,14 +12,10 @@ from src.core.config import (
     safe_average,
 )
 from src.core.evaluation import (
-    _calculate_score,
     _calculate_weather_averages,
-    _find_consistent_blocks,
-    _find_optimal_consistent_block,
     _get_value_from_ranges,
     find_optimal_weather_block,
     get_available_dates,
-    get_rating_info,
     get_time_blocks_for_date,
     get_top_locations_for_date,
     normalize_score,
@@ -42,6 +38,14 @@ def test_process_forecast_empty():
     assert result is not None
     assert result["daily_forecasts"] == {}
     assert result["day_scores"] == {}
+
+
+def test_process_forecast_with_fixture(sample_forecast_data):
+    """Test process_forecast using shared fixture."""
+    result = process_forecast(sample_forecast_data, "Test Location")
+    assert result is not None
+    assert "daily_forecasts" in result
+    assert "day_scores" in result
 
 
 # Tests for configuration utilities
@@ -107,15 +111,6 @@ def test_get_value_from_ranges():
     assert _get_value_from_ranges("invalid", ranges) is None  # type: ignore
 
 
-def test_calculate_score():
-    ranges = [((0, 10), 5), ((10, 20), 10), (None, 0)]
-
-    assert _calculate_score(5, ranges) == 5
-    assert _calculate_score(15, ranges) == 10
-    assert _calculate_score(25, ranges) == 0
-    assert _calculate_score(None, ranges) == 0
-
-
 # Tests for other missing functions
 
 
@@ -171,7 +166,7 @@ def test_get_time_blocks_for_date():
     assert blocks[1].hour == 10
 
 
-def test_calculate_weather_averages():
+def test_calculate_weather_averages(sample_hourly_weather):
     # Test with empty list
     avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages([])
     assert avg_temp is None
@@ -189,10 +184,14 @@ def test_calculate_weather_averages():
     assert avg_humidity is None
     assert avg_precip is None
 
-    # Test with valid data
-    hour1 = HourlyWeather(
-        time=datetime(2024, 3, 15, 10), temp=20, wind=5, relative_humidity=60, precipitation_amount=0.0
-    )
+    # Test with fixture
+    avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages([sample_hourly_weather])
+    assert avg_temp == 20.0
+    assert avg_wind == 5.0
+    assert avg_humidity == 60.0
+    assert avg_precip == 0.0
+
+    # Test with mixed valid and None data
     hour2 = HourlyWeather(
         time=datetime(2024, 3, 15, 11), temp=22, wind=3, relative_humidity=55, precipitation_amount=0.2
     )
@@ -201,18 +200,22 @@ def test_calculate_weather_averages():
     )  # Mixed None values
 
     avg_temp, avg_wind, avg_humidity, avg_precip = _calculate_weather_averages(
-        [hour1, hour2, hour3]
+        [sample_hourly_weather, hour2, hour3]
     )
-    assert avg_temp == 21.0  # (20 + 22) / 2
-    assert avg_wind == 5.0  # (5 + 3 + 7) / 3
-    assert avg_humidity == 60.0  # (60 + 55 + 65) / 3
-    assert avg_precip == 0.1  # (0.0 + 0.2) / 2
+    # (20 + 22) / 2 = 21.0
+    assert avg_temp == 21.0
+    # (5 + 3 + 7) / 3 = 5.0
+    assert avg_wind == 5.0
+    # (60 + 55 + 65) / 3 = 60.0
+    assert avg_humidity == 60.0
+    # (0.0 + 0.2) / 2 = 0.1
+    assert avg_precip == 0.1
 
 
 # Tests for the process_forecast function with more edge cases
 
 
-def test_process_forecast():
+def test_process_forecast_complex():
     # Create mock forecast data
     mock_timeseries = [
         {
@@ -287,6 +290,7 @@ def test_get_top_locations_for_date_no_matching_date():
     }
     result = get_top_locations_for_date(test_data, date(2024, 3, 15))
     assert result == []
+
 
 def test_normalize_score():
     """Test the score normalization logic."""

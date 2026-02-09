@@ -1,28 +1,12 @@
 from datetime import datetime, timedelta
 
 from src.core.evaluation import find_optimal_weather_block
-from src.core.models import HourlyWeather
-
-# Helper to create an HourlyWeather object
-
-
-def create_hour(time, total_score, temp=20, wind=1):
-    # Create HourlyWeather with scores that sum to total_score
-    return HourlyWeather(
-        time=time,
-        temp=temp,
-        wind=wind,
-        temp_score=total_score // 4,
-        wind_score=total_score // 4,
-        cloud_score=total_score // 4,
-        precip_amount_score=total_score - (3 * (total_score // 4)),
-    )
 
 
 # Test cases for find_optimal_weather_block
 
 
-def test_find_optimal_block_with_clear_winner():
+def test_find_optimal_block_with_clear_winner(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [
         create_hour(base_time, 5),
@@ -49,7 +33,7 @@ def test_find_optimal_block_with_clear_winner():
     )  # May select different block due to duration requirement
 
 
-def test_find_optimal_block_with_long_good_block():
+def test_find_optimal_block_with_long_good_block(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [
         create_hour(base_time, 8),
@@ -74,7 +58,7 @@ def test_find_optimal_block_with_long_good_block():
     assert result["avg_score"] >= 9  # Should still select good quality hours
 
 
-def test_find_optimal_block_with_no_good_blocks():
+def test_find_optimal_block_with_no_good_blocks(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [
         create_hour(base_time, -2),
@@ -89,7 +73,7 @@ def test_find_optimal_block_with_no_good_blocks():
     assert result is None  # Should still return None as no good blocks exist
 
 
-def test_find_optimal_block_with_single_best_hour():
+def test_find_optimal_block_with_single_best_hour(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [
         create_hour(base_time, 2),
@@ -115,7 +99,7 @@ def test_find_optimal_block_empty_input():
     assert result is None
 
 
-def test_find_optimal_block_short_good_block():
+def test_find_optimal_block_short_good_block(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [create_hour(base_time, 8), create_hour(base_time + timedelta(hours=1), 9)]
     result = find_optimal_weather_block(hours)
