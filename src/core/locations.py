@@ -33,6 +33,8 @@ ASTURIAS_LOCATIONS: Dict[str, Location] = {
     "cudillero": Location("cudillero", "Cudillero", 43.5629, -6.1453),
     "ribadesella": Location("ribadesella", "Ribadesella", 43.4631, -5.0567),
     "cangas_de_onis": Location("cangas_de_onis", "Cangas de Onís", 43.3514, -5.1292),
+    "villaviciosa": Location("villaviciosa", "Villaviciosa", 43.4814, -5.4356),
+    "lastres": Location("lastres", "Lastres", 43.5135, -5.2696),
 }
 
 # Rest of Spain
