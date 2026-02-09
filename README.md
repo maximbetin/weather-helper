@@ -4,21 +4,16 @@
 
 ## Overview
 
-The Weather Helper is a desktop application that provides detailed weather forecasts for various
-locations. It allows users to compare weather conditions across multiple locations and find the best
-time for outdoor activities.
+The Weather Helper is a desktop application that provides detailed weather forecasts and analysis for optimal trip planning. It allows users to compare weather conditions across multiple regions (Europe, Americas, etc.) and automatically identifies the best time blocks for outdoor activities using a sophisticated scoring system.
 
 ## Features
 
-- **Detailed Hourly Forecasts**: Get detailed hourly weather information, including temperature,
-  wind speed, cloud coverage, precipitation amount, and relative humidity.
-- **Location Comparison**: Compare weather forecasts for multiple locations side-by-side.
-- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities
-  based on a comprehensive scoring system that considers temperature, wind, clouds, precipitation,
-  and humidity.
-- **Clean and Intuitive Interface**: A user-friendly graphical interface built with Tkinter.
-- **Comprehensive Data Display**: View all weather parameters including humidity in an organized
-  table format.
+- **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, and relative humidity.
+- **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
+- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a weighted scoring system.
+- **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
+- **Clean Interface**: A user-friendly GUI built with Tkinter, featuring responsive layouts and scrollable panels for easy navigation.
+- **Data Export**: Ability to view and analyze weather parameters in an organized format.
 
 ## Installation and Usage
 
@@ -57,10 +52,9 @@ pytest
 ```
 
 The test suite includes:
-
-- Unit tests for core functionality
-- API integration tests (mocked)
-- Data processing tests
+- Unit tests for core business logic (scoring, models)
+- GUI logic tests
+- Integration tests for data processing
 
 ## Building Executables
 
@@ -71,16 +65,6 @@ pyinstaller --onefile --windowed weather_helper.py
 ```
 
 The executable will be created in the `dist` directory.
-
-## CI/CD Pipeline
-
-The project uses GitHub Actions for continuous integration and deployment:
-
-- Tests are run on every commit
-- When a commit is pushed to main:
-  - Tests are run on Windows
-  - Executables are built for Windows
-  - A new release is created with the executables
 
 ## Project Structure
 
@@ -98,7 +82,8 @@ weather-helper/
 
 - **`src/core/config.py`**: Configuration constants and utility functions
 - **`src/core/models.py`**: Data models (HourlyWeather, DailyReport)
-- **`src/core/evaluation.py`**: Weather scoring and analysis logic
+- **`src/core/scoring.py`**: Centralized weather scoring logic and range definitions
+- **`src/core/evaluation.py`**: Weather evaluation and analysis logic
 - **`src/core/weather_api.py`**: API integration for weather data
 - **`src/core/locations.py`**: Location definitions and management
 - **`src/gui/app.py`**: Main application window and logic
@@ -107,8 +92,7 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor
-activities. Each hour receives a total score based on five key factors.
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor activities. Each hour receives a total score based on five key factors.
 
 ### Individual Component Scores
 
@@ -157,25 +141,25 @@ Evaluates sky conditions for outdoor activities:
 | 80-95%         | -1    | Very cloudy                     |
 | 95-100%        | -3    | Overcast                        |
 
-#### 4. Precipitation Score (-15 to +5 points)
+#### 4. Precipitation Score (-12 to +5 points)
 
 Assesses precipitation impact on outdoor activities:
 
 | Precipitation (mm) | Score | Description           |
 | ------------------ | ----- | --------------------- |
 | 0 mm               | +5    | No precipitation      |
-| 0-0.1 mm           | +3    | Trace amounts         |
-| 0.1-0.5 mm         | 0     | Very light            |
-| 0.5-1.0 mm         | -2    | Light drizzle         |
-| 1.0-2.5 mm         | -5    | Light rain            |
-| 2.5-5.0 mm         | -8    | Moderate rain         |
-| 5.0-10.0 mm        | -11   | Heavy rain            |
-| 10.0-20.0 mm       | -13   | Very heavy rain       |
-| >20.0 mm           | -15   | Extreme precipitation |
+| 0-0.1 mm           | +4    | Trace amounts         |
+| 0.1-0.5 mm         | +2    | Very light            |
+| 0.5-1.0 mm         | 0     | Light drizzle         |
+| 1.0-2.5 mm         | -2    | Light rain            |
+| 2.5-5.0 mm         | -4    | Moderate rain         |
+| 5.0-10.0 mm        | -6    | Heavy rain            |
+| 10.0-20.0 mm       | -8    | Very heavy rain       |
+| >20.0 mm           | -12   | Extreme precipitation |
 
 #### 5. Humidity Score (-4 to +3 points)
 
-Evaluates relative humidity comfort, optimized for maritime climates like Asturias:
+Evaluates relative humidity comfort:
 
 | Relative Humidity | Score | Description                    |
 | ----------------- | ----- | ------------------------------ |
@@ -212,12 +196,11 @@ The total scores are converted to descriptive ratings:
 
 ### Optimal Weather Block Detection
 
-The application also identifies the best continuous time periods:
+The application identifies the best continuous time periods for outdoor activities by:
 
-1. **Quality Filter**: Only considers hours with non-negative scores for multi-hour blocks
-2. **Duration Bonus**: Longer consistent periods receive logarithmic bonuses
-3. **Consistency Check**: Prioritizes blocks with stable scores (low variance)
-4. **Combined Scoring**: Balances quality, duration, and consistency
+1. **Filtering**: Only considering hours with non-negative scores.
+2. **Duration Bonuses**: Rewarding longer consistent periods of good weather.
+3. **Consistency Checks**: Prioritizing blocks with stable scores.
+4. **Combined Scoring**: Balancing quality, duration, and consistency.
 
-This system helps users find not just good individual hours, but sustained periods of favorable
-weather for extended outdoor activities.
+This ensures users find sustained periods of favorable weather rather than just isolated good hours.
