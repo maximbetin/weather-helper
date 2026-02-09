@@ -22,6 +22,7 @@ from src.core.evaluation import (
     get_time_blocks_for_date,
     get_top_locations_for_date,
     process_forecast,
+    normalize_score,
 )
 from src.core.locations import LOCATIONS, LOCATION_GROUPS
 from src.core.weather_api import fetch_weather_data
@@ -673,8 +674,12 @@ class WeatherHelperApp:
         rating = get_rating_info(total_score)
         color = get_rating_color(rating)
 
-        score_text = f"Score: {total_score:.1f}/100"
+        normalized = normalize_score(total_score)
+        score_text = f"Score: {normalized}/100"
+
         if self.show_scores.get():
+            score_text += f" (Raw: {total_score:.1f}, {rating})"
+        else:
             score_text += f" ({rating})"
 
         score_label.config(text=score_text, foreground=color)

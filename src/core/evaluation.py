@@ -220,6 +220,37 @@ def get_rating_info(score: Union[int, float, None]) -> str:
     return _get_value_from_ranges(score, rating_ranges, inclusive=False) or "N/A"
 
 
+def normalize_score(score: Union[int, float, None]) -> int:
+    """Normalize a raw score to a 0-100 scale.
+
+    Mapping based on rating thresholds:
+    - Raw 23 (Max) -> 100
+    - Raw 18 (Excellent start) -> 80
+    - Raw 13 (Very Good start) -> 60
+    - Raw 7 (Good start) -> 36
+    - Raw 2 (Fair start) -> 16
+    - Raw < -2 -> 0
+
+    Formula approximation: score * 4 + 8
+
+    Args:
+        score: Raw numeric score
+
+    Returns:
+        Normalized integer score (0-100)
+    """
+    if score is None:
+        return 0
+    
+    # Linear approximation: score * 4 + 8
+    # 18 * 4 + 8 = 80
+    # 23 * 4 + 8 = 100
+    normalized = (score * 4) + 8
+    
+    return max(0, min(100, int(round(normalized))))
+
+
+
 def find_optimal_weather_block(
     hours: list[HourlyWeather], min_duration: int = 1
 ) -> Optional[dict[str, Any]]:

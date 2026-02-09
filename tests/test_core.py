@@ -14,11 +14,15 @@ from src.core.config import (
 from src.core.evaluation import (
     _calculate_score,
     _calculate_weather_averages,
+    _find_consistent_blocks,
+    _find_optimal_consistent_block,
     _get_value_from_ranges,
     find_optimal_weather_block,
     get_available_dates,
+    get_rating_info,
     get_time_blocks_for_date,
     get_top_locations_for_date,
+    normalize_score,
     process_forecast,
 )
 from src.core.models import HourlyWeather
@@ -283,3 +287,37 @@ def test_get_top_locations_for_date_no_matching_date():
     }
     result = get_top_locations_for_date(test_data, date(2024, 3, 15))
     assert result == []
+
+def test_normalize_score():
+    """Test the score normalization logic."""
+    # Test key thresholds based on linear approximation: score * 4 + 8
+
+    # Max score
+    assert normalize_score(23) == 100
+    assert normalize_score(25) == 100  # Cap at 100
+
+    # Excellent threshold (18) -> 80
+    assert normalize_score(18) == 80
+
+    # Very Good threshold (13) -> 60
+    assert normalize_score(13) == 60
+
+    # Good threshold (7) -> 36
+    assert normalize_score(7) == 36
+
+    # Fair threshold (2) -> 16
+    assert normalize_score(2) == 16
+
+    # Zero/Negative
+    assert normalize_score(-2) == 0  # Should be 0 (-2 * 4 + 8 = 0)
+    assert normalize_score(-10) == 0  # Cap at 0
+
+    # None
+    assert normalize_score(None) == 0
+
+    # Test user reported values
+    # "17 out of 100" -> 17 raw score -> 17*4 + 8 = 76
+    assert normalize_score(17) == 76
+
+    # "3 out of 100" -> 3 raw score -> 3*4 + 8 = 20
+    assert normalize_score(3) == 20
