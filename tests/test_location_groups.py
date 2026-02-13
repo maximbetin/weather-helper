@@ -32,8 +32,8 @@ def test_location_containment():
     assert spain_keys_in_worldwide == ["madrid"]
 
     # Check that we have the expected number of locations
-    # Spain has 16 locations in OTHER list
-    assert len(SPAIN_LOCATIONS) == 16
+    # Spain has 19 locations in OTHER list (previously 16)
+    assert len(SPAIN_LOCATIONS) == 19 
     # Worldwide has 12 OTHER locations + Madrid = 13
     assert len(WORLDWIDE_LOCATIONS) == 13
 

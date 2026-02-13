@@ -55,6 +55,9 @@ SPAIN_OTHER_LOCATIONS: Dict[str, Location] = {
     "tenerife": Location("tenerife", "Tenerife (Santa Cruz)", 28.4636, -16.2518),
     "las_palmas": Location("las_palmas", "Las Palmas de Gran Canaria", 28.1235, -15.4363),
     "almeria": Location("almeria", "Almería", 36.8300, -2.4300),
+    "salobrena": Location("salobrena", "Salobreña", 36.7432, -3.5866),
+    "almunecar": Location("almunecar", "Almuñécar", 36.7339, -3.6907),
+    "motril": Location("motril", "Motril", 36.7460, -3.5204),
 }
 
 # Worldwide
