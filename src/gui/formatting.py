@@ -130,6 +130,13 @@ def format_percentage(value: Optional[NumericType], suffix: str = "%") -> str:
     return "N/A"
 
 
+def format_precipitation(amount: Optional[NumericType], unit: str = " mm") -> str:
+    """Format precipitation amount with the app's dry-hour fallback."""
+    if amount is not None:
+        return f"{amount:.1f}{unit}"
+    return f"0.0{unit}"
+
+
 def format_wind_speed(speed: Optional[NumericType], unit: str = " m/s") -> str:
     """Format wind speed with proper unit and fallback.
 

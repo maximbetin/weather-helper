@@ -12,6 +12,7 @@ from src.gui.formatting import (
     format_date,
     format_duration,
     format_percentage,
+    format_precipitation,
     format_temperature,
     format_time,
     format_wind_speed,
@@ -42,6 +43,14 @@ def test_format_percentage_additional():
     assert format_percentage(99.9) == "100%"
     assert format_percentage(0.1) == "0%"
     assert format_percentage(50.5) == "50%"  # Tests rounding (rounds to nearest even)
+
+
+def test_format_precipitation():
+    """Test precipitation formatting."""
+    assert format_precipitation(0) == "0.0 mm"
+    assert format_precipitation(1.25) == "1.2 mm"
+    assert format_precipitation(None) == "0.0 mm"
+    assert format_precipitation(2, " inches") == "2.0 inches"
 
 
 def test_format_wind_speed():

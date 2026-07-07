@@ -224,6 +224,12 @@ RATING_RANGES_BY_PROFILE = {
     ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
 }
 
+# excellent, very_good, good, fair, max_expected, poor_slope
+NORMALIZATION_CONFIG_BY_PROFILE = {
+    ACTIVITY_HIKING: (18, 13, 7, 2, 23, 6),
+    ACTIVITY_BEACH_DAY: (22, 17, 11, 5, 26, 5),
+}
+
 
 # --- Scoring Functions ---
 
@@ -408,10 +414,12 @@ def normalize_score(
     if score is None:
         return 0
 
-    if profile_key == ACTIVITY_BEACH_DAY:
-        excellent, very_good, good, fair, max_expected = 22, 17, 11, 5, 26
-    else:
-        excellent, very_good, good, fair, max_expected = 18, 13, 7, 2, 23
+    excellent, very_good, good, fair, max_expected, poor_slope = (
+        NORMALIZATION_CONFIG_BY_PROFILE.get(
+            profile_key,
+            NORMALIZATION_CONFIG_BY_PROFILE[DEFAULT_ACTIVITY_PROFILE],
+        )
+    )
 
     if score >= excellent:
         normalized = 90 + (score - excellent) * (10 / (max_expected - excellent))
@@ -422,7 +430,6 @@ def normalize_score(
     elif score >= fair:
         normalized = 50 + (score - fair) * (15 / (good - fair))
     else:
-        poor_slope = 5 if profile_key == ACTIVITY_BEACH_DAY else 6
         normalized = 50 + (score - fair) * poor_slope
 
     return max(0, min(100, int(round(normalized))))

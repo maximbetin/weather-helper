@@ -80,6 +80,44 @@ def _are_adjacent_forecast_hours(
     return timedelta(minutes=50) <= delta <= timedelta(minutes=70)
 
 
+def _get_period_data(
+    entry: dict[str, Any], period_key: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return summary and detail dictionaries for a forecast period."""
+    period = entry["data"].get(period_key, {})
+    return period.get("summary", {}), period.get("details", {})
+
+
+def _is_daylight_hour(hour: HourlyWeather) -> bool:
+    """Return True when an hour is inside the configured daytime window."""
+    return DAYLIGHT_START_HOUR <= hour.hour <= DAYLIGHT_END_HOUR
+
+
+def _is_future_or_current_hour(hour: HourlyWeather, now_local: datetime) -> bool:
+    """Return True when an hour is still useful for today's recommendations."""
+    return (
+        hour.time > now_local
+        or (hour.time.hour == now_local.hour and now_local.minute < 30)
+    )
+
+
+def _filter_hours_for_recommendations(
+    hours: list[HourlyWeather],
+    forecast_date: date,
+    now_local: datetime,
+) -> list[HourlyWeather]:
+    """Filter hours to the daytime rows still relevant for a selected date."""
+    daylight_hours = [hour for hour in hours if _is_daylight_hour(hour)]
+    if forecast_date != now_local.date():
+        return daylight_hours
+
+    return [
+        hour
+        for hour in daylight_hours
+        if _is_future_or_current_hour(hour, now_local)
+    ]
+
+
 def find_optimal_weather_block(
     hours: list[HourlyWeather],
     min_duration: int = 1,
@@ -128,15 +166,11 @@ def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
     cloud_coverage = instant_details.get("cloud_area_fraction")
     relative_humidity = instant_details.get("relative_humidity")
 
-    next_1h = entry["data"].get("next_1_hours", {})
-    next_1h_summary = next_1h.get("summary", {})
-    next_1h_details = next_1h.get("details", {})
+    next_1h_summary, next_1h_details = _get_period_data(entry, "next_1_hours")
     precipitation_1h = next_1h_details.get("precipitation_amount")
     precipitation_probability_1h = next_1h_details.get("probability_of_precipitation")
 
-    next_6h = entry["data"].get("next_6_hours", {})
-    next_6h_summary = next_6h.get("summary", {})
-    next_6h_details = next_6h.get("details", {})
+    next_6h_summary, next_6h_details = _get_period_data(entry, "next_6_hours")
 
     final_precipitation_amount = precipitation_1h
     if final_precipitation_amount is None and next_6h_details:
@@ -203,9 +237,7 @@ def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
 
     day_scores_reports = {}
     for forecast_date, hours_list in daily_forecasts.items():
-        daylight_h = [
-            h for h in hours_list if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
-        ]
+        daylight_h = [h for h in hours_list if _is_daylight_hour(h)]
         if not daylight_h:
             continue
         day_report = DailyReport(
@@ -264,9 +296,6 @@ def _find_consistent_blocks(
                 break
 
             block = sorted_hours[start_idx : end_idx + 1]
-
-            if len(block) < 1:
-                continue
 
             # Calculate score statistics for this block
             scores = [get_activity_score(h, activity_profile) for h in block]
@@ -392,75 +421,48 @@ def get_top_locations_for_date(
 ) -> list[dict]:
     """Return the top N locations for a given date, prioritizing consistent score blocks."""
     results = []
-    # Get current time for filtering
-    local_tz = get_timezone()
     now_utc = datetime.now(timezone.utc)
-    now_local = now_utc.astimezone(local_tz)
+    now_local = now_utc.astimezone(get_timezone())
 
     for loc_key, processed in all_location_processed.items():
         day_scores = processed.get("day_scores", {})
         daily_forecasts = processed.get("daily_forecasts", {})
+        if d not in day_scores:
+            continue
 
-        if d in day_scores:
-            report = day_scores[d]
+        report = day_scores[d]
+        filtered_hours = _filter_hours_for_recommendations(
+            daily_forecasts.get(d, []),
+            d,
+            now_local,
+        )
+        if not filtered_hours:
+            continue
 
-            # Get hourly data for the day - use same filtering as main table
-            hours_for_day = daily_forecasts.get(d, [])
+        optimal_block = _find_optimal_consistent_block(
+            filtered_hours,
+            activity_profile=activity_profile,
+        )
+        if not optimal_block:
+            continue
 
-            # Apply consistent time filtering
-            if d == now_local.date():
-                # Show future hours, plus current hour if we're in the first half of it
-                filtered_hours = [
-                    h
-                    for h in hours_for_day
-                    if (
-                        DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
-                        and (
-                            h.time.astimezone(local_tz) > now_local
-                            or (
-                                h.time.astimezone(local_tz).hour == now_local.hour
-                                and now_local.minute < 30
-                            )
-                        )
-                    )
-                ]
-            else:
-                filtered_hours = [
-                    h
-                    for h in hours_for_day
-                    if DAYLIGHT_START_HOUR <= h.hour <= DAYLIGHT_END_HOUR
-                ]
+        location_score = optimal_block["avg_score"]
+        duration_bonus = min(math.log1p(optimal_block["duration"]), 2.0)
+        final_score = location_score + duration_bonus + optimal_block.get(
+            "consistency", 1.0
+        )
 
-            if not filtered_hours:
-                continue
-
-            # Find optimal consistent block
-            optimal_block = _find_optimal_consistent_block(
-                filtered_hours,
-                activity_profile=activity_profile,
-            )
-
-            # Calculate the location's score based on the optimal block
-            if optimal_block:
-                # Use the average score of the optimal block
-                location_score = optimal_block["avg_score"]
-                duration = optimal_block["duration"]
-                consistency = optimal_block.get("consistency", 1.0)
-
-                duration_bonus = min(math.log1p(duration), 2.0)
-                final_score = location_score + duration_bonus + consistency
-
-                results.append(
-                    {
-                        "location_key": loc_key,
-                        "location_name": report.location_name,
-                        "score": final_score,
-                        "raw_score": location_score,
-                        "optimal_block": optimal_block,
-                        "weather_desc": report.weather_description,
-                        "activity_profile": activity_profile,
-                    }
-                )
+        results.append(
+            {
+                "location_key": loc_key,
+                "location_name": report.location_name,
+                "score": final_score,
+                "raw_score": location_score,
+                "optimal_block": optimal_block,
+                "weather_desc": report.weather_description,
+                "activity_profile": activity_profile,
+            }
+        )
 
     # Sort by score descending
     results.sort(key=lambda x: x["score"], reverse=True)

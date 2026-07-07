@@ -6,17 +6,11 @@ Handles window setup and main widget initialization.
 import threading
 import tkinter as tk
 import tkinter.messagebox as messagebox
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from tkinter import ttk
-from typing import Any, Dict, List
+from typing import Any, Dict
 
-from src.core.config import (
-    DAYLIGHT_END_HOUR,
-    DAYLIGHT_START_HOUR,
-    get_timezone,
-)
 from src.core.evaluation import (
-    _find_optimal_consistent_block,
     get_available_dates,
     get_time_blocks_for_date,
     get_top_locations_for_date,
@@ -34,7 +28,15 @@ from src.core.scoring import (
 )
 from src.core.locations import LOCATIONS, LOCATION_GROUPS
 from src.core.weather_api import fetch_weather_data
-from src.gui.formatting import add_tooltip, format_date
+from src.gui.formatting import (
+    add_tooltip,
+    format_date,
+    format_percentage,
+    format_precipitation,
+    format_temperature,
+    format_time,
+    format_wind_speed,
+)
 from src.gui.themes import COLORS, FONTS, PADDING, apply_theme, get_rating_color
 
 
@@ -806,8 +808,8 @@ class WeatherHelperApp:
         # Format details
         best_block = loc_data.get("optimal_block")
         if best_block:
-            start_str = best_block["start"].strftime("%H:%M")
-            end_str = (best_block["end"] + timedelta(hours=1)).strftime("%H:%M")
+            start_str = format_time(best_block["start"])
+            end_str = format_time(best_block["end"] + timedelta(hours=1))
 
             temp_val = best_block.get("temp")
             wind_val = best_block.get("wind")
@@ -818,31 +820,11 @@ class WeatherHelperApp:
 
             details = (
                 f"Best time: {start_str} - {end_str}\n"
-                + (
-                    f"Temp: {temp_val:.1f}°C\n"
-                    if temp_val is not None
-                    else "Temp: N/A\n"
-                )
-                + (
-                    f"Wind: {wind_val:.1f} m/s\n"
-                    if wind_val is not None
-                    else "Wind: N/A\n"
-                )
-                + (
-                    f"Clouds: {cloud_val:.0f}%\n"
-                    if cloud_val is not None
-                    else "Clouds: N/A\n"
-                )
-                + (
-                    f"Rain: {precip_val:.1f} mm\n"
-                    if precip_val is not None
-                    else "Rain: 0.0 mm\n"
-                )
-                + (
-                    f"Rain risk: {rain_risk_val:.0f}%\n"
-                    if rain_risk_val is not None
-                    else "Rain risk: N/A\n"
-                )
+                + f"Temp: {format_temperature(temp_val)}\n"
+                + f"Wind: {format_wind_speed(wind_val)}\n"
+                + f"Clouds: {format_percentage(cloud_val)}\n"
+                + f"Rain: {format_precipitation(precip_val)}\n"
+                + f"Rain risk: {format_percentage(rain_risk_val)}\n"
                 + reason
             )
         else:
@@ -866,25 +848,14 @@ class WeatherHelperApp:
             time_blocks = get_time_blocks_for_date(processed, self.selected_date)
 
             for block in time_blocks:
-                # Format time nicely (e.g. 14:00)
-                time_str = block.time.strftime("%H:%M")
-
                 values = (
-                    time_str,
-                    f"{block.temp:.1f}°C" if block.temp is not None else "N/A",
-                    f"{block.wind:.1f} m/s" if block.wind is not None else "N/A",
-                    f"{block.cloud_coverage:.0f}%" if block.cloud_coverage is not None else "N/A",
-                    (
-                        f"{block.precipitation_amount:.1f} mm"
-                        if block.precipitation_amount is not None
-                        else "0.0 mm"
-                    ),
-                    (
-                        f"{block.precipitation_probability:.0f}%"
-                        if block.precipitation_probability is not None
-                        else "N/A"
-                    ),
-                    f"{block.relative_humidity:.0f}%" if block.relative_humidity is not None else "N/A",
+                    format_time(block.time),
+                    format_temperature(block.temp),
+                    format_wind_speed(block.wind),
+                    format_percentage(block.cloud_coverage),
+                    format_precipitation(block.precipitation_amount),
+                    format_percentage(block.precipitation_probability),
+                    format_percentage(block.relative_humidity),
                     self._format_profile_score(block),
                 )
 
