@@ -22,7 +22,15 @@ from src.core.evaluation import (
     get_top_locations_for_date,
     process_forecast,
 )
-from src.core.scoring import get_rating_info, normalize_score
+from src.core.scoring import (
+    ACTIVITY_PROFILE_LABELS,
+    DEFAULT_ACTIVITY_PROFILE,
+    get_activity_profile_key,
+    get_activity_profile_label,
+    get_activity_score,
+    get_rating_info,
+    normalize_score,
+)
 from src.core.locations import LOCATIONS, LOCATION_GROUPS
 from src.core.weather_api import fetch_weather_data
 from src.gui.formatting import add_tooltip, format_date
@@ -51,6 +59,10 @@ class WeatherHelperApp:
         self.date_map: Dict[str, date] = {}
         self.loading_errors: Dict[str, str] = {}
         self.show_scores = tk.BooleanVar(value=False)
+        self.activity_profile_var = tk.StringVar(
+            value=get_activity_profile_label(DEFAULT_ACTIVITY_PROFILE)
+        )
+        self.selected_activity_profile = DEFAULT_ACTIVITY_PROFILE
         self.loaded_locations: set = set()
         self.load_generation: int = 0
 
@@ -227,6 +239,32 @@ class WeatherHelperApp:
         self.date_dropdown.bind("<<ComboboxSelected>>", self.on_date_change)
         add_tooltip(self.date_dropdown, "Select a date to view hourly weather data")
 
+        # Activity profile selector
+        ttk.Label(selector_frame, text="Activity:", font=FONTS["body_bold"]).grid(
+            row=1, column=0, padx=(0, PADDING["small"]), sticky="w"
+        )
+
+        self.activity_dropdown = ttk.Combobox(
+            selector_frame,
+            textvariable=self.activity_profile_var,
+            state="readonly",
+            font=FONTS["body"],
+            width=15,
+            values=list(ACTIVITY_PROFILE_LABELS.values()),
+        )
+        self.activity_dropdown.grid(
+            row=1,
+            column=1,
+            sticky="ew",
+            padx=(0, PADDING["large"]),
+            pady=(PADDING["small"], 0),
+        )
+        self.activity_dropdown.bind("<<ComboboxSelected>>", self.on_activity_change)
+        add_tooltip(
+            self.activity_dropdown,
+            "Choose whether to rank conditions for hiking or a beach day",
+        )
+
         # Score visibility toggle
         self.score_toggle = ttk.Checkbutton(
             selector_frame,
@@ -236,7 +274,7 @@ class WeatherHelperApp:
             style="Toggle.TCheckbutton",
         )
         self.score_toggle.grid(
-            row=1, column=0, columnspan=6, sticky="w", pady=(PADDING["small"], 0)
+            row=1, column=2, columnspan=4, sticky="w", pady=(PADDING["small"], 0)
         )
         add_tooltip(
             self.score_toggle,
@@ -292,13 +330,15 @@ class WeatherHelperApp:
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         # Title
-        title_label = ttk.Label(
+        self.side_panel_title_label = ttk.Label(
             self.side_panel,
-            text="Top 10 Locations",
+            text=self._get_side_panel_title(),
             style="Heading.TLabel",
             anchor="center",
         )
-        title_label.grid(row=0, column=0, sticky="ew", pady=(0, PADDING["small"]))
+        self.side_panel_title_label.grid(
+            row=0, column=0, sticky="ew", pady=(0, PADDING["small"])
+        )
 
         self.location_frames = []
         self.side_panel_entries = []
@@ -368,7 +408,7 @@ class WeatherHelperApp:
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
 
-        columns = ("Time", "Temp", "Wind", "Clouds", "Rain", "Humidity")
+        columns = ("Time", "Temp", "Wind", "Clouds", "Rain", "Humidity", "Score")
         self.main_table = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -393,6 +433,7 @@ class WeatherHelperApp:
             "Clouds": {"width": 120, "anchor": "center", "stretch": True},
             "Rain": {"width": 120, "anchor": "center", "stretch": True},
             "Humidity": {"width": 120, "anchor": "center", "stretch": True},
+            "Score": {"width": 110, "anchor": "center", "stretch": True},
         }
 
         headings = {
@@ -402,6 +443,7 @@ class WeatherHelperApp:
             "Clouds": "Cloud Coverage",
             "Rain": "Precipitation",
             "Humidity": "Humidity",
+            "Score": "Profile Score",
         }
 
         for col in columns:
@@ -646,6 +688,18 @@ class WeatherHelperApp:
         except Exception as e:
             self._update_status(f"Error changing date: {str(e)}")
 
+    def on_activity_change(self, event=None):
+        """Handle activity profile selection change."""
+        try:
+            selected_label = self.activity_profile_var.get()
+            self.selected_activity_profile = get_activity_profile_key(selected_label)
+            self.side_panel_title_label.config(text=self._get_side_panel_title())
+            self._update_displays()
+            self._update_status(f"Ranking for {selected_label}")
+
+        except Exception as e:
+            self._update_status(f"Error changing activity: {str(e)}")
+
     def _update_displays(self):
         """Update both side panel and main table."""
         try:
@@ -653,6 +707,11 @@ class WeatherHelperApp:
             self._update_main_table()
         except Exception as e:
             self._update_status(f"Error updating displays: {str(e)}")
+
+    def _get_side_panel_title(self) -> str:
+        """Return the current side panel title."""
+        activity_label = get_activity_profile_label(self.selected_activity_profile)
+        return f"Top 10 for {activity_label}"
 
     def _update_side_panel(self):
         """Update the side panel."""
@@ -673,7 +732,10 @@ class WeatherHelperApp:
 
         try:
             top_locs = get_top_locations_for_date(
-                self.all_location_processed, self.selected_date, top_n=10
+                self.all_location_processed,
+                self.selected_date,
+                top_n=10,
+                activity_profile=self.selected_activity_profile,
             )
 
             for i, (rank_label, name_label, score_label, details_label) in enumerate(
@@ -711,7 +773,10 @@ class WeatherHelperApp:
         color = get_rating_color(rating)
 
         normalized = normalize_score(total_score)
-        score_text = f"Score: {normalized}/100"
+        activity_label = get_activity_profile_label(
+            loc_data.get("activity_profile", self.selected_activity_profile)
+        )
+        score_text = f"{activity_label}: {normalized}/100"
 
         if self.show_scores.get():
             score_text += f" (Raw: {total_score:.1f}, {rating})"
@@ -734,7 +799,7 @@ class WeatherHelperApp:
             details = (
                 f"Best time: {start_str} - {end_str}\n" +
                 (f"Temp: {temp_val:.1f}°C\n" if temp_val is not None else "Temp: N/A\n") +
-                (f"Wind: {wind_val:.1f} km/h\n" if wind_val is not None else "Wind: N/A\n") +
+                (f"Wind: {wind_val:.1f} m/s\n" if wind_val is not None else "Wind: N/A\n") +
                 (f"Rain: {precip_val:.1f} mm" if precip_val is not None else "Rain: 0.0 mm")
             )
         else:
@@ -764,15 +829,15 @@ class WeatherHelperApp:
                 values = (
                     time_str,
                     f"{block.temp:.1f}°C" if block.temp is not None else "N/A",
-                    f"{block.wind:.1f} km/h" if block.wind is not None else "N/A",
+                    f"{block.wind:.1f} m/s" if block.wind is not None else "N/A",
                     f"{block.cloud_coverage:.0f}%" if block.cloud_coverage is not None else "N/A",
                     f"{block.precipitation_amount:.1f} mm" if block.precipitation_amount is not None else "0.0 mm",
                     f"{block.relative_humidity:.0f}%" if block.relative_humidity is not None else "N/A",
+                    self._format_profile_score(block),
                 )
 
-                # Determine row color based on individual block score/rating
-                # Calculate a rough score for the block to determine color
-                score = block.total_score
+                # Determine row color based on the selected activity profile.
+                score = get_activity_score(block, self.selected_activity_profile)
                 rating = get_rating_info(score)
 
                 # Using tags to color the row
@@ -781,6 +846,15 @@ class WeatherHelperApp:
 
         except Exception as e:
             self._update_status(f"Error updating table: {str(e)}")
+
+    def _format_profile_score(self, block: Any) -> str:
+        """Format the selected activity score for the hourly table."""
+        score = get_activity_score(block, self.selected_activity_profile)
+        normalized = normalize_score(score)
+        if self.show_scores.get():
+            rating = get_rating_info(score)
+            return f"{normalized}/100 ({score:.1f}, {rating})"
+        return f"{normalized}/100"
 
 
 def main():

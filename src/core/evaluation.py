@@ -18,7 +18,9 @@ from src.core.config import (
 )
 from src.core.models import DailyReport, HourlyWeather
 from src.core.scoring import (
+    DEFAULT_ACTIVITY_PROFILE,
     cloud_score,
+    get_activity_score,
     humidity_score,
     precip_amount_score,
     temp_score,
@@ -53,7 +55,9 @@ def _calculate_weather_averages(
 
 
 def find_optimal_weather_block(
-    hours: list[HourlyWeather], min_duration: int = 1
+    hours: list[HourlyWeather],
+    min_duration: int = 1,
+    activity_profile: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> Optional[dict[str, Any]]:
     """Find the optimal weather block for outdoor activities.
 
@@ -63,6 +67,7 @@ def find_optimal_weather_block(
     Args:
         hours: List of HourlyWeather objects for a given date
         min_duration: Minimum duration in hours for a valid block (default: 1)
+        activity_profile: Activity profile used for scoring the block
 
     Returns:
         A dictionary containing the best weather block, or None.
@@ -73,7 +78,7 @@ def find_optimal_weather_block(
     sorted_hours = sorted(hours, key=lambda x: x.time)
 
     # Use the more sophisticated consistent block logic
-    optimal_block = _find_optimal_consistent_block(sorted_hours)
+    optimal_block = _find_optimal_consistent_block(sorted_hours, activity_profile)
 
     # If no consistent block found or duration is too short, return None
     if not optimal_block or optimal_block["duration"] < min_duration:
@@ -184,13 +189,16 @@ def get_time_blocks_for_date(processed_forecast: dict, d: date) -> list[HourlyWe
 
 
 def _find_consistent_blocks(
-    sorted_hours: list[HourlyWeather], max_score_variance: float = 7.0
+    sorted_hours: list[HourlyWeather],
+    max_score_variance: float = 7.0,
+    activity_profile: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> list[dict[str, Any]]:
     """Find blocks of hours with consistent scores (without drastic changes).
 
     Args:
         sorted_hours: List of HourlyWeather objects sorted by time
         max_score_variance: Maximum allowed variance in scores within a block
+        activity_profile: Activity profile used for scoring the block
 
     Returns:
         List of consistent blocks with their stats
@@ -209,7 +217,7 @@ def _find_consistent_blocks(
                 continue
 
             # Calculate score statistics for this block
-            scores = [h.total_score for h in block]
+            scores = [get_activity_score(h, activity_profile) for h in block]
             avg_score = sum(scores) / len(scores)
 
             # Be more lenient with shorter blocks, stricter with longer ones
@@ -249,6 +257,7 @@ def _find_consistent_blocks(
                         "wind": avg_wind,
                         "humidity": avg_humidity,
                         "precip": avg_precip,
+                        "activity_profile": activity_profile,
                     }
                 )
 
@@ -257,11 +266,13 @@ def _find_consistent_blocks(
 
 def _find_optimal_consistent_block(
     sorted_hours: list[HourlyWeather],
+    activity_profile: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> Optional[dict[str, Any]]:
     """Find the optimal block that balances score, duration, and consistency.
 
     Args:
         sorted_hours: List of HourlyWeather objects sorted by time
+        activity_profile: Activity profile used for scoring the block
 
     Returns:
         The best block considering score, duration, and consistency
@@ -271,7 +282,11 @@ def _find_optimal_consistent_block(
 
     # Find all consistent blocks with more lenient variance threshold
     # Adjusted for new scoring range that includes humidity (-42 to 23)
-    consistent_blocks = _find_consistent_blocks(sorted_hours, max_score_variance=8.0)
+    consistent_blocks = _find_consistent_blocks(
+        sorted_hours,
+        max_score_variance=8.0,
+        activity_profile=activity_profile,
+    )
 
     if not consistent_blocks:
         return None
@@ -323,7 +338,10 @@ def _find_optimal_consistent_block(
 
 
 def get_top_locations_for_date(
-    all_location_processed: dict[str, dict], d: date, top_n: int = 10
+    all_location_processed: dict[str, dict],
+    d: date,
+    top_n: int = 10,
+    activity_profile: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> list[dict]:
     """Return the top N locations for a given date, prioritizing consistent score blocks."""
     results = []
@@ -370,7 +388,10 @@ def get_top_locations_for_date(
                 continue
 
             # Find optimal consistent block
-            optimal_block = _find_optimal_consistent_block(filtered_hours)
+            optimal_block = _find_optimal_consistent_block(
+                filtered_hours,
+                activity_profile=activity_profile,
+            )
 
             # Calculate the location's score based on the optimal block
             if optimal_block:
@@ -402,6 +423,7 @@ def get_top_locations_for_date(
                         "raw_score": location_score,
                         "optimal_block": optimal_block,
                         "weather_desc": report.weather_description,
+                        "activity_profile": activity_profile,
                     }
                 )
 

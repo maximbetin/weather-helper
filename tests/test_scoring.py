@@ -1,6 +1,19 @@
+from datetime import datetime
+
 import pytest
 
-from src.core.scoring import cloud_score, precip_amount_score, temp_score, wind_score
+from src.core.scoring import (
+    ACTIVITY_BEACH_DAY,
+    ACTIVITY_HIKING,
+    beach_day_score,
+    get_activity_profile_key,
+    get_activity_profile_label,
+    get_activity_score,
+    cloud_score,
+    precip_amount_score,
+    temp_score,
+    wind_score,
+)
 
 
 @pytest.mark.parametrize(
@@ -77,3 +90,44 @@ def test_cloud_score(clouds, expected_score):
 )
 def test_precip_amount_score(precip, expected_score):
     assert precip_amount_score(precip) == expected_score
+
+
+def test_beach_day_score_rewards_calm_sunny_warm_weather():
+    assert beach_day_score(
+        temp=27,
+        wind_speed=2,
+        cloud_coverage=5,
+        precipitation_amount=0,
+        relative_humidity=60,
+    ) == 26
+
+
+def test_beach_day_score_penalizes_windy_overcast_weather():
+    assert beach_day_score(
+        temp=20,
+        wind_speed=10,
+        cloud_coverage=100,
+        precipitation_amount=0,
+        relative_humidity=60,
+    ) == -1
+
+
+def test_activity_profile_labels_round_trip():
+    assert get_activity_profile_label(ACTIVITY_HIKING) == "Hiking"
+    assert get_activity_profile_key("Beach day") == ACTIVITY_BEACH_DAY
+    assert get_activity_profile_key("Unknown") == ACTIVITY_HIKING
+
+
+def test_activity_score_uses_selected_profile(create_hour):
+    hour = create_hour(
+        time=datetime(2024, 3, 15, 12),
+        total_score=12,
+        temp=27,
+        wind=2,
+        cloud_coverage=5,
+        precipitation_amount=0,
+        relative_humidity=60,
+    )
+
+    assert get_activity_score(hour, ACTIVITY_HIKING) == 12
+    assert get_activity_score(hour, ACTIVITY_BEACH_DAY) == 26

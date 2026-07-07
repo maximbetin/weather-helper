@@ -49,6 +49,18 @@ def calculate_score(
     return _get_value_from_ranges(value, ranges, inclusive) or 0
 
 
+# --- Activity Profiles ---
+
+ACTIVITY_HIKING = "hiking"
+ACTIVITY_BEACH_DAY = "beach_day"
+DEFAULT_ACTIVITY_PROFILE = ACTIVITY_HIKING
+
+ACTIVITY_PROFILE_LABELS = {
+    ACTIVITY_HIKING: "Hiking",
+    ACTIVITY_BEACH_DAY: "Beach day",
+}
+
+
 # --- Scoring Ranges ---
 
 TEMP_RANGES: List[RangeType] = [
@@ -114,6 +126,57 @@ HUMIDITY_RANGES: List[RangeType] = [
     (None, -4),      # Beyond extreme humidity levels
 ]
 
+BEACH_TEMP_RANGES: List[RangeType] = [
+    ((24, 30), 8),   # Ideal beach warmth for swimming and sunbathing
+    ((22, 24), 6),   # Warm enough for a pleasant beach day
+    ((30, 32), 6),   # Hot, but still good near water
+    ((20, 22), 4),   # Mild but usable
+    ((32, 34), 4),   # Hot, manageable with shade and water
+    ((18, 20), 2),   # Cool for lingering after swimming
+    ((34, 36), 0),   # Very hot
+    ((16, 18), -2),  # Chilly for beach comfort
+    ((36, 39), -5),  # Heat risk starts to dominate
+    ((12, 16), -6),  # Too cool for most beach plans
+    (None, -10),     # Uncomfortable or unsafe extremes
+]
+
+BEACH_WIND_RANGES: List[RangeType] = [
+    ((1, 4), 4),      # Light breeze, comfortable on the beach
+    ((0, 1), 3),      # Calm, good for water but can feel hotter
+    ((4, 6), 1),      # Noticeable but still workable
+    ((6, 8), -3),     # Choppy and less comfortable for open-water swimming
+    ((8, 11), -8),    # Strong beach and swim penalty
+    ((11, None), -14),  # Very poor open-water conditions
+    (None, -14),
+]
+
+BEACH_CLOUD_RANGES: List[RangeType] = [
+    ((0, 20), 6),    # Clear to lightly cloudy: best for getting sun
+    ((20, 45), 4),   # Some cloud, still good sun
+    ((45, 65), 1),   # Mixed sun and cloud
+    ((65, 85), -2),  # Mostly cloudy
+    (None, -5),      # Overcast
+]
+
+BEACH_PRECIP_AMOUNT_RANGES: List[RangeType] = [
+    ((0, 0), 5),       # Dry is best
+    ((0, 0.1), 3),     # Trace amounts
+    ((0.1, 0.5), -2),  # Light showers disrupt beach plans
+    ((0.5, 1.0), -5),  # Wet enough to matter
+    ((1.0, None), -10),  # Rain is a strong no for sunbathing/swimming plans
+    (None, -10),
+]
+
+BEACH_HUMIDITY_RANGES: List[RangeType] = [
+    ((45, 70), 3),  # Comfortable coastal humidity
+    ((35, 45), 2),  # A little dry but pleasant
+    ((70, 80), 0),  # Noticeably humid
+    ((25, 35), 0),  # Dry but manageable
+    ((80, 90), -2),  # Sticky and uncomfortable
+    ((0, 25), -3),  # Very dry
+    (None, -4),     # Oppressive humidity
+]
+
 RATING_RANGES: List[RangeType] = [
     ((18.0, float("inf")), "Excellent"),  # >= 18
     ((13.0, 18.0), "Very Good"),          # 13 <= x < 18
@@ -148,6 +211,79 @@ def precip_amount_score(amount: Optional[NumericType]) -> int:
 def humidity_score(relative_humidity: Optional[NumericType]) -> int:
     """Rate relative humidity for outdoor comfort on a scale of -4 to 3."""
     return calculate_score(relative_humidity, HUMIDITY_RANGES, inclusive=True)
+
+
+def beach_temp_score(temp: Optional[NumericType]) -> int:
+    """Rate air temperature for a beach day."""
+    return calculate_score(temp, BEACH_TEMP_RANGES, inclusive=True)
+
+
+def beach_wind_score(wind_speed: Optional[NumericType]) -> int:
+    """Rate wind speed for beach comfort and open-water swimming."""
+    return calculate_score(wind_speed, BEACH_WIND_RANGES, inclusive=False)
+
+
+def beach_cloud_score(cloud_coverage: Optional[NumericType]) -> int:
+    """Rate cloud coverage for sunbathing conditions."""
+    return calculate_score(cloud_coverage, BEACH_CLOUD_RANGES, inclusive=False)
+
+
+def beach_precip_amount_score(amount: Optional[NumericType]) -> int:
+    """Rate precipitation for a beach day."""
+    return calculate_score(amount, BEACH_PRECIP_AMOUNT_RANGES, inclusive=True)
+
+
+def beach_humidity_score(relative_humidity: Optional[NumericType]) -> int:
+    """Rate humidity for a beach day."""
+    return calculate_score(relative_humidity, BEACH_HUMIDITY_RANGES, inclusive=True)
+
+
+def beach_day_score(
+    temp: Optional[NumericType],
+    wind_speed: Optional[NumericType],
+    cloud_coverage: Optional[NumericType],
+    precipitation_amount: Optional[NumericType],
+    relative_humidity: Optional[NumericType],
+) -> int:
+    """Score an hour for swimming and sunbathing."""
+    return (
+        beach_temp_score(temp)
+        + beach_wind_score(wind_speed)
+        + beach_cloud_score(cloud_coverage)
+        + beach_precip_amount_score(precipitation_amount)
+        + beach_humidity_score(relative_humidity)
+    )
+
+
+def get_activity_profile_label(profile_key: str) -> str:
+    """Return a display label for an activity profile."""
+    return ACTIVITY_PROFILE_LABELS.get(
+        profile_key, ACTIVITY_PROFILE_LABELS[DEFAULT_ACTIVITY_PROFILE]
+    )
+
+
+def get_activity_profile_key(label: str) -> str:
+    """Return an activity profile key from its display label."""
+    for key, profile_label in ACTIVITY_PROFILE_LABELS.items():
+        if profile_label == label:
+            return key
+    return DEFAULT_ACTIVITY_PROFILE
+
+
+def get_activity_score(
+    hour: Any, profile_key: str = DEFAULT_ACTIVITY_PROFILE
+) -> NumericType:
+    """Return an hour score using the requested activity profile."""
+    if profile_key == ACTIVITY_BEACH_DAY:
+        return beach_day_score(
+            hour.temp,
+            hour.wind,
+            hour.cloud_coverage,
+            hour.precipitation_amount,
+            hour.relative_humidity,
+        )
+
+    return hour.total_score
 
 
 def get_rating_info(score: Union[int, float, None]) -> str:

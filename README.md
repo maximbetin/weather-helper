@@ -10,7 +10,8 @@ The Weather Helper is a desktop application that provides detailed weather forec
 
 - **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, and relative humidity.
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
-- **Optimal Weather Finder**: Automatically identifies the best time blocks for outdoor activities based on a weighted scoring system.
+- **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or a beach day focused on swimming and sunbathing.
+- **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
 - **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
 - **Clean Interface**: A user-friendly GUI built with Tkinter, featuring responsive layouts and scrollable panels for easy navigation.
 - **Data Export**: Ability to view and analyze weather parameters in an organized format.
@@ -92,7 +93,7 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions for outdoor activities. Each hour receives a total score based on five key factors.
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions. Each hour receives a base hiking/general outdoors score from five key factors, and the app can also re-score the same hour for a beach day focused on open-water swimming and sunbathing.
 
 ### Individual Component Scores
 
@@ -181,6 +182,17 @@ Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
 ```
 
 **Possible range**: -42 to +23 points per hour
+
+### Activity Profiles
+
+The app can rank locations and hourly blocks using different activity profiles:
+
+| Profile   | Intended use                         | Scoring emphasis |
+| --------- | ------------------------------------ | ---------------- |
+| Hiking    | General outdoors, walking, day trips | Balanced comfort across temperature, wind, cloud, rain, and humidity |
+| Beach day | Swimming and sunbathing              | Warm air, low wind, dry weather, and clear to partly cloudy skies |
+
+Beach day scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more for open-water swimming and beach comfort. Wind values are shown in meters per second (m/s), matching the source forecast data.
 
 ### Overall Rating System
 

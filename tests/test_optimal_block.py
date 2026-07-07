@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from src.core.evaluation import find_optimal_weather_block
+from src.core.scoring import ACTIVITY_BEACH_DAY, ACTIVITY_HIKING
 
 
 # Test cases for find_optimal_weather_block
@@ -109,3 +110,39 @@ def test_find_optimal_block_short_good_block(create_hour):
     # Test with minimum duration of 3 hours
     result = find_optimal_weather_block(hours, min_duration=3)
     assert result is None  # Should return None as block is too short
+
+
+def test_find_optimal_block_uses_activity_profile(create_hour):
+    base_time = datetime(2023, 1, 1, 10)
+    windy_hiking_hour = create_hour(
+        base_time,
+        total_score=20,
+        temp=20,
+        wind=10,
+        cloud_coverage=100,
+        precipitation_amount=0,
+        relative_humidity=60,
+    )
+    beach_hour = create_hour(
+        base_time + timedelta(hours=1),
+        total_score=5,
+        temp=27,
+        wind=2,
+        cloud_coverage=5,
+        precipitation_amount=0,
+        relative_humidity=60,
+    )
+
+    hiking_result = find_optimal_weather_block(
+        [windy_hiking_hour, beach_hour],
+        activity_profile=ACTIVITY_HIKING,
+    )
+    beach_result = find_optimal_weather_block(
+        [windy_hiking_hour, beach_hour],
+        activity_profile=ACTIVITY_BEACH_DAY,
+    )
+
+    assert hiking_result is not None
+    assert beach_result is not None
+    assert hiking_result["start"].hour == 10
+    assert beach_result["start"].hour == 11
