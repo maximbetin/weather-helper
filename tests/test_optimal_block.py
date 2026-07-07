@@ -146,3 +146,15 @@ def test_find_optimal_block_uses_activity_profile(create_hour):
     assert beach_result is not None
     assert hiking_result["start"].hour == 10
     assert beach_result["start"].hour == 11
+
+
+def test_find_optimal_block_does_not_bridge_forecast_gaps(create_hour):
+    base_time = datetime(2023, 1, 1, 10)
+    hours = [
+        create_hour(base_time, total_score=8),
+        create_hour(base_time + timedelta(hours=2), total_score=9),
+    ]
+
+    result = find_optimal_weather_block(hours, min_duration=2)
+
+    assert result is None

@@ -54,6 +54,32 @@ def _calculate_weather_averages(
     )
 
 
+def _calculate_block_details(hours: list[HourlyWeather]) -> dict[str, Any]:
+    """Calculate display and risk details for a weather block."""
+    clouds = [h.cloud_coverage for h in hours if h.cloud_coverage is not None]
+    precip_probabilities = [
+        h.precipitation_probability
+        for h in hours
+        if h.precipitation_probability is not None
+    ]
+    symbols = sorted({h.symbol_code for h in hours if h.symbol_code})
+
+    return {
+        "cloud": safe_average(clouds),
+        "precip_probability": safe_average(precip_probabilities),
+        "symbols": symbols,
+    }
+
+
+def _are_adjacent_forecast_hours(
+    previous_hour: HourlyWeather,
+    next_hour: HourlyWeather,
+) -> bool:
+    """Return True when two forecast entries represent adjacent hourly data."""
+    delta = next_hour.time - previous_hour.time
+    return timedelta(minutes=50) <= delta <= timedelta(minutes=70)
+
+
 def find_optimal_weather_block(
     hours: list[HourlyWeather],
     min_duration: int = 1,
@@ -78,7 +104,11 @@ def find_optimal_weather_block(
     sorted_hours = sorted(hours, key=lambda x: x.time)
 
     # Use the more sophisticated consistent block logic
-    optimal_block = _find_optimal_consistent_block(sorted_hours, activity_profile)
+    optimal_block = _find_optimal_consistent_block(
+        sorted_hours,
+        activity_profile,
+        min_duration=min_duration,
+    )
 
     # If no consistent block found or duration is too short, return None
     if not optimal_block or optimal_block["duration"] < min_duration:
@@ -90,6 +120,7 @@ def find_optimal_weather_block(
 def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
     """Create an HourlyWeather object from a forecast timeseries entry."""
     time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
+    time_local = time_utc.astimezone(get_timezone())
 
     instant_details = entry["data"]["instant"]["details"]
     temp = instant_details.get("air_temperature")
@@ -98,22 +129,37 @@ def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
     relative_humidity = instant_details.get("relative_humidity")
 
     next_1h = entry["data"].get("next_1_hours", {})
+    next_1h_summary = next_1h.get("summary", {})
     next_1h_details = next_1h.get("details", {})
     precipitation_1h = next_1h_details.get("precipitation_amount")
+    precipitation_probability_1h = next_1h_details.get("probability_of_precipitation")
 
     next_6h = entry["data"].get("next_6_hours", {})
+    next_6h_summary = next_6h.get("summary", {})
     next_6h_details = next_6h.get("details", {})
 
     final_precipitation_amount = precipitation_1h
     if final_precipitation_amount is None and next_6h_details:
         final_precipitation_amount = next_6h_details.get("precipitation_amount")
 
+    final_precipitation_probability = precipitation_probability_1h
+    if final_precipitation_probability is None and next_6h_details:
+        final_precipitation_probability = next_6h_details.get(
+            "probability_of_precipitation"
+        )
+
+    symbol_code = next_1h_summary.get("symbol_code") or next_6h_summary.get(
+        "symbol_code"
+    )
+
     return HourlyWeather(
-        time=time_utc,
+        time=time_local,
         temp=temp,
         wind=wind,
         cloud_coverage=cloud_coverage,
         precipitation_amount=final_precipitation_amount,
+        precipitation_probability=final_precipitation_probability,
+        symbol_code=symbol_code,
         relative_humidity=relative_humidity,
         temp_score=temp_score(temp),
         wind_score=wind_score(wind),
@@ -133,7 +179,7 @@ def _process_timeseries(
 
     for entry in forecast_timeseries:
         time_utc = datetime.fromisoformat(entry["time"].replace("Z", "+00:00"))
-        forecast_date = time_utc.date()
+        forecast_date = time_utc.astimezone(get_timezone()).date()
         if not (today <= forecast_date < end_date):
             continue
 
@@ -184,7 +230,7 @@ def get_time_blocks_for_date(processed_forecast: dict, d: date) -> list[HourlyWe
     if not processed_forecast or "daily_forecasts" not in processed_forecast:
         return []
     return sorted(
-        processed_forecast["daily_forecasts"].get(d, []), key=lambda h: h.hour
+        processed_forecast["daily_forecasts"].get(d, []), key=lambda h: h.time
     )
 
 
@@ -211,6 +257,12 @@ def _find_consistent_blocks(
     # Try different starting points and lengths
     for start_idx in range(len(sorted_hours)):
         for end_idx in range(start_idx, len(sorted_hours)):
+            if end_idx > start_idx and not _are_adjacent_forecast_hours(
+                sorted_hours[end_idx - 1],
+                sorted_hours[end_idx],
+            ):
+                break
+
             block = sorted_hours[start_idx : end_idx + 1]
 
             if len(block) < 1:
@@ -218,6 +270,9 @@ def _find_consistent_blocks(
 
             # Calculate score statistics for this block
             scores = [get_activity_score(h, activity_profile) for h in block]
+            if len(scores) > 1 and min(scores) < 0:
+                continue
+
             avg_score = sum(scores) / len(scores)
 
             # Be more lenient with shorter blocks, stricter with longer ones
@@ -243,6 +298,7 @@ def _find_consistent_blocks(
                 avg_temp, avg_wind, avg_humidity, avg_precip = (
                     _calculate_weather_averages(block)
                 )
+                block_details = _calculate_block_details(block)
 
                 blocks.append(
                     {
@@ -257,6 +313,7 @@ def _find_consistent_blocks(
                         "wind": avg_wind,
                         "humidity": avg_humidity,
                         "precip": avg_precip,
+                        **block_details,
                         "activity_profile": activity_profile,
                     }
                 )
@@ -267,6 +324,7 @@ def _find_consistent_blocks(
 def _find_optimal_consistent_block(
     sorted_hours: list[HourlyWeather],
     activity_profile: str = DEFAULT_ACTIVITY_PROFILE,
+    min_duration: int = 1,
 ) -> Optional[dict[str, Any]]:
     """Find the optimal block that balances score, duration, and consistency.
 
@@ -291,7 +349,7 @@ def _find_optimal_consistent_block(
     if not consistent_blocks:
         return None
 
-    # Score each block based on: average_score * duration_factor * consistency_factor
+    # Score each block with quality as the dominant factor, then reward useful length.
     best_block = None
     best_combined_score = -float("inf")
 
@@ -299,39 +357,28 @@ def _find_optimal_consistent_block(
         avg_score = block_info["avg_score"]
         duration = block_info["duration"]
         consistency = block_info["consistency"]
+        if duration < min_duration:
+            continue
 
-        # Moderate preference for longer blocks - balance quality and duration
-        if duration >= 5:
-            duration_factor = (
-                2.2 + math.log(duration) / 3.0
-            )  # Good preference for 5+ hour blocks
-        elif duration == 4:
-            duration_factor = 2.0  # Solid preference for 4-hour blocks
-        elif duration == 3:
-            duration_factor = 1.7  # Good preference for 3-hour blocks
-        elif duration == 2:
-            duration_factor = 1.4  # Moderate preference for 2-hour blocks
-        else:
-            duration_factor = 1.0  # Base case for single hours
-
-        duration_factor = min(duration_factor, 2.5)  # Reasonable cap
-
-        # Consistency factor: reward more consistent blocks, but don't penalize too much
-        consistency_factor = 0.7 + (consistency * 0.3)  # Scale from 0.7 to 1.0
-
-        # Combined score balances quality and duration more evenly
-        combined_score = avg_score * duration_factor * consistency_factor
-
-        # Add a moderate bonus for longer blocks to break ties
-        combined_score += (duration - 1) * 0.8  # Reduced from 1.5 to 0.8
+        scores = [get_activity_score(h, activity_profile) for h in block_info["block"]]
+        min_score = min(scores)
+        duration_bonus = min(((duration - 1) * 1.0) + (math.log1p(duration) * 0.8), 4.0)
+        consistency_bonus = consistency * 2.0
+        weak_hour_penalty = max(0.0, (avg_score - min_score) * 0.2)
+        combined_score = (
+            avg_score
+            + duration_bonus
+            + consistency_bonus
+            - weak_hour_penalty
+        )
 
         if combined_score > best_combined_score:
             best_combined_score = combined_score
             best_block = {
                 **block_info,
                 "combined_score": combined_score,
-                "duration_factor": duration_factor,
-                "consistency_factor": consistency_factor,
+                "duration_bonus": duration_bonus,
+                "consistency_bonus": consistency_bonus,
             }
 
     return best_block
@@ -400,20 +447,8 @@ def get_top_locations_for_date(
                 duration = optimal_block["duration"]
                 consistency = optimal_block.get("consistency", 1.0)
 
-                # Apply more moderate duration bonus at the location level
-                duration_bonus_multiplier = 1.0
-                if duration >= 4:
-                    duration_bonus_multiplier = 1.3  # Moderate bonus for 4+ hour blocks
-                elif duration == 3:
-                    duration_bonus_multiplier = 1.2  # Small bonus for 3-hour blocks
-                elif duration == 2:
-                    duration_bonus_multiplier = 1.1  # Slight bonus for 2-hour blocks
-
-                # Combine score, duration bonus, and consistency
-                # We want score to be the dominant factor, but duration to help tie-break
-                final_score = (
-                    location_score * duration_bonus_multiplier * (0.9 + consistency * 0.1)
-                )
+                duration_bonus = min(math.log1p(duration), 2.0)
+                final_score = location_score + duration_bonus + consistency
 
                 results.append(
                     {

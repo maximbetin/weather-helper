@@ -13,6 +13,7 @@ from src.core.config import (
 )
 from src.core.evaluation import (
     _calculate_weather_averages,
+    _create_hourly_weather,
     find_optimal_weather_block,
     get_available_dates,
     get_time_blocks_for_date,
@@ -45,6 +46,17 @@ def test_process_forecast_with_fixture(sample_forecast_data):
     assert result is not None
     assert "daily_forecasts" in result
     assert "day_scores" in result
+
+
+def test_create_hourly_weather_uses_local_time_and_risk_fields(sample_forecast_data):
+    """Forecast hours should be stored in application-local time with risk data."""
+    hour = _create_hourly_weather(sample_forecast_data["properties"]["timeseries"][0])
+
+    assert hour.time.tzinfo is not None
+    assert hour.time.hour == 13  # 12:00 UTC is 13:00 in Madrid in March
+    assert hour.hour == 13
+    assert hour.precipitation_probability == 0
+    assert hour.symbol_code == "clearsky"
 
 
 # Tests for configuration utilities

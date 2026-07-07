@@ -57,7 +57,7 @@ DEFAULT_ACTIVITY_PROFILE = ACTIVITY_HIKING
 
 ACTIVITY_PROFILE_LABELS = {
     ACTIVITY_HIKING: "Hiking",
-    ACTIVITY_BEACH_DAY: "Beach day",
+    ACTIVITY_BEACH_DAY: "Beach",
 }
 
 
@@ -177,6 +177,32 @@ BEACH_HUMIDITY_RANGES: List[RangeType] = [
     (None, -4),     # Oppressive humidity
 ]
 
+PRECIP_PROBABILITY_RANGES: List[RangeType] = [
+    ((0, 15), 0),     # Low enough not to change plans
+    ((15, 35), -1),   # Some risk
+    ((35, 55), -3),   # Meaningful risk
+    ((55, 75), -5),   # Likely enough to plan around
+    (None, -7),       # High rain risk
+]
+
+BEACH_PRECIP_PROBABILITY_RANGES: List[RangeType] = [
+    ((0, 10), 0),     # Low enough not to change plans
+    ((10, 25), -2),   # Small but relevant for beach plans
+    ((25, 40), -4),   # Showers become a real beach risk
+    ((40, 60), -7),   # Too uncertain for a strong recommendation
+    (None, -10),      # High risk of a wet beach window
+]
+
+SYMBOL_RISK_TERMS = (
+    ("thunder", -12, -16),
+    ("snow", -8, -14),
+    ("sleet", -8, -14),
+    ("heavyrain", -7, -12),
+    ("rain", -5, -9),
+    ("showers", -4, -8),
+    ("fog", -3, -5),
+)
+
 RATING_RANGES: List[RangeType] = [
     ((18.0, float("inf")), "Excellent"),  # >= 18
     ((13.0, 18.0), "Very Good"),          # 13 <= x < 18
@@ -184,6 +210,19 @@ RATING_RANGES: List[RangeType] = [
     ((2.0, 7.0), "Fair"),                 # 2 <= x < 7
     (None, "Poor"),                       # < 2
 ]
+
+BEACH_RATING_RANGES: List[RangeType] = [
+    ((22.0, float("inf")), "Excellent"),  # Excellent beach conditions
+    ((17.0, 22.0), "Very Good"),
+    ((11.0, 17.0), "Good"),
+    ((5.0, 11.0), "Fair"),
+    (None, "Poor"),
+]
+
+RATING_RANGES_BY_PROFILE = {
+    ACTIVITY_HIKING: RATING_RANGES,
+    ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
+}
 
 
 # --- Scoring Functions ---
@@ -238,12 +277,42 @@ def beach_humidity_score(relative_humidity: Optional[NumericType]) -> int:
     return calculate_score(relative_humidity, BEACH_HUMIDITY_RANGES, inclusive=True)
 
 
+def precip_probability_score(probability: Optional[NumericType]) -> int:
+    """Rate precipitation probability for general outdoor plans."""
+    return calculate_score(probability, PRECIP_PROBABILITY_RANGES, inclusive=True)
+
+
+def beach_precip_probability_score(probability: Optional[NumericType]) -> int:
+    """Rate precipitation probability for beach plans."""
+    return calculate_score(probability, BEACH_PRECIP_PROBABILITY_RANGES, inclusive=True)
+
+
+def symbol_risk_score(
+    symbol_code: Optional[str],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> int:
+    """Return a risk penalty based on the forecast symbol."""
+    if not symbol_code:
+        return 0
+
+    normalized_symbol = symbol_code.lower()
+    for term, hiking_penalty, beach_penalty in SYMBOL_RISK_TERMS:
+        if term in normalized_symbol:
+            if profile_key == ACTIVITY_BEACH_DAY:
+                return beach_penalty
+            return hiking_penalty
+
+    return 0
+
+
 def beach_day_score(
     temp: Optional[NumericType],
     wind_speed: Optional[NumericType],
     cloud_coverage: Optional[NumericType],
     precipitation_amount: Optional[NumericType],
     relative_humidity: Optional[NumericType],
+    precipitation_probability: Optional[NumericType] = None,
+    symbol_code: Optional[str] = None,
 ) -> int:
     """Score an hour for swimming and sunbathing."""
     return (
@@ -252,6 +321,26 @@ def beach_day_score(
         + beach_cloud_score(cloud_coverage)
         + beach_precip_amount_score(precipitation_amount)
         + beach_humidity_score(relative_humidity)
+        + beach_precip_probability_score(precipitation_probability)
+        + symbol_risk_score(symbol_code, ACTIVITY_BEACH_DAY)
+    )
+
+
+def activity_risk_score(
+    precipitation_probability: Optional[NumericType],
+    symbol_code: Optional[str],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> int:
+    """Return forecast risk adjustments for the selected profile."""
+    if profile_key == ACTIVITY_BEACH_DAY:
+        return (
+            beach_precip_probability_score(precipitation_probability)
+            + symbol_risk_score(symbol_code, profile_key)
+        )
+
+    return (
+        precip_probability_score(precipitation_probability)
+        + symbol_risk_score(symbol_code, profile_key)
     )
 
 
@@ -281,19 +370,32 @@ def get_activity_score(
             hour.cloud_coverage,
             hour.precipitation_amount,
             hour.relative_humidity,
+            getattr(hour, "precipitation_probability", None),
+            getattr(hour, "symbol_code", None),
         )
 
-    return hour.total_score
+    return hour.total_score + activity_risk_score(
+        getattr(hour, "precipitation_probability", None),
+        getattr(hour, "symbol_code", None),
+        profile_key,
+    )
 
 
-def get_rating_info(score: Union[int, float, None]) -> str:
+def get_rating_info(
+    score: Union[int, float, None],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> str:
     """Return standardized rating description based on score."""
     if score is None:
         return "N/A"
-    return _get_value_from_ranges(score, RATING_RANGES, inclusive=False) or "N/A"
+    ranges = RATING_RANGES_BY_PROFILE.get(profile_key, RATING_RANGES)
+    return _get_value_from_ranges(score, ranges, inclusive=False) or "N/A"
 
 
-def normalize_score(score: Union[int, float, None]) -> int:
+def normalize_score(
+    score: Union[int, float, None],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> int:
     """Normalize a raw score to a 0-100 scale using piecewise linear mapping.
 
     Mapping based on rating thresholds:
@@ -306,26 +408,21 @@ def normalize_score(score: Union[int, float, None]) -> int:
     if score is None:
         return 0
 
-    if score >= 18:
-        # Map 18..23 to 90..100
-        # Slope: 10 / 5 = 2
-        normalized = 90 + (score - 18) * 2
-    elif score >= 13:
-        # Map 13..18 to 80..90
-        # Slope: 10 / 5 = 2
-        normalized = 80 + (score - 13) * 2
-    elif score >= 7:
-        # Map 7..13 to 65..80
-        # Slope: 15 / 6 = 2.5
-        normalized = 65 + (score - 7) * 2.5
-    elif score >= 2:
-        # Map 2..7 to 50..65
-        # Slope: 15 / 5 = 3
-        normalized = 50 + (score - 2) * 3
+    if profile_key == ACTIVITY_BEACH_DAY:
+        excellent, very_good, good, fair, max_expected = 22, 17, 11, 5, 26
     else:
-        # Map < 2 to < 50
-        # Slope: 50 / 8 = 6.25 (approx, mapping -6 to 0)
-        # Let's use 6 to be safe
-        normalized = 50 + (score - 2) * 6
+        excellent, very_good, good, fair, max_expected = 18, 13, 7, 2, 23
+
+    if score >= excellent:
+        normalized = 90 + (score - excellent) * (10 / (max_expected - excellent))
+    elif score >= very_good:
+        normalized = 80 + (score - very_good) * (10 / (excellent - very_good))
+    elif score >= good:
+        normalized = 65 + (score - good) * (15 / (very_good - good))
+    elif score >= fair:
+        normalized = 50 + (score - fair) * (15 / (good - fair))
+    else:
+        poor_slope = 5 if profile_key == ACTIVITY_BEACH_DAY else 6
+        normalized = 50 + (score - fair) * poor_slope
 
     return max(0, min(100, int(round(normalized))))

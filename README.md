@@ -8,9 +8,9 @@ The Weather Helper is a desktop application that provides detailed weather forec
 
 ## Features
 
-- **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, and relative humidity.
+- **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, rain risk, and relative humidity.
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
-- **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or a beach day focused on swimming and sunbathing.
+- **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or beach plans focused on swimming and sunbathing.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
 - **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
 - **Clean Interface**: A user-friendly GUI built with Tkinter, featuring responsive layouts and scrollable panels for easy navigation.
@@ -93,7 +93,7 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions. Each hour receives a base hiking/general outdoors score from five key factors, and the app can also re-score the same hour for a beach day focused on open-water swimming and sunbathing.
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions. Each hour receives a base hiking/general outdoors score from five key factors, and the app can also re-score the same hour for beach plans focused on open-water swimming and sunbathing. Forecast times are converted to the app timezone before grouping, filtering, and display.
 
 ### Individual Component Scores
 
@@ -190,13 +190,15 @@ The app can rank locations and hourly blocks using different activity profiles:
 | Profile   | Intended use                         | Scoring emphasis |
 | --------- | ------------------------------------ | ---------------- |
 | Hiking    | General outdoors, walking, day trips | Balanced comfort across temperature, wind, cloud, rain, and humidity |
-| Beach day | Swimming and sunbathing              | Warm air, low wind, dry weather, and clear to partly cloudy skies |
+| Beach     | Swimming and sunbathing              | Warm air, low wind, dry weather, and clear to partly cloudy skies |
 
-Beach day scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more for open-water swimming and beach comfort. Wind values are shown in meters per second (m/s), matching the source forecast data.
+Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more for open-water swimming and beach comfort. Wind values are shown in meters per second (m/s), matching the source forecast data.
+
+Both profiles also consider precipitation probability and forecast symbols such as rain, showers, fog, snow, and thunder. These risk signals can lower the profile score even when the expected precipitation amount is low.
 
 ### Overall Rating System
 
-The total scores are converted to descriptive ratings:
+The total scores are converted to descriptive ratings. Each activity profile has its own thresholds, so Beach scores are interpreted against beach-specific expectations rather than the generic outdoors scale.
 
 | Score Range | Rating    |
 | ----------- | --------- |
@@ -208,11 +210,12 @@ The total scores are converted to descriptive ratings:
 
 ### Optimal Weather Block Detection
 
-The application identifies the best continuous time periods for outdoor activities by:
+The application identifies the best continuous time periods for the selected activity by:
 
-1. **Filtering**: Only considering hours with non-negative scores.
-2. **Duration Bonuses**: Rewarding longer consistent periods of good weather.
-3. **Consistency Checks**: Prioritizing blocks with stable scores.
-4. **Combined Scoring**: Balancing quality, duration, and consistency.
+1. **Filtering**: Avoiding multi-hour recommendations that contain bad hours.
+2. **Continuity Checks**: Only joining forecast rows that are truly adjacent hours.
+3. **Quality First**: Letting the average profile score dominate the recommendation.
+4. **Duration Bonuses**: Rewarding longer useful periods without letting length overwhelm quality.
+5. **Consistency Checks**: Prioritizing blocks with stable scores.
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.

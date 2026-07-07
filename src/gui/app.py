@@ -6,7 +6,7 @@ Handles window setup and main widget initialization.
 import threading
 import tkinter as tk
 import tkinter.messagebox as messagebox
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from tkinter import ttk
 from typing import Any, Dict, List
 
@@ -23,6 +23,7 @@ from src.core.evaluation import (
     process_forecast,
 )
 from src.core.scoring import (
+    ACTIVITY_BEACH_DAY,
     ACTIVITY_PROFILE_LABELS,
     DEFAULT_ACTIVITY_PROFILE,
     get_activity_profile_key,
@@ -41,7 +42,7 @@ class WeatherHelperApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Weather Helper")
-        self.root.minsize(1200, 750)
+        self.root.minsize(1000, 700)
         apply_theme(self.root)
 
         # Initialize data and UI state
@@ -84,16 +85,20 @@ class WeatherHelperApp:
         """Configure the main window settings."""
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        window_width = 1400
-        window_height = 1100
+        if not isinstance(screen_width, (int, float)):
+            screen_width = 1400
+        if not isinstance(screen_height, (int, float)):
+            screen_height = 900
+
+        window_width = min(1400, max(1000, screen_width - 120))
+        window_height = min(950, max(700, screen_height - 160))
 
         # Center the window
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
         self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
-        # Disable resizing to prevent window from becoming too small
-        self.root.resizable(False, False)
+        self.root.resizable(True, True)
 
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
@@ -262,7 +267,7 @@ class WeatherHelperApp:
         self.activity_dropdown.bind("<<ComboboxSelected>>", self.on_activity_change)
         add_tooltip(
             self.activity_dropdown,
-            "Choose whether to rank conditions for hiking or a beach day",
+            "Choose whether to rank conditions for hiking or beach plans",
         )
 
         # Score visibility toggle
@@ -408,7 +413,16 @@ class WeatherHelperApp:
         table_frame.columnconfigure(0, weight=1)
         table_frame.rowconfigure(0, weight=1)
 
-        columns = ("Time", "Temp", "Wind", "Clouds", "Rain", "Humidity", "Score")
+        columns = (
+            "Time",
+            "Temp",
+            "Wind",
+            "Clouds",
+            "Rain",
+            "RainChance",
+            "Humidity",
+            "Score",
+        )
         self.main_table = ttk.Treeview(
             table_frame,
             columns=columns,
@@ -432,6 +446,7 @@ class WeatherHelperApp:
             "Wind": {"width": 120, "anchor": "center", "stretch": True},
             "Clouds": {"width": 120, "anchor": "center", "stretch": True},
             "Rain": {"width": 120, "anchor": "center", "stretch": True},
+            "RainChance": {"width": 120, "anchor": "center", "stretch": True},
             "Humidity": {"width": 120, "anchor": "center", "stretch": True},
             "Score": {"width": 110, "anchor": "center", "stretch": True},
         }
@@ -442,6 +457,7 @@ class WeatherHelperApp:
             "Wind": "Wind Speed",
             "Clouds": "Cloud Coverage",
             "Rain": "Precipitation",
+            "RainChance": "Rain Risk",
             "Humidity": "Humidity",
             "Score": "Profile Score",
         }
@@ -769,13 +785,15 @@ class WeatherHelperApp:
         name_label.config(text=loc_data["location_name"])
 
         total_score = loc_data.get("raw_score", loc_data.get("avg_score", 0))
-        rating = get_rating_info(total_score)
+        activity_profile = loc_data.get(
+            "activity_profile",
+            self.selected_activity_profile,
+        )
+        rating = get_rating_info(total_score, activity_profile)
         color = get_rating_color(rating)
 
-        normalized = normalize_score(total_score)
-        activity_label = get_activity_profile_label(
-            loc_data.get("activity_profile", self.selected_activity_profile)
-        )
+        normalized = normalize_score(total_score, activity_profile)
+        activity_label = get_activity_profile_label(activity_profile)
         score_text = f"{activity_label}: {normalized}/100"
 
         if self.show_scores.get():
@@ -789,18 +807,43 @@ class WeatherHelperApp:
         best_block = loc_data.get("optimal_block")
         if best_block:
             start_str = best_block["start"].strftime("%H:%M")
-            end_str = best_block["end"].strftime("%H:%M")
+            end_str = (best_block["end"] + timedelta(hours=1)).strftime("%H:%M")
 
             temp_val = best_block.get("temp")
             wind_val = best_block.get("wind")
             precip_val = best_block.get("precip")
+            cloud_val = best_block.get("cloud")
+            rain_risk_val = best_block.get("precip_probability")
+            reason = self._build_block_reason(best_block)
 
-            # Fix newline formatting in ternary
             details = (
-                f"Best time: {start_str} - {end_str}\n" +
-                (f"Temp: {temp_val:.1f}°C\n" if temp_val is not None else "Temp: N/A\n") +
-                (f"Wind: {wind_val:.1f} m/s\n" if wind_val is not None else "Wind: N/A\n") +
-                (f"Rain: {precip_val:.1f} mm" if precip_val is not None else "Rain: 0.0 mm")
+                f"Best time: {start_str} - {end_str}\n"
+                + (
+                    f"Temp: {temp_val:.1f}°C\n"
+                    if temp_val is not None
+                    else "Temp: N/A\n"
+                )
+                + (
+                    f"Wind: {wind_val:.1f} m/s\n"
+                    if wind_val is not None
+                    else "Wind: N/A\n"
+                )
+                + (
+                    f"Clouds: {cloud_val:.0f}%\n"
+                    if cloud_val is not None
+                    else "Clouds: N/A\n"
+                )
+                + (
+                    f"Rain: {precip_val:.1f} mm\n"
+                    if precip_val is not None
+                    else "Rain: 0.0 mm\n"
+                )
+                + (
+                    f"Rain risk: {rain_risk_val:.0f}%\n"
+                    if rain_risk_val is not None
+                    else "Rain risk: N/A\n"
+                )
+                + reason
             )
         else:
             details = "No optimal block found"
@@ -831,14 +874,23 @@ class WeatherHelperApp:
                     f"{block.temp:.1f}°C" if block.temp is not None else "N/A",
                     f"{block.wind:.1f} m/s" if block.wind is not None else "N/A",
                     f"{block.cloud_coverage:.0f}%" if block.cloud_coverage is not None else "N/A",
-                    f"{block.precipitation_amount:.1f} mm" if block.precipitation_amount is not None else "0.0 mm",
+                    (
+                        f"{block.precipitation_amount:.1f} mm"
+                        if block.precipitation_amount is not None
+                        else "0.0 mm"
+                    ),
+                    (
+                        f"{block.precipitation_probability:.0f}%"
+                        if block.precipitation_probability is not None
+                        else "N/A"
+                    ),
                     f"{block.relative_humidity:.0f}%" if block.relative_humidity is not None else "N/A",
                     self._format_profile_score(block),
                 )
 
                 # Determine row color based on the selected activity profile.
                 score = get_activity_score(block, self.selected_activity_profile)
-                rating = get_rating_info(score)
+                rating = get_rating_info(score, self.selected_activity_profile)
 
                 # Using tags to color the row
                 tag = rating.replace(" ", "")  # Remove spaces for tag name
@@ -850,11 +902,52 @@ class WeatherHelperApp:
     def _format_profile_score(self, block: Any) -> str:
         """Format the selected activity score for the hourly table."""
         score = get_activity_score(block, self.selected_activity_profile)
-        normalized = normalize_score(score)
+        normalized = normalize_score(score, self.selected_activity_profile)
         if self.show_scores.get():
-            rating = get_rating_info(score)
+            rating = get_rating_info(score, self.selected_activity_profile)
             return f"{normalized}/100 ({score:.1f}, {rating})"
         return f"{normalized}/100"
+
+    def _build_block_reason(self, best_block: dict[str, Any]) -> str:
+        """Build a short human-readable reason for a recommended block."""
+        wind = best_block.get("wind")
+        cloud = best_block.get("cloud")
+        rain = best_block.get("precip")
+        rain_risk = best_block.get("precip_probability")
+        symbols = best_block.get("symbols", [])
+        profile = best_block.get("activity_profile", self.selected_activity_profile)
+
+        warnings = []
+        positives = []
+
+        if rain_risk is not None and rain_risk >= 40:
+            warnings.append("rain risk")
+        if rain is not None and rain >= 0.5:
+            warnings.append("wet spell")
+        if symbols and any("thunder" in symbol for symbol in symbols):
+            warnings.append("storm risk")
+
+        if profile == ACTIVITY_BEACH_DAY:
+            if wind is not None and wind >= 8:
+                warnings.append("windy for swimming")
+            elif wind is not None and wind <= 4:
+                positives.append("calm")
+            if cloud is not None and cloud <= 45:
+                positives.append("good sun")
+        else:
+            if wind is not None and wind <= 5:
+                positives.append("comfortable wind")
+            if cloud is not None and cloud <= 60:
+                positives.append("usable light")
+
+        if rain is not None and rain < 0.1 and (rain_risk is None or rain_risk < 25):
+            positives.append("dry")
+
+        if warnings:
+            return "Watch: " + ", ".join(dict.fromkeys(warnings))
+        if positives:
+            return "Why: " + ", ".join(dict.fromkeys(positives))
+        return "Why: steady conditions"
 
 
 def main():

@@ -19,6 +19,8 @@ class HourlyWeather:
     wind: Optional[NumericType] = None
     cloud_coverage: Optional[NumericType] = None
     precipitation_amount: Optional[NumericType] = None
+    precipitation_probability: Optional[NumericType] = None
+    symbol_code: Optional[str] = None
     relative_humidity: Optional[NumericType] = None
     temp_score: NumericType = 0
     wind_score: NumericType = 0

@@ -6,11 +6,16 @@ from src.core.scoring import (
     ACTIVITY_BEACH_DAY,
     ACTIVITY_HIKING,
     beach_day_score,
+    beach_precip_probability_score,
     get_activity_profile_key,
     get_activity_profile_label,
     get_activity_score,
+    get_rating_info,
     cloud_score,
+    normalize_score,
     precip_amount_score,
+    precip_probability_score,
+    symbol_risk_score,
     temp_score,
     wind_score,
 )
@@ -112,9 +117,31 @@ def test_beach_day_score_penalizes_windy_overcast_weather():
     ) == -1
 
 
+def test_beach_day_score_penalizes_rain_risk_and_symbols():
+    assert beach_day_score(
+        temp=27,
+        wind_speed=2,
+        cloud_coverage=5,
+        precipitation_amount=0,
+        relative_humidity=60,
+        precipitation_probability=70,
+        symbol_code="rainshowers_day",
+    ) == 7
+
+
+def test_precipitation_probability_is_profile_aware():
+    assert precip_probability_score(45) == -3
+    assert beach_precip_probability_score(45) == -7
+
+
+def test_symbol_risk_is_profile_aware():
+    assert symbol_risk_score("thunderstorm", ACTIVITY_HIKING) == -12
+    assert symbol_risk_score("thunderstorm", ACTIVITY_BEACH_DAY) == -16
+
+
 def test_activity_profile_labels_round_trip():
     assert get_activity_profile_label(ACTIVITY_HIKING) == "Hiking"
-    assert get_activity_profile_key("Beach day") == ACTIVITY_BEACH_DAY
+    assert get_activity_profile_key("Beach") == ACTIVITY_BEACH_DAY
     assert get_activity_profile_key("Unknown") == ACTIVITY_HIKING
 
 
@@ -131,3 +158,21 @@ def test_activity_score_uses_selected_profile(create_hour):
 
     assert get_activity_score(hour, ACTIVITY_HIKING) == 12
     assert get_activity_score(hour, ACTIVITY_BEACH_DAY) == 26
+
+
+def test_activity_score_applies_risk_to_hiking(create_hour):
+    hour = create_hour(
+        time=datetime(2024, 3, 15, 12),
+        total_score=12,
+        precipitation_probability=60,
+        symbol_code="rain",
+    )
+
+    assert get_activity_score(hour, ACTIVITY_HIKING) == 2
+
+
+def test_beach_rating_and_normalization_use_beach_thresholds():
+    assert get_rating_info(21, ACTIVITY_BEACH_DAY) == "Very Good"
+    assert get_rating_info(22, ACTIVITY_BEACH_DAY) == "Excellent"
+    assert normalize_score(22, ACTIVITY_BEACH_DAY) == 90
+    assert normalize_score(26, ACTIVITY_BEACH_DAY) == 100
