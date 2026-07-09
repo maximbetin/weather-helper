@@ -59,24 +59,43 @@ BORDER = {
     "focus_color": COLORS["primary_light"],
 }
 
+THEME_FALLBACKS = ("vista", "clam", "default")
+
 
 def apply_theme(root):
     """Apply the modern theme to the root window and its widgets."""
     style = ttk.Style()
-
-    # Use a modern theme as base
-    try:
-        style.theme_use("vista")  # Windows modern theme
-    except Exception:
-        try:
-            style.theme_use("clam")  # Cross-platform modern theme
-        except Exception:
-            style.theme_use("default")
-
-    # Configure root window
+    _select_available_theme(style)
     root.configure(background=COLORS["background"])
+    _configure_frame_styles(style)
+    _configure_label_styles(style)
+    _configure_button_styles(style)
+    _configure_combobox_styles(style)
+    _configure_toggle_styles(style)
+    _configure_treeview_styles(style)
+    _configure_rating_styles(style)
+    _configure_author_style(style)
 
-    # Configure ttk styles with modern appearance
+
+def _select_available_theme(style):
+    """Select the first available ttk theme."""
+    for theme_name in THEME_FALLBACKS:
+        try:
+            style.theme_use(theme_name)
+            return
+        except Exception:
+            continue
+
+
+def _configure_frame_styles(style):
+    """Configure frame styles."""
+    _configure_base_frame_style(style)
+    _configure_card_frame_style(style)
+    _configure_sidebar_frame_style(style)
+
+
+def _configure_base_frame_style(style):
+    """Configure the base frame style."""
     style.configure(
         "TFrame",
         background=COLORS["background"],
@@ -85,6 +104,9 @@ def apply_theme(root):
         highlightthickness=0,
     )
 
+
+def _configure_card_frame_style(style):
+    """Configure card frame style."""
     style.configure(
         "Card.TFrame",
         background=COLORS["background"],
@@ -93,7 +115,9 @@ def apply_theme(root):
         padding=2,
     )
 
-    # Sidebar content frame with unified background
+
+def _configure_sidebar_frame_style(style):
+    """Configure sidebar frame style."""
     style.configure(
         "Sidebar.TFrame",
         background=COLORS["background"],
@@ -102,6 +126,19 @@ def apply_theme(root):
         highlightthickness=0,
     )
 
+
+def _configure_label_styles(style):
+    """Configure standard label styles."""
+    _configure_base_label_style(style)
+    _configure_sidebar_label_style(style)
+    _configure_title_label_style(style)
+    _configure_heading_label_style(style)
+    _configure_secondary_label_style(style)
+    _configure_status_label_style(style)
+
+
+def _configure_base_label_style(style):
+    """Configure the base label style."""
     style.configure(
         "TLabel",
         background=COLORS["background"],
@@ -109,7 +146,9 @@ def apply_theme(root):
         font=FONTS["body"],
     )
 
-    # Sidebar label styling for unified appearance
+
+def _configure_sidebar_label_style(style):
+    """Configure sidebar label style."""
     style.configure(
         "Sidebar.TLabel",
         background=COLORS["background"],
@@ -120,6 +159,9 @@ def apply_theme(root):
         highlightthickness=0,
     )
 
+
+def _configure_title_label_style(style):
+    """Configure title label style."""
     style.configure(
         "Title.TLabel",
         background=COLORS["background"],
@@ -127,6 +169,9 @@ def apply_theme(root):
         font=FONTS["title"],
     )
 
+
+def _configure_heading_label_style(style):
+    """Configure heading label style."""
     style.configure(
         "Heading.TLabel",
         background=COLORS["background"],
@@ -134,6 +179,9 @@ def apply_theme(root):
         font=FONTS["heading"],
     )
 
+
+def _configure_secondary_label_style(style):
+    """Configure secondary label style."""
     style.configure(
         "Secondary.TLabel",
         background=COLORS["background"],
@@ -141,6 +189,9 @@ def apply_theme(root):
         font=FONTS["small"],
     )
 
+
+def _configure_status_label_style(style):
+    """Configure status label style."""
     style.configure(
         "Status.TLabel",
         background=COLORS["background"],
@@ -148,7 +199,9 @@ def apply_theme(root):
         font=FONTS["body_bold"],
     )
 
-    # Enhanced button styling
+
+def _configure_button_styles(style):
+    """Configure button styles."""
     style.configure(
         "TButton",
         background=COLORS["primary"],
@@ -158,7 +211,6 @@ def apply_theme(root):
         relief="flat",
         borderwidth=0,
     )
-
     style.map(
         "TButton",
         background=[
@@ -168,7 +220,9 @@ def apply_theme(root):
         ],
     )
 
-    # Modern combobox styling
+
+def _configure_combobox_styles(style):
+    """Configure combobox styles."""
     style.configure(
         "TCombobox",
         fieldbackground=COLORS["background"],
@@ -178,7 +232,6 @@ def apply_theme(root):
         borderwidth=1,
         relief="solid",
     )
-
     style.map(
         "TCombobox",
         fieldbackground=[
@@ -188,7 +241,9 @@ def apply_theme(root):
         bordercolor=[("focus", COLORS["primary_light"]), ("!focus", COLORS["border"])],
     )
 
-    # Checkbox styling
+
+def _configure_toggle_styles(style):
+    """Configure checkbox styles."""
     style.configure(
         "Toggle.TCheckbutton",
         background=COLORS["background"],
@@ -196,7 +251,6 @@ def apply_theme(root):
         font=FONTS["body"],
         padding=(PADDING["small"], PADDING["tiny"]),
     )
-
     style.map(
         "Toggle.TCheckbutton",
         background=[
@@ -206,7 +260,9 @@ def apply_theme(root):
         foreground=[("active", COLORS["primary"]), ("selected", COLORS["primary"])],
     )
 
-    # Create a custom style for the Treeview
+
+def _configure_treeview_styles(style):
+    """Configure table styles."""
     style.configure(
         "Custom.Treeview",
         background=COLORS["surface"],
@@ -214,7 +270,6 @@ def apply_theme(root):
         fieldbackground=COLORS["surface"],
         font=FONTS["body"],
     )
-
     style.configure(
         "Custom.Treeview.Heading",
         background=COLORS["surface"],
@@ -224,13 +279,18 @@ def apply_theme(root):
         borderwidth=1,
     )
 
-    # Configure rating-specific styles
+
+def _configure_rating_styles(style):
+    """Configure rating-specific row styles."""
     style.configure("Excellent.Custom.Treeview", foreground=COLORS["excellent"])
     style.configure("VeryGood.Custom.Treeview", foreground=COLORS["very_good"])
     style.configure("Good.Custom.Treeview", foreground=COLORS["good"])
     style.configure("Fair.Custom.Treeview", foreground=COLORS["fair"])
     style.configure("Poor.Custom.Treeview", foreground=COLORS["poor"])
 
+
+def _configure_author_style(style):
+    """Configure author attribution style."""
     style.configure(
         "Author.TLabel",
         background=COLORS["background"],

@@ -9,6 +9,11 @@ from typing import Optional
 
 from src.core.config import NumericType, safe_average
 
+SIGNIFICANT_RAIN_MM = 0.5
+WARM_TEMP_C = 22
+PLEASANT_TEMP_C = 18
+COOL_TEMP_C = 10
+
 
 @dataclass
 class HourlyWeather:
@@ -65,22 +70,10 @@ class DailyReport:
 
     def _get_weather_description(self) -> str:
         """Determine overall weather description based on temperature and precipitation."""
-        # Check if there's significant precipitation
         if self.likely_rain_hours > 0:
             return f"Rain ({self.likely_rain_hours}h)"
 
-        # Base description on temperature
-        if self.avg_temp is not None:
-            if self.avg_temp >= 22:
-                return "Warm"
-            elif self.avg_temp >= 18:
-                return "Pleasant"
-            elif self.avg_temp >= 10:
-                return "Cool"
-            else:
-                return "Cold"
-
-        return "Mixed"
+        return _describe_temperature(self.avg_temp)
 
     def _initialize_empty_report(self) -> None:
         """Initialize default values for an empty report (no daylight hours)."""
@@ -92,38 +85,17 @@ class DailyReport:
 
     def _calculate_all_stats(self) -> None:
         """Calculate all statistics in a single pass through the data."""
-        rain_hours = 0
-        total_score = 0
-        valid_temps = []
+        temperatures = _valid_temperatures(self.daylight_hours)
+        total_score = sum(hour.total_score for hour in self.daylight_hours)
+        self.likely_rain_hours = _count_likely_rain_hours(self.daylight_hours)
+        self._set_temperature_stats(temperatures)
+        self.avg_score = total_score / len(self.daylight_hours)
 
-        for hour in self.daylight_hours:
-            # Rain calculation
-            if (
-                isinstance(hour.precipitation_amount, (int, float))
-                and hour.precipitation_amount > 0.5
-            ):
-                rain_hours += 1
-
-            # Temp collection
-            if hour.temp is not None:
-                valid_temps.append(hour.temp)
-
-            # Score summation
-            total_score += hour.total_score
-
-        self.likely_rain_hours = rain_hours
-
-        if valid_temps:
-            self.min_temp = min(valid_temps)
-            self.max_temp = max(valid_temps)
-            self.avg_temp = safe_average(valid_temps)
-        else:
-            self.min_temp = None
-            self.max_temp = None
-            self.avg_temp = None
-
-        num_hours = len(self.daylight_hours)
-        self.avg_score = total_score / num_hours if num_hours > 0 else 0
+    def _set_temperature_stats(self, temperatures: list[NumericType]) -> None:
+        """Set min, max, and average temperature fields."""
+        self.min_temp = min(temperatures) if temperatures else None
+        self.max_temp = max(temperatures) if temperatures else None
+        self.avg_temp = safe_average(temperatures)
 
     @property
     def weather_description(self) -> str:
@@ -133,3 +105,32 @@ class DailyReport:
             str: Description of the overall weather
         """
         return self._get_weather_description()
+
+
+def _valid_temperatures(hours: list[HourlyWeather]) -> list[NumericType]:
+    """Return non-empty temperature readings from hourly weather."""
+    return [hour.temp for hour in hours if hour.temp is not None]
+
+
+def _count_likely_rain_hours(hours: list[HourlyWeather]) -> int:
+    """Count hours with precipitation above the rain threshold."""
+    return sum(1 for hour in hours if _has_significant_rain(hour))
+
+
+def _has_significant_rain(hour: HourlyWeather) -> bool:
+    """Return True when an hour is likely rainy."""
+    amount = hour.precipitation_amount
+    return isinstance(amount, (int, float)) and amount > SIGNIFICANT_RAIN_MM
+
+
+def _describe_temperature(avg_temp: Optional[NumericType]) -> str:
+    """Return a coarse description for an average temperature."""
+    if avg_temp is None:
+        return "Mixed"
+    if avg_temp >= WARM_TEMP_C:
+        return "Warm"
+    if avg_temp >= PLEASANT_TEMP_C:
+        return "Pleasant"
+    if avg_temp >= COOL_TEMP_C:
+        return "Cool"
+    return "Cold"

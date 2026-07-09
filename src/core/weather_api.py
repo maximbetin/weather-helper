@@ -10,6 +10,9 @@ import requests
 from src.core.config import API_URL, API_URL_COMPACT, USER_AGENT
 from src.core.locations import Location
 
+REQUEST_TIMEOUT_SECONDS = 10
+MIN_COMPLETE_TIMESERIES_LENGTH = 5
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -22,7 +25,7 @@ def _make_request(
 ) -> Optional[Dict[str, Any]]:
     """Make a request to the weather API and return the JSON response."""
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
         return response.json()
     except (requests.exceptions.RequestException, ValueError) as e:
@@ -30,8 +33,25 @@ def _make_request(
         return None
 
 
+def _build_forecast_url(base_url: str, location: Location) -> str:
+    """Build a met.no forecast URL for a location."""
+    return f"{base_url}?lat={location.lat}&lon={location.lon}"
+
+
+def _get_timeseries(data: Optional[Dict[str, Any]]) -> list:
+    """Extract timeseries rows from a forecast response."""
+    if not data:
+        return []
+    return data.get("properties", {}).get("timeseries", [])
+
+
+def _has_complete_forecast(data: Optional[Dict[str, Any]]) -> bool:
+    """Return True when the complete endpoint has enough forecast rows."""
+    return len(_get_timeseries(data)) >= MIN_COMPLETE_TIMESERIES_LENGTH
+
+
 def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
-    """Fetch weather data for a specific location, falling back to compact endpoint if complete returns insufficient data.
+    """Fetch weather data, falling back to compact when complete is too sparse.
 
     Args:
         location: Location object containing lat/lon coordinates
@@ -39,21 +59,11 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
     Returns:
         JSON response from API or None if request failed
     """
-    lat = location.lat
-    lon = location.lon
-
     headers = {"User-Agent": USER_AGENT}
-
-    # First try the complete endpoint
-    complete_url = f"{API_URL}?lat={lat}&lon={lon}"
+    complete_url = _build_forecast_url(API_URL, location)
     data = _make_request(complete_url, location, headers)
-    if (
-        data
-        and data.get("properties", {}).get("timeseries", [])
-        and len(data["properties"]["timeseries"]) >= 5
-    ):
+    if _has_complete_forecast(data):
         return data
 
-    # Fallback to compact endpoint
-    compact_url = f"{API_URL_COMPACT}?lat={lat}&lon={lon}"
+    compact_url = _build_forecast_url(API_URL_COMPACT, location)
     return _make_request(compact_url, location, headers)

@@ -8,38 +8,63 @@ from src.core.config import NumericType
 
 # Type definition for ranges: ((min, max), score)
 RangeType = Tuple[Optional[Tuple[Optional[float], Optional[float]]], Any]
+RangeBounds = Tuple[float, float]
+
+NORMALIZED_POOR_THRESHOLD = 50
+NORMALIZED_FAIR_THRESHOLD = 50
+NORMALIZED_GOOD_THRESHOLD = 65
+NORMALIZED_VERY_GOOD_THRESHOLD = 80
+NORMALIZED_EXCELLENT_THRESHOLD = 90
+NORMALIZED_MIN_SCORE = 0
+NORMALIZED_MAX_SCORE = 100
+
+
+def _is_numeric(value: Any) -> bool:
+    """Return True when the value can be scored as a number."""
+    return isinstance(value, (int, float))
+
+
+def _normalize_range_bounds(
+    range_tuple: Tuple[Optional[float], Optional[float]]
+) -> RangeBounds:
+    """Convert open-ended range bounds to infinities."""
+    low, high = range_tuple
+    return (
+        float("-inf") if low is None else low,
+        float("inf") if high is None else high,
+    )
+
+
+def _value_in_range(value: NumericType, bounds: RangeBounds, inclusive: bool) -> bool:
+    """Return True when a value falls inside a configured range."""
+    low, high = bounds
+    if inclusive:
+        return low <= value <= high
+    return low <= value < high
 
 
 def _get_value_from_ranges(
     value: Optional[NumericType], ranges: List[RangeType], inclusive: bool = False
 ) -> Optional[Any]:
     """Get a value from a list of ranges."""
-    if value is None or not isinstance(value, (int, float)):
+    if value is None or not _is_numeric(value):
         return None
 
     for range_tuple, result_value in ranges:
-        if range_tuple is None:  # Default case
+        if range_tuple is None:
             return result_value
-        low, high = range_tuple
+        if _value_in_range(value, _normalize_range_bounds(range_tuple), inclusive):
+            return result_value
 
-        # Handle None boundaries (open-ended ranges)
-        if low is None:
-            low = float("-inf")
-        if high is None:
-            high = float("inf")
-
-        if inclusive:
-            if low <= value <= high:
-                return result_value
-        else:
-            if low <= value < high:
-                return result_value
-
-    # Return default value if found at end of list
-    if ranges and ranges[-1][0] is None:
+    if _has_default_range(ranges):
         return ranges[-1][1]
 
     return None
+
+
+def _has_default_range(ranges: List[RangeType]) -> bool:
+    """Return True when the final range is the default fallback."""
+    return bool(ranges and ranges[-1][0] is None)
 
 
 def calculate_score(
@@ -414,22 +439,46 @@ def normalize_score(
     if score is None:
         return 0
 
-    excellent, very_good, good, fair, max_expected, poor_slope = (
-        NORMALIZATION_CONFIG_BY_PROFILE.get(
-            profile_key,
-            NORMALIZATION_CONFIG_BY_PROFILE[DEFAULT_ACTIVITY_PROFILE],
-        )
+    config = _get_normalization_config(profile_key)
+    normalized = _calculate_normalized_score(score, config)
+    return _clamp_normalized_score(normalized)
+
+
+def _get_normalization_config(profile_key: str) -> tuple[int, int, int, int, int, int]:
+    """Return normalization thresholds for a profile."""
+    return NORMALIZATION_CONFIG_BY_PROFILE.get(
+        profile_key,
+        NORMALIZATION_CONFIG_BY_PROFILE[DEFAULT_ACTIVITY_PROFILE],
     )
 
-    if score >= excellent:
-        normalized = 90 + (score - excellent) * (10 / (max_expected - excellent))
-    elif score >= very_good:
-        normalized = 80 + (score - very_good) * (10 / (excellent - very_good))
-    elif score >= good:
-        normalized = 65 + (score - good) * (15 / (very_good - good))
-    elif score >= fair:
-        normalized = 50 + (score - fair) * (15 / (good - fair))
-    else:
-        normalized = 50 + (score - fair) * poor_slope
 
-    return max(0, min(100, int(round(normalized))))
+def _calculate_normalized_score(score: Union[int, float], config: tuple) -> float:
+    """Apply the piecewise score normalization formula."""
+    excellent, very_good, good, fair, max_expected, poor_slope = config
+    if score >= excellent:
+        return _scale_score(score, excellent, max_expected, 90, 100)
+    if score >= very_good:
+        return _scale_score(score, very_good, excellent, 80, 90)
+    if score >= good:
+        return _scale_score(score, good, very_good, 65, 80)
+    if score >= fair:
+        return _scale_score(score, fair, good, 50, 65)
+    return NORMALIZED_POOR_THRESHOLD + (score - fair) * poor_slope
+
+
+def _scale_score(
+    score: Union[int, float],
+    lower_raw: Union[int, float],
+    upper_raw: Union[int, float],
+    lower_normalized: int,
+    upper_normalized: int,
+) -> float:
+    """Scale a score between raw and normalized thresholds."""
+    span = upper_normalized - lower_normalized
+    return lower_normalized + (score - lower_raw) * (span / (upper_raw - lower_raw))
+
+
+def _clamp_normalized_score(normalized: float) -> int:
+    """Round and clamp normalized score to the display range."""
+    rounded = int(round(normalized))
+    return max(NORMALIZED_MIN_SCORE, min(NORMALIZED_MAX_SCORE, rounded))
