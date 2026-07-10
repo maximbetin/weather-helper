@@ -36,12 +36,10 @@ OPTIMAL_MAX_SCORE_VARIANCE = 8.0
 SINGLE_HOUR_MIN_AVG_SCORE = -1
 MULTI_HOUR_MIN_AVG_SCORE = 0
 VARIANCE_THRESHOLD_PER_EXTRA_HOUR = 0.8
-DURATION_BONUS_PER_EXTRA_HOUR = 1.0
-DURATION_BONUS_LOG_WEIGHT = 0.8
-MAX_DURATION_BONUS = 4.0
+MAX_DURATION_BONUS = 5.0
+DURATION_BONUS_SATURATION_RATE = 0.35
 CONSISTENCY_BONUS_WEIGHT = 2.0
 WEAK_HOUR_PENALTY_WEIGHT = 0.2
-LOCATION_DURATION_BONUS_CAP = 2.0
 
 
 def _calculate_weather_averages(
@@ -472,12 +470,19 @@ def _blocks_with_minimum_duration(
 
 def _rank_block(block_info: dict[str, Any], activity_profile: str) -> dict[str, Any]:
     """Add ranking scores to a candidate block."""
-    duration_bonus = _duration_bonus(block_info["duration"])
+    positive_hour_count = _positive_hour_count(block_info, activity_profile)
+    duration_bonus = _duration_bonus(positive_hour_count)
     consistency_bonus = block_info["consistency"] * CONSISTENCY_BONUS_WEIGHT
     weak_hour_penalty = _weak_hour_penalty(block_info, activity_profile)
     combined_score = block_info["avg_score"] + duration_bonus
     combined_score += consistency_bonus - weak_hour_penalty
-    return _block_with_rank(block_info, combined_score, duration_bonus, consistency_bonus)
+    return _block_with_rank(
+        block_info,
+        combined_score,
+        duration_bonus,
+        consistency_bonus,
+        positive_hour_count,
+    )
 
 
 def _block_with_rank(
@@ -485,6 +490,7 @@ def _block_with_rank(
     combined_score: float,
     duration_bonus: float,
     consistency_bonus: float,
+    positive_hour_count: int,
 ) -> dict[str, Any]:
     """Return a block dictionary with ranking metadata."""
     return {
@@ -492,14 +498,26 @@ def _block_with_rank(
         "combined_score": combined_score,
         "duration_bonus": duration_bonus,
         "consistency_bonus": consistency_bonus,
+        "positive_hour_count": positive_hour_count,
     }
 
 
-def _duration_bonus(duration: int) -> float:
-    """Return the duration bonus for a forecast block."""
-    linear_bonus = (duration - 1) * DURATION_BONUS_PER_EXTRA_HOUR
-    weighted_log_bonus = math.log1p(duration) * DURATION_BONUS_LOG_WEIGHT
-    return min(linear_bonus + weighted_log_bonus, MAX_DURATION_BONUS)
+def _duration_bonus(positive_hour_count: int) -> float:
+    """Return a diminishing, strictly increasing bonus for usable hours."""
+    extra_hours = max(0, positive_hour_count - 1)
+    return MAX_DURATION_BONUS * (
+        1 - math.exp(-DURATION_BONUS_SATURATION_RATE * extra_hours)
+    )
+
+
+def _positive_hour_count(
+    block_info: dict[str, Any], activity_profile: str
+) -> int:
+    """Return the number of individually positive hours in a block."""
+    return sum(
+        get_activity_score(hour, activity_profile) > 0
+        for hour in block_info["block"]
+    )
 
 
 def _weak_hour_penalty(block_info: dict[str, Any], activity_profile: str) -> float:
@@ -577,6 +595,11 @@ def _build_location_result(
 
 
 def _location_final_score(optimal_block: dict[str, Any]) -> float:
-    """Return the final score used to rank locations."""
-    duration_bonus = min(math.log1p(optimal_block["duration"]), LOCATION_DURATION_BONUS_CAP)
-    return optimal_block["avg_score"] + duration_bonus + optimal_block.get("consistency", 1.0)
+    """Return the duration-aware block score used to rank locations.
+
+    The optimal-block calculation already balances hourly quality, duration,
+    consistency, and weak hours. Reusing that score prevents an isolated good
+    hour from receiving nearly the same location rank as a sustained usable
+    window.
+    """
+    return optimal_block["combined_score"]

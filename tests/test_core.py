@@ -3,7 +3,7 @@ Tests for core functionality including evaluation, processing, and configuration
 Consolidates tests for the core business logic of the weather helper.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from src.core.config import (
     get_current_date,
@@ -21,7 +21,7 @@ from src.core.evaluation import (
     process_forecast,
 )
 from src.core.scoring import _get_value_from_ranges, normalize_score
-from src.core.models import HourlyWeather
+from src.core.models import DailyReport, HourlyWeather
 
 
 # Tests for basic evaluation functions
@@ -301,6 +301,52 @@ def test_get_top_locations_for_date_no_matching_date():
     }
     result = get_top_locations_for_date(test_data, date(2024, 3, 15))
     assert result == []
+
+
+def test_location_ranking_favors_sustained_positive_hours(create_hour):
+    forecast_date = date(2030, 6, 15)
+    base_time = datetime(2030, 6, 15, 10)
+    isolated_hours = [
+        create_hour(base_time, total_score=-5),
+        create_hour(base_time + timedelta(hours=1), total_score=10),
+        create_hour(base_time + timedelta(hours=2), total_score=-5),
+    ]
+    sustained_hours = [
+        create_hour(base_time + timedelta(hours=offset), total_score=7)
+        for offset in range(5)
+    ]
+    all_locations = {
+        "isolated": _processed_location(
+            forecast_date, isolated_hours, "One okay hour"
+        ),
+        "sustained": _processed_location(
+            forecast_date, sustained_hours, "Five solid hours"
+        ),
+    }
+
+    ranked = get_top_locations_for_date(all_locations, forecast_date)
+
+    assert [result["location_key"] for result in ranked] == [
+        "sustained",
+        "isolated",
+    ]
+    assert ranked[0]["optimal_block"]["duration"] == 5
+    assert ranked[0]["optimal_block"]["positive_hour_count"] == 5
+    assert ranked[1]["optimal_block"]["duration"] == 1
+
+
+def _processed_location(
+    forecast_date: date,
+    hours: list[HourlyWeather],
+    location_name: str,
+) -> dict:
+    report_date = datetime.combine(forecast_date, datetime.min.time())
+    return {
+        "daily_forecasts": {forecast_date: hours},
+        "day_scores": {
+            forecast_date: DailyReport(report_date, hours, location_name),
+        },
+    }
 
 
 def test_normalize_score():

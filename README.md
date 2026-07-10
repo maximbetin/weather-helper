@@ -219,3 +219,9 @@ The application identifies the best continuous time periods for the selected act
 5. **Consistency Checks**: Prioritizing blocks with stable scores.
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.
+
+Location ranking uses this complete block score as well. As a result, every
+additional positively scored hour in a continuous usable window strengthens a
+location's final rank; one isolated okay hour will not normally outrank several
+hours of solid conditions. Neutral hours can preserve a block's continuity, but
+only individually positive hours earn the duration bonus.
