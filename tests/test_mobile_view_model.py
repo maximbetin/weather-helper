@@ -102,6 +102,66 @@ def test_any_loaded_location_can_be_selected_outside_a_short_ranking():
     assert model.selected_location() == outside_top_ten
 
 
+def test_loaded_location_without_qualifying_block_is_selectable():
+    forecast_date = get_current_date() + timedelta(days=1)
+    poor_forecast = _processed_forecast("Gijón", forecast_date, -20)
+    model = MobileWeatherViewModel(
+        service=StubForecastService(
+            ForecastBatch(forecasts={"gijon": poor_forecast})
+        )
+    )
+
+    model.load()
+    model.select_location("gijon")
+    selected = model.selected_location()
+
+    assert model.location_options() == [("gijon", "Gijón")]
+    assert model.ranked_locations() == []
+    assert selected is not None
+    assert not selected.is_ranked
+    assert selected.normalized_score is None
+    assert "No qualifying recommended window" in selected.best_window_details
+    assert model.hourly_forecast("gijon")[0].time == "12:00"
+
+
+def test_refresh_preserves_selected_location_when_data_remains_available():
+    forecast_date = get_current_date() + timedelta(days=1)
+    batch = ForecastBatch(
+        forecasts={
+            "gijon": _processed_forecast("Gijón", forecast_date, 18),
+            "oviedo": _processed_forecast("Oviedo", forecast_date, 8),
+        }
+    )
+    service = StubForecastService(batch)
+    model = MobileWeatherViewModel(service=service)
+    model.load()
+    model.select_location("oviedo")
+
+    service.batch = ForecastBatch(forecasts=dict(batch.forecasts))
+    model.load()
+
+    assert model.selected_location_key == "oviedo"
+
+
+def test_profile_change_keeps_valid_unranked_selection_visible():
+    forecast_date = get_current_date() + timedelta(days=1)
+    model = MobileWeatherViewModel(
+        service=StubForecastService(
+            ForecastBatch(
+                forecasts={
+                    "gijon": _processed_forecast("Gijón", forecast_date, -20)
+                }
+            )
+        )
+    )
+    model.load()
+
+    model.select_activity_profile(ACTIVITY_BEACH_DAY)
+
+    assert model.selected_location_key == "gijon"
+    assert model.selected_location() is not None
+
+
 def test_profile_and_group_changes_reset_only_relevant_state():
     model = MobileWeatherViewModel(service=StubForecastService(ForecastBatch()))
     model.forecasts = {"existing": {}}

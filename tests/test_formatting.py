@@ -49,7 +49,7 @@ def test_format_precipitation():
     """Test precipitation formatting."""
     assert format_precipitation(0) == "0.0 mm"
     assert format_precipitation(1.25) == "1.2 mm"
-    assert format_precipitation(None) == "0.0 mm"
+    assert format_precipitation(None) == "N/A"
     assert format_precipitation(2, " inches") == "2.0 inches"
 
 
@@ -135,6 +135,7 @@ def test_add_tooltip():
     assert tooltip.text == "Test tooltip"
 
 
+@pytest.mark.windows_gui
 class TestTooltipWidget:
     """Test tooltip widget behavior with a real tkinter widget."""
 

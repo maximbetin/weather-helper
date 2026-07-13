@@ -1,5 +1,6 @@
 """UI-independent orchestration for fetching and processing forecasts."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping, Optional
 
@@ -11,6 +12,12 @@ ProcessedForecast = dict[str, Any]
 FetchForecast = Callable[[Location], Optional[dict[str, Any]]]
 ProcessForecast = Callable[[dict[str, Any], str], Optional[ProcessedForecast]]
 ProgressCallback = Callable[[int, int, Location], None]
+
+logger = logging.getLogger(__name__)
+
+DOWNLOAD_ERROR = "Could not download forecast data. Check your connection and try again."
+PROCESSING_ERROR = "The forecast response did not contain usable weather data."
+UNEXPECTED_ERROR = "Could not load this forecast. Please try again."
 
 
 @dataclass(frozen=True)
@@ -56,18 +63,19 @@ class ForecastService:
             if raw_forecast is None:
                 return LocationForecastResult(
                     location=location,
-                    error="Failed to fetch weather data",
+                    error=DOWNLOAD_ERROR,
                 )
 
             processed = self._process_forecast(raw_forecast, location.name)
             if processed is None:
                 return LocationForecastResult(
                     location=location,
-                    error="Failed to process forecast data",
+                    error=PROCESSING_ERROR,
                 )
             return LocationForecastResult(location=location, forecast=processed)
-        except Exception as exc:
-            return LocationForecastResult(location=location, error=f"Error: {exc}")
+        except Exception:
+            logger.exception("Unexpected forecast loading error for %s", location.name)
+            return LocationForecastResult(location=location, error=UNEXPECTED_ERROR)
 
     def load_locations(
         self,

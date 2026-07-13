@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from src.core.locations import Location
+from src.core.config import PROJECT_URL, USER_AGENT
 from src.core.weather_api import _make_request, fetch_weather_data
 
 
@@ -52,6 +53,9 @@ def test_fetch_weather_data_success():
         result = fetch_weather_data(location)
         assert result == mock_data
         assert result is not None and len(result["properties"]["timeseries"]) >= 5
+        headers = mock_request.call_args.args[2]
+        assert headers["User-Agent"] == USER_AGENT
+        assert PROJECT_URL in headers["User-Agent"]
 
 
 def test_fetch_weather_data_fallback_to_compact():

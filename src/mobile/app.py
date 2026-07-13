@@ -10,6 +10,7 @@ from src.application.presentation import (
     get_rating_background as rating_background,
     get_rating_color as rating_color,
 )
+from src.core.config import MET_NORWAY_LICENSE_URL, MET_NORWAY_SOURCE_URL
 from src.core.locations import LOCATION_GROUPS
 from src.core.scoring import ACTIVITY_PROFILE_LABELS
 from src.mobile.view_model import MobileWeatherViewModel, RankedLocationView
@@ -88,6 +89,39 @@ def create_mobile_app(
 
     def render_details(card: RankedLocationView) -> None:
         color = rating_color(card.rating)
+        if card.is_ranked:
+            summary_context = (
+                f"#{card.rank} in {model.group_name} · {card.weather_description}"
+            )
+            score_controls = [
+                ft.Text(
+                    f"{card.normalized_score}/100",
+                    size=22,
+                    weight=ft.FontWeight.BOLD,
+                    color=color,
+                ),
+                ft.Text(card.rating, color=color),
+            ]
+            recommendation_controls = [
+                ft.Divider(height=1, color=color),
+                ft.Text(
+                    f"Best Window: {card.best_window}.",
+                    weight=ft.FontWeight.BOLD,
+                    color=TEXT_COLOR,
+                ),
+                ft.Text(card.best_window_details, color=TEXT_SECONDARY_COLOR),
+            ]
+        else:
+            summary_context = (
+                f"Not ranked in {model.group_name} · {card.weather_description}"
+            )
+            score_controls = [
+                ft.Text("Not ranked", weight=ft.FontWeight.BOLD, color=color),
+            ]
+            recommendation_controls = [
+                ft.Divider(height=1, color=color),
+                ft.Text(card.best_window_details, color=TEXT_SECONDARY_COLOR),
+            ]
         selected_summary.controls = [
             ft.Container(
                 padding=16,
@@ -111,8 +145,7 @@ def create_mobile_app(
                                             color=TEXT_COLOR,
                                         ),
                                         ft.Text(
-                                            f"#{card.rank} in {model.group_name} · "
-                                            f"{card.weather_description}",
+                                            summary_context,
                                             color=TEXT_SECONDARY_COLOR,
                                         ),
                                     ],
@@ -120,25 +153,11 @@ def create_mobile_app(
                                 ft.Column(
                                     horizontal_alignment=ft.CrossAxisAlignment.END,
                                     spacing=1,
-                                    controls=[
-                                        ft.Text(
-                                            f"{card.normalized_score}/100",
-                                            size=22,
-                                            weight=ft.FontWeight.BOLD,
-                                            color=color,
-                                        ),
-                                        ft.Text(card.rating, color=color),
-                                    ],
+                                    controls=score_controls,
                                 ),
                             ],
                         ),
-                        ft.Divider(height=1, color=color),
-                        ft.Text(
-                            f"Best Window: {card.best_window}.",
-                            weight=ft.FontWeight.BOLD,
-                            color=TEXT_COLOR,
-                        ),
-                        ft.Text(card.best_window_details, color=TEXT_SECONDARY_COLOR),
+                        *recommendation_controls,
                     ],
                 ),
             )
@@ -344,12 +363,17 @@ def create_mobile_app(
         try:
             batch = await asyncio.to_thread(model.load)
             update_date_options()
-            status.value = f"Loaded {batch.loaded_count} locations"
-            if batch.errors:
-                status.value += f" · {len(batch.errors)} failed"
+            if batch.loaded_count:
+                status.value = f"Loaded {batch.loaded_count} locations"
+                if batch.errors:
+                    status.value += f" · {len(batch.errors)} unavailable"
+            else:
+                status.value = (
+                    "No forecasts could be loaded. Check your connection and try again."
+                )
             render_dashboard()
-        except Exception as exc:
-            status.value = f"Unable to load forecasts: {exc}"
+        except Exception:
+            status.value = "Unable to load forecasts right now. Please try again."
             ranking.controls = []
             selected_summary.controls = []
             hourly.controls = []
@@ -465,6 +489,12 @@ def create_mobile_app(
                         controls=[filter_panel, ranking_panel],
                     ),
                     details_panel,
+                    ft.Markdown(
+                        f"Data from [MET Norway]({MET_NORWAY_SOURCE_URL}), "
+                        f"processed by Weather Helper · "
+                        f"[license]({MET_NORWAY_LICENSE_URL})",
+                        selectable=True,
+                    ),
                 ],
             ),
         )
