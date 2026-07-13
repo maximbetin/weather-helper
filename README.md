@@ -220,8 +220,9 @@ The application identifies the best continuous time periods for the selected act
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.
 
-Location ranking uses this complete block score as well. As a result, every
-additional positively scored hour in a continuous usable window strengthens a
-location's final rank; one isolated okay hour will not normally outrank several
-hours of solid conditions. Neutral hours can preserve a block's continuity, but
-only individually positive hours earn the duration bonus.
+The recommended time remains the best continuous block, but location ranking
+uses the selected activity's average across the whole usable day. Small
+hour-to-hour changes are tolerated, while abrupt changes add an increasingly
+strong volatility penalty. This keeps the Top 10 score grounded in the broader
+day even when one short period has excellent conditions. For today, the score
+uses the remaining useful daylight; future dates use the full daylight period.

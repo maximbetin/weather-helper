@@ -904,7 +904,7 @@ class WeatherHelperApp:
         )
         rating = get_rating_info(total_score, activity_profile)
         normalized = normalize_score(total_score, activity_profile)
-        activity_label = get_activity_profile_label(activity_profile)
+        activity_label = f"{get_activity_profile_label(activity_profile)} day"
         score_text = self._score_text(activity_label, normalized, total_score, rating)
         return score_text, get_rating_color(rating)
 

@@ -335,6 +335,65 @@ def test_location_ranking_favors_sustained_positive_hours(create_hour):
     assert ranked[1]["optimal_block"]["duration"] == 1
 
 
+def test_location_score_uses_whole_day_not_only_best_window(create_hour):
+    forecast_date = date(2030, 6, 15)
+    base_time = datetime(2030, 6, 15, 10)
+    brief_excellent_hours = [
+        create_hour(base_time, total_score=20),
+        create_hour(base_time + timedelta(hours=1), total_score=-5),
+        create_hour(base_time + timedelta(hours=2), total_score=-5),
+        create_hour(base_time + timedelta(hours=3), total_score=-5),
+    ]
+    steady_good_hours = [
+        create_hour(base_time + timedelta(hours=offset), total_score=8)
+        for offset in range(4)
+    ]
+    all_locations = {
+        "brief": _processed_location(
+            forecast_date, brief_excellent_hours, "Brief excellent window"
+        ),
+        "steady": _processed_location(
+            forecast_date, steady_good_hours, "Steady good day"
+        ),
+    }
+
+    ranked = get_top_locations_for_date(all_locations, forecast_date)
+
+    assert ranked[0]["location_key"] == "steady"
+    assert ranked[1]["optimal_block"]["avg_score"] == 20
+    assert ranked[1]["raw_score"] < ranked[1]["window_score"]
+
+
+def test_drastic_changes_reduce_day_score_more_than_consistent_weather(create_hour):
+    forecast_date = date(2030, 6, 15)
+    base_time = datetime(2030, 6, 15, 10)
+    consistent_hours = [
+        create_hour(base_time + timedelta(hours=offset), total_score=10)
+        for offset in range(4)
+    ]
+    volatile_hours = [
+        create_hour(base_time + timedelta(hours=offset), total_score=score)
+        for offset, score in enumerate([0, 20, 0, 20])
+    ]
+    all_locations = {
+        "consistent": _processed_location(
+            forecast_date, consistent_hours, "Consistent weather"
+        ),
+        "volatile": _processed_location(
+            forecast_date, volatile_hours, "Drastic changes"
+        ),
+    }
+
+    ranked = get_top_locations_for_date(all_locations, forecast_date)
+    results = {result["location_key"]: result for result in ranked}
+
+    assert results["consistent"]["day_avg_score"] == 10
+    assert results["volatile"]["day_avg_score"] == 10
+    assert results["consistent"]["volatility_penalty"] == 0
+    assert results["volatile"]["volatility_penalty"] > 0
+    assert results["consistent"]["score"] > results["volatile"]["score"]
+
+
 def _processed_location(
     forecast_date: date,
     hours: list[HourlyWeather],

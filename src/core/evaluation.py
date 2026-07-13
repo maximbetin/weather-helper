@@ -40,6 +40,9 @@ MAX_DURATION_BONUS = 5.0
 DURATION_BONUS_SATURATION_RATE = 0.35
 CONSISTENCY_BONUS_WEIGHT = 2.0
 WEAK_HOUR_PENALTY_WEIGHT = 0.2
+DAY_SCORE_CHANGE_TOLERANCE = 4.0
+DAY_SCORE_VOLATILITY_WEIGHT = 0.35
+MAX_DAY_VOLATILITY_PENALTY = 10.0
 
 
 def _calculate_weather_averages(
@@ -561,7 +564,14 @@ def _rank_location_for_date(
     optimal_block = _find_optimal_consistent_block(filtered_hours, activity_profile)
     if not optimal_block:
         return None
-    return _build_location_result(loc_key, report, optimal_block, activity_profile)
+    day_score = _calculate_day_activity_score(filtered_hours, activity_profile)
+    return _build_location_result(
+        loc_key,
+        report,
+        optimal_block,
+        day_score,
+        activity_profile,
+    )
 
 
 def _location_recommendation_hours(
@@ -580,26 +590,54 @@ def _build_location_result(
     loc_key: str,
     report: DailyReport,
     optimal_block: dict[str, Any],
+    day_score: dict[str, float],
     activity_profile: str,
 ) -> dict[str, Any]:
     """Build the side-panel result dictionary for a location."""
     return {
         "location_key": loc_key,
         "location_name": report.location_name,
-        "score": _location_final_score(optimal_block),
-        "raw_score": optimal_block["avg_score"],
+        "score": day_score["score"],
+        "raw_score": day_score["score"],
+        "day_avg_score": day_score["average"],
+        "volatility_penalty": day_score["volatility_penalty"],
+        "window_score": optimal_block["avg_score"],
         "optimal_block": optimal_block,
         "weather_desc": report.weather_description,
         "activity_profile": activity_profile,
     }
 
 
-def _location_final_score(optimal_block: dict[str, Any]) -> float:
-    """Return the duration-aware block score used to rank locations.
+def _calculate_day_activity_score(
+    hours: list[HourlyWeather], activity_profile: str
+) -> dict[str, float]:
+    """Score the usable day as a whole and penalize abrupt weather changes."""
+    sorted_hours = sorted(hours, key=lambda hour: hour.time)
+    scores = [get_activity_score(hour, activity_profile) for hour in sorted_hours]
+    average = sum(scores) / len(scores)
+    volatility_penalty = _day_score_volatility_penalty(sorted_hours, scores)
+    return {
+        "score": average - volatility_penalty,
+        "average": average,
+        "volatility_penalty": volatility_penalty,
+    }
 
-    The optimal-block calculation already balances hourly quality, duration,
-    consistency, and weak hours. Reusing that score prevents an isolated good
-    hour from receiving nearly the same location rank as a sustained usable
-    window.
-    """
-    return optimal_block["combined_score"]
+
+def _day_score_volatility_penalty(
+    sorted_hours: list[HourlyWeather], scores: list[NumericType]
+) -> float:
+    """Return an RMS penalty for meaningful adjacent-hour score changes."""
+    excess_changes = [
+        max(0.0, abs(scores[index] - scores[index - 1]) - DAY_SCORE_CHANGE_TOLERANCE)
+        for index in range(1, len(scores))
+        if _are_adjacent_forecast_hours(sorted_hours[index - 1], sorted_hours[index])
+    ]
+    if not excess_changes:
+        return 0.0
+    root_mean_square = math.sqrt(
+        sum(change**2 for change in excess_changes) / len(excess_changes)
+    )
+    return min(
+        root_mean_square * DAY_SCORE_VOLATILITY_WEIGHT,
+        MAX_DAY_VOLATILITY_PENALTY,
+    )
