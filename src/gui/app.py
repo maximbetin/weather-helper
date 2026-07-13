@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from tkinter import ttk
 from typing import Any, Dict
 
+from src.application.forecast_service import ForecastService
 from src.core.evaluation import (
     get_available_dates,
     get_time_blocks_for_date,
@@ -114,6 +115,10 @@ class WeatherHelperApp:
         self.selected_date = None
         self.date_map: Dict[str, date] = {}
         self.loading_errors: Dict[str, str] = {}
+        self.forecast_service = ForecastService(
+            fetch_forecast=fetch_weather_data,
+            process=process_forecast,
+        )
         self.show_scores = tk.BooleanVar(value=False)
         self.activity_profile_var = tk.StringVar(
             value=get_activity_profile_label(DEFAULT_ACTIVITY_PROFILE)
@@ -623,20 +628,12 @@ class WeatherHelperApp:
 
     def _load_single_forecast(self, loc_key: str, loc):
         """Fetch, process, and store a single location forecast."""
-        raw_forecast = fetch_weather_data(loc)
-        if raw_forecast is None:
-            self.loading_errors[loc_key] = "Failed to fetch weather data"
-            return
-        self._store_processed_forecast(loc_key, loc.name, raw_forecast)
-
-    def _store_processed_forecast(self, loc_key: str, location_name: str, raw_forecast):
-        """Store a processed forecast or record a processing error."""
-        processed = process_forecast(raw_forecast, location_name)
-        if processed:
-            self.all_location_processed[loc_key] = processed
+        result = self.forecast_service.load_location(loc)
+        if result.forecast is not None:
+            self.all_location_processed[loc_key] = result.forecast
             self.loaded_locations.add(loc_key)
         else:
-            self.loading_errors[loc_key] = "Failed to process forecast data"
+            self.loading_errors[loc_key] = result.error or "Unknown forecast error"
 
     def _on_loading_complete(self, generation_id: int):
         """Handle completion of data loading."""

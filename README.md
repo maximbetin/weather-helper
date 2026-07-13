@@ -25,12 +25,16 @@ git clone https://github.com/maximbetin/weather-helper.git
 cd weather-helper
 ```
 
-2. **Create a virtual environment (recommended)**:
+2. **Create and activate a virtual environment**:
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate.ps1
 ```
+
+Using a virtual environment is required for development. Installing into a
+shared/global Python can conflict with unrelated tools that pin different
+versions of `requests` or Flet's `httpx` dependency.
 
 3. **Install dependencies**:
 
@@ -44,12 +48,33 @@ pip install .
 python weather_helper.py
 ```
 
+### Flet mobile development preview
+
+The first mobile migration milestone adds a Flet entry point while keeping the
+Tkinter Windows application unchanged. For a clean mobile environment on
+Windows, run the preview from the repository root:
+
+```powershell
+py -3.13 -m venv .venv-mobile
+.\.venv-mobile\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[mobile]"
+flet run weather_helper_mobile.py
+```
+
+The preview automatically loads the default Asturias forecast and supports
+region, activity, and date selection; scrollable, color-graded whole-day Top 10
+rankings; selectable locations; and full hourly forecast details. Android
+packaging, device location, notifications, and background work are intentionally
+deferred.
+
 ## Testing
 
 The project uses pytest for testing. To run the tests:
 
 ```bash
-pytest
+python -m pip install -e ".[dev]"
+python -m pytest
 ```
 
 The test suite includes:
@@ -62,6 +87,7 @@ The test suite includes:
 The application can be built into standalone executables using PyInstaller:
 
 ```bash
+python -m pip install -e ".[windows-build]"
 pyinstaller --onefile --windowed weather_helper.py
 ```
 
@@ -72,8 +98,10 @@ The executable will be created in the `dist` directory.
 ```bash
 weather-helper/
 ├── src/
+│   ├── application/    # UI-independent forecast orchestration
 │   ├── core/           # Core business logic and data models
-│   └── gui/            # GUI components and theming
+│   ├── gui/            # Tkinter GUI components and theming
+│   └── mobile/         # Flet mobile UI and presentation state
 ├── tests/              # Test suite
 ├── pyproject.toml      # Project metadata and dependencies
 └── README.md           # This file
@@ -87,7 +115,10 @@ weather-helper/
 - **`src/core/evaluation.py`**: Weather evaluation and analysis logic
 - **`src/core/weather_api.py`**: API integration for weather data
 - **`src/core/locations.py`**: Location definitions and management
+- **`src/application/forecast_service.py`**: Shared forecast loading orchestration
 - **`src/gui/app.py`**: Main application window and logic
+- **`src/mobile/app.py`**: Flet mobile screen
+- **`src/mobile/view_model.py`**: UI-independent mobile presentation state
 - **`src/gui/themes.py`**: UI theming and visual styling
 - **`src/gui/formatting.py`**: Data formatting for display
 
