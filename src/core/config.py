@@ -12,7 +12,10 @@ import pytz
 NumericType = Union[int, float]
 
 # API settings
-USER_AGENT = "WeatherHelper/1.0"
+PROJECT_URL = "https://github.com/maximbetin/weather-helper"
+MET_NORWAY_SOURCE_URL = "https://api.met.no/weatherapi/locationforecast/2.0/"
+MET_NORWAY_LICENSE_URL = "https://api.met.no/doc/License"
+USER_AGENT = f"WeatherHelper ({PROJECT_URL})"
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 API_URL_COMPACT = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 

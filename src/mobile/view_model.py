@@ -30,17 +30,22 @@ DEFAULT_LOCATION_GROUP = "Asturias"
 
 @dataclass(frozen=True)
 class RankedLocationView:
-    """Mobile-friendly summary of one ranked location."""
+    """Mobile-friendly selected-location or ranking summary."""
 
-    rank: int
+    rank: Optional[int]
     location_key: str
     location_name: str
-    normalized_score: int
-    raw_score: float
+    normalized_score: Optional[int]
+    raw_score: Optional[float]
     rating: str
     weather_description: str
     best_window: str
     best_window_details: str
+
+    @property
+    def is_ranked(self) -> bool:
+        """Return True when the location has a qualifying recommendation."""
+        return self.rank is not None
 
 
 @dataclass(frozen=True)
@@ -86,15 +91,25 @@ class MobileWeatherViewModel:
         if profile_key not in ACTIVITY_PROFILE_LABELS:
             raise ValueError(f"Unknown activity profile: {profile_key}")
         self.activity_profile = profile_key
+        if self.selected_location_key not in self.available_location_keys():
+            self._select_default_location()
 
     def load(self) -> ForecastBatch:
-        """Load the selected group and choose its earliest available date."""
+        """Load the selected group while preserving valid user selections."""
+        previous_date = self.selected_date
+        previous_location_key = self.selected_location_key
         batch = self.service.load_locations(self.locations)
         self.forecasts = batch.forecasts
         self.errors = batch.errors
         available_dates = self.available_dates()
-        self.selected_date = available_dates[0] if available_dates else None
-        self._select_default_location()
+        self.selected_date = (
+            previous_date if previous_date in available_dates
+            else available_dates[0] if available_dates else None
+        )
+        if previous_location_key in self.available_location_keys():
+            self.selected_location_key = previous_location_key
+        else:
+            self._select_default_location()
         return batch
 
     def available_dates(self) -> list[date]:
@@ -113,8 +128,15 @@ class MobileWeatherViewModel:
             self._select_default_location()
 
     def available_location_keys(self) -> list[str]:
-        """Return locations that have a score for the selected date."""
-        return [item.location_key for item in self.ranked_locations(len(self.forecasts))]
+        """Return loaded locations with hourly data for the selected date."""
+        if self.selected_date is None:
+            return []
+        return [
+            key
+            for key, forecast in self.forecasts.items()
+            if key in self.locations
+            and get_time_blocks_for_date(forecast, self.selected_date)
+        ]
 
     def location_options(self) -> list[tuple[str, str]]:
         """Return selectable locations sorted by their display name."""
@@ -132,10 +154,10 @@ class MobileWeatherViewModel:
         self.selected_location_key = location_key
 
     def selected_location(self) -> Optional[RankedLocationView]:
-        """Return the selected location with its overall regional rank."""
+        """Return a summary even when the selected location is unranked."""
         if not self.selected_location_key:
             return None
-        return next(
+        ranked = next(
             (
                 item
                 for item in self.ranked_locations(len(self.forecasts))
@@ -143,6 +165,11 @@ class MobileWeatherViewModel:
             ),
             None,
         )
+        if ranked:
+            return ranked
+        if self.selected_location_key not in self.available_location_keys():
+            return None
+        return self._unranked_location_view(self.selected_location_key)
 
     def ranked_locations(self, top_n: int = 10) -> list[RankedLocationView]:
         if self.selected_date is None:
@@ -166,7 +193,11 @@ class MobileWeatherViewModel:
 
     def _select_default_location(self) -> None:
         ranked = self.ranked_locations(1)
-        self.selected_location_key = ranked[0].location_key if ranked else ""
+        if ranked:
+            self.selected_location_key = ranked[0].location_key
+            return
+        available = self.available_location_keys()
+        self.selected_location_key = available[0] if available else ""
 
     def _clear_forecasts(self) -> None:
         self.forecasts = {}
@@ -189,6 +220,29 @@ class MobileWeatherViewModel:
             weather_description=item["weather_desc"],
             best_window=best_window,
             best_window_details=_format_best_window_details(block),
+        )
+
+    def _unranked_location_view(self, location_key: str) -> RankedLocationView:
+        """Build a useful summary for data that has no qualifying block."""
+        processed = self.forecasts[location_key]
+        report = processed.get("day_scores", {}).get(self.selected_date)
+        description = (
+            report.weather_description if report is not None
+            else "Hourly forecast available"
+        )
+        return RankedLocationView(
+            rank=None,
+            location_key=location_key,
+            location_name=self.locations[location_key].name,
+            normalized_score=None,
+            raw_score=None,
+            rating="N/A",
+            weather_description=description,
+            best_window="",
+            best_window_details=(
+                "No qualifying recommended window for this activity. "
+                "Review the hourly conditions below."
+            ),
         )
 
     def _hourly_forecast_view(self, hour) -> HourlyForecastView:

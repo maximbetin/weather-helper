@@ -80,9 +80,8 @@ def format_percentage(
 def format_precipitation(
     value: Optional[NumericType], unit: str = " mm"
 ) -> str:
-    """Format precipitation using zero as the dry-hour fallback."""
-    amount = 0 if value is None else value
-    return f"{amount:.1f}{unit}"
+    """Format precipitation without presenting missing data as dry weather."""
+    return "N/A" if value is None else f"{value:.1f}{unit}"
 
 
 def format_wind_speed(

@@ -67,6 +67,11 @@ real Android phone before considering a release finished.
 6. Install it on the phone and check loading, selectors, ranking, scrolling,
    and hourly details.
 
+Locations with hourly data remain selectable even when they do not qualify for
+the Top 10 or a recommended activity window. The summary will say that the
+location is unranked, and the hourly rows remain available. A missing rain amount
+is displayed as `N/A`; only a reported numeric zero means dry weather.
+
 To run all tests:
 
 ```powershell
@@ -173,11 +178,13 @@ After that transition, future APKs signed with the release key can update it.
 `.github/workflows/release.yml` runs for relevant pushes to `main` and can also
 be started manually from the Actions page. It:
 
-1. runs the complete test suite;
+1. runs core/mobile tests on Ubuntu and the complete Tkinter-inclusive suite on Windows;
 2. calculates the next release version;
 3. builds the Windows executable and Android APK in parallel;
-4. stores both as workflow artifacts;
-5. creates a GitHub Release containing both downloads.
+4. inspects the Windows ZIP and smoke-tests packaged startup for 10 seconds;
+5. checks the APK package ID, version metadata, and cryptographic signature;
+6. stores both as workflow artifacts;
+7. publishes both downloads plus a `SHA256SUMS` file in a GitHub Release.
 
 Release version rules are based on the latest `vX.Y.Z` tag:
 
@@ -185,10 +192,26 @@ Release version rules are based on the latest `vX.Y.Z` tag:
 - commit beginning with `feat:` or containing `[minor]`: minor release;
 - commit beginning with `BREAKING:` or containing `[major]`: major release.
 
+If the same commit already has a semantic release tag, a manual rerun reuses
+that version instead of incrementing it again.
+
 Downloads appear in two places:
 
 - **Actions → workflow run → Artifacts**, after each successful build;
 - **Releases**, as versioned Windows ZIP and Android APK files.
+
+The release notes state the signing mode. Android remains debug-signed until the
+four signing secrets above are configured. Windows remains unsigned until a
+trusted code-signing certificate is supplied; no self-signed certificate is
+created by CI.
+
+To verify a downloaded file on PowerShell, run:
+
+```powershell
+Get-FileHash .\weather-helper-android-1.2.8.apk -Algorithm SHA256
+```
+
+Compare the result with the matching line in `SHA256SUMS` from the same release.
 
 ## Troubleshooting
 
@@ -229,6 +252,8 @@ universal APK is simpler for private sideloading.
 
 ## Official references
 
+- [MET Norway Locationforecast source](https://api.met.no/weatherapi/locationforecast/2.0/)
+- [MET Norway licensing and attribution](https://api.met.no/doc/License)
 - [Flet publishing guide](https://flet.dev/docs/publish/)
 - [Flet Android packaging guide](https://flet.dev/docs/publish/android/)
 - [GitHub Actions workflow artifacts](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflow-artifacts)

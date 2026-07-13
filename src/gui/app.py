@@ -6,11 +6,13 @@ Handles window setup and main widget initialization.
 import threading
 import tkinter as tk
 import tkinter.messagebox as messagebox
-from datetime import date, datetime, timedelta
+import webbrowser
+from datetime import date, timedelta
 from tkinter import ttk
 from typing import Any, Dict
 
-from src.application.forecast_service import ForecastService
+from src.application.forecast_service import ForecastService, UNEXPECTED_ERROR
+from src.core.config import MET_NORWAY_LICENSE_URL
 from src.core.evaluation import (
     get_available_dates,
     get_time_blocks_for_date,
@@ -258,15 +260,19 @@ class WeatherHelperApp:
         self.status_label.grid(row=0, column=1, sticky="ew")
 
     def _create_author_label(self):
-        """Create the status-bar author label."""
-        current_year = datetime.now().year
+        """Create an unobtrusive weather-source attribution link."""
         self.author_label = ttk.Label(
             self.status_frame,
-            text=f"© {current_year} Maxim BK",
+            text="Data from MET Norway · processed · license",
             style="Author.TLabel",
             anchor="e",
+            cursor="hand2",
         )
         self.author_label.grid(row=0, column=2, sticky="e", padx=(PADDING["medium"], 0))
+        self.author_label.bind(
+            "<Button-1>", lambda event: webbrowser.open(MET_NORWAY_LICENSE_URL)
+        )
+        add_tooltip(self.author_label, MET_NORWAY_LICENSE_URL)
 
     def _setup_selectors(self):
         """Setup location and date selectors."""
@@ -450,7 +456,16 @@ class WeatherHelperApp:
         canvas.configure(yscrollcommand=scrollbar.set)
         canvas.grid(row=0, column=0, sticky="nsew")
         scrollbar.grid(row=0, column=1, sticky="ns")
-        canvas.bind_all("<MouseWheel>", lambda e: self._scroll_side_panel(canvas, e))
+        self.side_panel_canvas = canvas
+        self._bind_side_panel_scroll_widget(canvas)
+        self._bind_side_panel_scroll_widget(self.side_panel)
+
+    def _bind_side_panel_scroll_widget(self, widget):
+        """Bind wheel scrolling only to widgets that belong to the side panel."""
+        widget.bind(
+            "<MouseWheel>",
+            lambda event: self._scroll_side_panel(self.side_panel_canvas, event),
+        )
 
     def _resize_side_panel_canvas(self, canvas, event):
         """Resize the inner side-panel frame to canvas width."""
@@ -471,6 +486,7 @@ class WeatherHelperApp:
         self.side_panel_title_label.grid(
             row=0, column=0, sticky="ew", pady=(0, PADDING["small"])
         )
+        self._bind_side_panel_scroll_widget(self.side_panel_title_label)
 
     def _create_side_panel_entries(self):
         """Create reusable side-panel location rows."""
@@ -497,6 +513,7 @@ class WeatherHelperApp:
         for row_index in range(3):
             loc_frame.rowconfigure(row_index, weight=0)
         self.location_frames.append(loc_frame)
+        self._bind_side_panel_scroll_widget(loc_frame)
         return loc_frame
 
     def _create_rank_label(self, loc_frame):
@@ -506,18 +523,21 @@ class WeatherHelperApp:
             foreground=COLORS["text_secondary"], width=3
         )
         label.grid(row=0, column=0, sticky="w")
+        self._bind_side_panel_scroll_widget(label)
         return label
 
     def _create_name_label(self, loc_frame):
         """Create a side-panel location name label."""
         label = ttk.Label(loc_frame, text="", font=FONTS["subheading"], anchor="w")
         label.grid(row=0, column=1, sticky="ew", padx=(PADDING["small"], 0))
+        self._bind_side_panel_scroll_widget(label)
         return label
 
     def _create_score_label(self, loc_frame):
         """Create a side-panel score label."""
         label = ttk.Label(loc_frame, text="", font=FONTS["small"], anchor="w")
         label.grid(row=1, column=1, sticky="ew", padx=(PADDING["small"], 0))
+        self._bind_side_panel_scroll_widget(label)
         return label
 
     def _create_details_label(self, loc_frame):
@@ -528,6 +548,7 @@ class WeatherHelperApp:
             justify="left", wraplength=SIDE_PANEL_WRAP_LENGTH
         )
         label.grid(row=2, column=1, sticky="nw", pady=(PADDING["tiny"], 0), padx=(PADDING["small"], 0))
+        self._bind_side_panel_scroll_widget(label)
         return label
 
     def _setup_main_table(self):
@@ -558,14 +579,22 @@ class WeatherHelperApp:
 
     def _create_main_treeview(self, table_frame):
         """Create the hourly forecast treeview."""
+        vertical_scrollbar = ttk.Scrollbar(table_frame, orient="vertical")
+        horizontal_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal")
         self.main_table = ttk.Treeview(
             table_frame,
             columns=TABLE_COLUMNS,
             show="headings",
             height=20,
             style="Custom.Treeview",
+            yscrollcommand=vertical_scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
         )
+        vertical_scrollbar.configure(command=self.main_table.yview)
+        horizontal_scrollbar.configure(command=self.main_table.xview)
         self.main_table.grid(row=0, column=0, sticky="nsew")
+        vertical_scrollbar.grid(row=0, column=1, sticky="ns")
+        horizontal_scrollbar.grid(row=1, column=0, sticky="ew")
 
     def _configure_table_row_tags(self):
         """Configure rating colors for table rows."""
@@ -592,53 +621,91 @@ class WeatherHelperApp:
         """Start loading weather data in a background thread."""
         self._update_status("Loading weather data...")
         self.load_generation += 1
+        generation_id = self.load_generation
+        locations = dict(self.current_locations)
 
         loading_thread = threading.Thread(
             target=self._load_all_forecasts_threaded,
-            args=(self.load_generation,)
+            args=(generation_id, locations),
         )
         loading_thread.daemon = True
         loading_thread.start()
 
-    def _load_all_forecasts_threaded(self, generation_id: int):
-        """Load all forecasts in a background thread."""
+    def _load_all_forecasts_threaded(self, generation_id: int, locations: dict):
+        """Load into generation-local state before handing results to the UI."""
         loaded_count = 0
-        for loc_key, loc in self.current_locations.items():
+        forecasts: dict[str, Any] = {}
+        errors: dict[str, str] = {}
+        total_locations = len(locations)
+        for loc_key, loc in locations.items():
             if self._is_stale_generation(generation_id):
                 return
             try:
-                self._queue_location_loading_status(loc.name, loaded_count)
-                self._load_single_forecast(loc_key, loc)
+                self._queue_location_loading_status(
+                    generation_id, loc.name, loaded_count, total_locations
+                )
+                result = self._load_single_forecast(loc)
                 if self._is_stale_generation(generation_id):
                     return
-            except Exception as e:
-                self.loading_errors[loc_key] = f"Error: {str(e)}"
+                if result.forecast is not None:
+                    forecasts[loc_key] = result.forecast
+                else:
+                    errors[loc_key] = result.error or UNEXPECTED_ERROR
+            except Exception:
+                errors[loc_key] = UNEXPECTED_ERROR
             loaded_count += 1
-        self.root.after(0, lambda: self._on_loading_complete(generation_id))
+        self.root.after(
+            0,
+            lambda: self._on_loading_complete(generation_id, forecasts, errors),
+        )
 
     def _is_stale_generation(self, generation_id: int) -> bool:
         """Return True when a background load should stop."""
         return generation_id != self.load_generation
 
-    def _queue_location_loading_status(self, location_name: str, loaded_count: int):
+    def _queue_location_loading_status(
+        self,
+        generation_id: int,
+        location_name: str,
+        loaded_count: int,
+        total_locations: int,
+    ):
         """Queue progress and status updates on the UI thread."""
-        progress = (loaded_count / self.total_locations) * PROGRESS_COMPLETE_PERCENT
-        self.root.after(0, lambda: self.progress_var.set(progress))
-        self.root.after(0, lambda: self._update_status(f"Loading {location_name}..."))
+        progress = (loaded_count / total_locations) * PROGRESS_COMPLETE_PERCENT
+        self.root.after(
+            0,
+            lambda: self._show_loading_progress(
+                generation_id, progress, location_name
+            ),
+        )
 
-    def _load_single_forecast(self, loc_key: str, loc):
-        """Fetch, process, and store a single location forecast."""
-        result = self.forecast_service.load_location(loc)
-        if result.forecast is not None:
-            self.all_location_processed[loc_key] = result.forecast
-            self.loaded_locations.add(loc_key)
-        else:
-            self.loading_errors[loc_key] = result.error or "Unknown forecast error"
+    def _show_loading_progress(
+        self, generation_id: int, progress: float, location_name: str
+    ):
+        """Apply progress only if it still belongs to the active region load."""
+        if self._is_stale_generation(generation_id):
+            return
+        self.progress_var.set(progress)
+        self._update_status(f"Loading {location_name}...")
 
-    def _on_loading_complete(self, generation_id: int):
+    def _load_single_forecast(self, loc):
+        """Fetch and process a single forecast without mutating shared UI state."""
+        return self.forecast_service.load_location(loc)
+
+    def _on_loading_complete(
+        self,
+        generation_id: int,
+        forecasts: dict[str, Any] | None = None,
+        errors: dict[str, str] | None = None,
+    ):
         """Handle completion of data loading."""
         if self._is_stale_generation(generation_id):
             return
+        if forecasts is not None:
+            self.all_location_processed = forecasts
+            self.loaded_locations = set(forecasts)
+        if errors is not None:
+            self.loading_errors = errors
         self.progress_var.set(PROGRESS_COMPLETE_PERCENT)
         loaded_count = len(self.loaded_locations)
         error_count = len(self.loading_errors)
@@ -650,7 +717,7 @@ class WeatherHelperApp:
 
     def _handle_successful_loading(self, loaded_count: int, error_count: int):
         """Update UI after at least one location loaded."""
-        failed_text = f" ({error_count} failed)" if error_count > 0 else ""
+        failed_text = f" ({error_count} unavailable)" if error_count > 0 else ""
         self._update_status(f"Loaded {loaded_count} locations successfully{failed_text}")
         self._populate_location_selector()
         self.subtitle_label.config(text=f"Weather data for {loaded_count} locations")
@@ -723,11 +790,27 @@ class WeatherHelperApp:
 
     def _clear_side_panel_entries(self):
         """Clear all reusable side-panel labels."""
-        for rank_label, name_label, score_label, details_label in self.side_panel_entries:
+        for index, (
+            rank_label,
+            name_label,
+            score_label,
+            details_label,
+        ) in enumerate(self.side_panel_entries):
             rank_label.config(text="")
             name_label.config(text="")
             score_label.config(text="")
             details_label.config(text="")
+            if index < len(self.location_frames):
+                widgets = [
+                    self.location_frames[index],
+                    rank_label,
+                    name_label,
+                    score_label,
+                    details_label,
+                ]
+                for widget in widgets:
+                    widget.configure(cursor="")
+                    widget.unbind("<Button-1>")
 
     def _restart_group_loading(self):
         """Show loading UI and start fetching the selected group."""
@@ -891,6 +974,30 @@ class WeatherHelperApp:
         score_text, color = self._format_location_score(loc_data)
         score_label.config(text=score_text, foreground=color)
         details_label.config(text=self._format_location_details(loc_data))
+        self._bind_location_entry_selection(rank, loc_data)
+
+    def _bind_location_entry_selection(
+        self, rank: int, loc_data: Dict[str, Any]
+    ) -> None:
+        """Make a populated Top-10 row select its associated location."""
+        location_key = loc_data.get("location_key")
+        if not location_key or not 1 <= rank <= len(self.location_frames):
+            return
+        widgets = [self.location_frames[rank - 1], *self.side_panel_entries[rank - 1]]
+        for widget in widgets:
+            widget.configure(cursor="hand2")
+            widget.bind(
+                "<Button-1>",
+                lambda event, key=location_key: self._select_side_panel_location(key),
+            )
+
+    def _select_side_panel_location(self, location_key: str) -> None:
+        """Select a location from a clickable Top-10 row."""
+        location = self.current_locations.get(location_key)
+        if location is None or location_key not in self.loaded_locations:
+            return
+        self.location_var.set(location.name)
+        self.on_location_change()
 
     def _format_location_score(self, loc_data: Dict[str, Any]) -> tuple[str, str]:
         """Return formatted score text and rating color for a location row."""

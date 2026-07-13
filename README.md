@@ -11,6 +11,14 @@ Android, both backed by the same weather, evaluation, and activity-scoring code.
 Prebuilt Windows ZIP and Android APK files are available from the repository's
 [GitHub Releases](https://github.com/maximbetin/weather-helper/releases) page.
 
+### Weather data and attribution
+
+Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/weatherapi/locationforecast/2.0/).
+Weather Helper processes the source data into hourly displays, activity scores,
+rankings, and recommended windows; MET Norway does not endorse those changes.
+The data is available under MET Norway's
+[licensing and data policy](https://api.met.no/doc/License), including CC BY 4.0.
+
 ## Features
 
 - **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, rain risk, and relative humidity.
@@ -19,6 +27,7 @@ Prebuilt Windows ZIP and Android APK files are available from the repository's
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
 - **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
 - **Windows and Android Interfaces**: Native-feeling Tkinter desktop and responsive Flet mobile layouts.
+- **Honest Missing-Data Display**: Missing precipitation is shown as `N/A`, not as a dry `0.0 mm` forecast.
 
 ## Installation and Usage
 
@@ -115,10 +124,22 @@ GitHub Release containing:
 
 - `weather-helper-windows-<version>.zip`
 - `weather-helper-android-<version>.apk`
+- `SHA256SUMS`
 
 The Android build works without repository secrets using a temporary debug key.
 Configure the four signing secrets described in the Android guide so APKs from
 different workflow runs can update one another.
+
+CI tests shared/core/mobile behavior on Ubuntu and the complete suite, including
+Tkinter checks, on Windows. Before release it inspects the Windows ZIP, performs
+a bounded packaged-app startup check, and verifies the APK package ID, version,
+and signature. Release versions are reused when the workflow reruns for a commit
+that already has a release tag, so a rerun does not consume another version.
+
+The current Windows executable is unsigned and may show an unknown-publisher
+warning. Android is debug-signed unless the documented signing secrets are
+configured. The project does not create a self-signed certificate or pretend
+either artifact has trusted release signing.
 
 ## Project Structure
 
@@ -278,6 +299,11 @@ The application identifies the best continuous time periods for the selected act
 5. **Consistency Checks**: Prioritizing blocks with stable scores.
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.
+
+All successfully loaded locations that contain hourly data for the selected date
+remain selectable, even when conditions do not meet the minimum for a ranked
+recommendation. In that case the app shows an unranked summary and keeps the
+hourly details available for the user's own judgment.
 
 The recommended time remains the best continuous block, but location ranking
 uses the selected activity's average across the whole usable day. Small

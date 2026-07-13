@@ -1,8 +1,10 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 from datetime import datetime, date
 
 from src.core.models import HourlyWeather
+
+pytestmark = pytest.mark.windows_gui
 
 
 def test_populate_location_entry(mock_app):
@@ -80,3 +82,32 @@ def test_update_main_table_rendering(mock_app, create_hour):
     assert values[0] == "12:00"
     assert values[1] == "20.0°C"
     assert values[4] == "0.0 mm" # Precip
+
+
+def test_top_ten_selection_updates_location_dropdown(mock_app):
+    app = mock_app
+    app.loaded_locations = {"gijon"}
+    app.on_location_change = MagicMock()
+
+    app._select_side_panel_location("gijon")
+
+    app.location_var.set.assert_called_once_with("Gijón")
+    app.on_location_change.assert_called_once_with()
+
+
+def test_side_panel_scrolling_does_not_use_global_wheel_binding(mock_app):
+    app = mock_app
+    canvas = MagicMock()
+    scrollbar = MagicMock()
+    app.side_panel = MagicMock()
+
+    app._configure_side_panel_scrolling(canvas, scrollbar)
+
+    canvas.bind.assert_any_call("<MouseWheel>", ANY)
+    canvas.bind_all.assert_not_called()
+
+
+def test_missing_precipitation_is_not_described_as_dry(mock_app):
+    assert not mock_app._is_dry_block(
+        {"precip": None, "precip_probability": 5}
+    )

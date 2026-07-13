@@ -9,6 +9,8 @@ import pytest
 
 from src.gui.themes import BORDER, COLORS, FONTS, PADDING, apply_theme, get_rating_color
 
+pytestmark = pytest.mark.windows_gui
+
 
 class TestColorsAndConstants:
     """Test that color constants and configurations are defined correctly."""

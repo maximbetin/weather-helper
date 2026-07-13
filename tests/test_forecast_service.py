@@ -1,4 +1,8 @@
-from src.application.forecast_service import ForecastService
+from src.application.forecast_service import (
+    DOWNLOAD_ERROR,
+    UNEXPECTED_ERROR,
+    ForecastService,
+)
 from src.core.locations import Location
 
 
@@ -38,7 +42,7 @@ def test_load_locations_keeps_partial_success_and_reports_progress():
     )
 
     assert batch.forecasts == {"good": {"name": "Good"}}
-    assert batch.errors == {"bad": "Failed to fetch weather data"}
+    assert batch.errors == {"bad": DOWNLOAD_ERROR}
     assert batch.loaded_count == 1
     assert progress == [(1, 2, "good"), (2, 2, "bad")]
 
@@ -52,4 +56,5 @@ def test_load_location_converts_dependency_exception_to_error():
     result = ForecastService(fetch_forecast=fail).load_location(location)
 
     assert not result.succeeded
-    assert result.error == "Error: network unavailable"
+    assert result.error == UNEXPECTED_ERROR
+    assert "network unavailable" not in result.error
