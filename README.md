@@ -1,10 +1,15 @@
 # Weather Helper
 
-[![Build Executable](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
+[![Test and Build Releases](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
 
 ## Overview
 
-The Weather Helper is a desktop application that provides detailed weather forecasts and analysis for optimal trip planning. It allows users to compare weather conditions across multiple regions (Europe, Americas, etc.) and automatically identifies the best time blocks for outdoor activities using a sophisticated scoring system.
+Weather Helper compares hourly forecasts and identifies useful outdoor weather
+windows. It has a Tkinter Windows interface and a responsive Flet interface for
+Android, both backed by the same weather, evaluation, and activity-scoring code.
+
+Prebuilt Windows ZIP and Android APK files are available from the repository's
+[GitHub Releases](https://github.com/maximbetin/weather-helper/releases) page.
 
 ## Features
 
@@ -13,8 +18,7 @@ The Weather Helper is a desktop application that provides detailed weather forec
 - **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or beach plans focused on swimming and sunbathing.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
 - **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
-- **Clean Interface**: A user-friendly GUI built with Tkinter, featuring responsive layouts and scrollable panels for easy navigation.
-- **Data Export**: Ability to view and analyze weather parameters in an organized format.
+- **Windows and Android Interfaces**: Native-feeling Tkinter desktop and responsive Flet mobile layouts.
 
 ## Installation and Usage
 
@@ -36,10 +40,10 @@ Using a virtual environment is required for development. Installing into a
 shared/global Python can conflict with unrelated tools that pin different
 versions of `requests` or Flet's `httpx` dependency.
 
-3. **Install dependencies**:
+3. **Install development and application dependencies**:
 
 ```bash
-pip install .
+python -m pip install -e ".[dev]"
 ```
 
 4. **Run the application**:
@@ -48,25 +52,21 @@ pip install .
 python weather_helper.py
 ```
 
-### Flet mobile development preview
+### Android and Flet development
 
-The first mobile migration milestone adds a Flet entry point while keeping the
-Tkinter Windows application unchanged. For a clean mobile environment on
-Windows, run the preview from the repository root:
+For a clean mobile environment on Windows, run from the repository root:
 
 ```powershell
 py -3.13 -m venv .venv-mobile
 .\.venv-mobile\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[mobile]"
+python -m pip install -e ".[mobile,dev]"
 flet run weather_helper_mobile.py
 ```
 
-The preview automatically loads the default Asturias forecast and supports
-region, activity, and date selection; scrollable, color-graded whole-day Top 10
-rankings; selectable locations; and full hourly forecast details. Android
-packaging, device location, notifications, and background work are intentionally
-deferred.
+The complete beginner-oriented setup, APK build, signing, installation,
+versioning, CI release, and troubleshooting instructions are in
+[Android Development and APK Builds](docs/android-development.md).
 
 ## Testing
 
@@ -93,6 +93,33 @@ pyinstaller --onefile --windowed weather_helper.py
 
 The executable will be created in the `dist` directory.
 
+## Building an Android APK
+
+With the mobile environment active:
+
+```powershell
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+flet build apk --yes --no-rich-output
+```
+
+The APK is created under `build\apk`. See the
+[Android development guide](docs/android-development.md) before distributing
+builds, because Android version numbers and signing keys determine whether an
+APK can update an existing installation.
+
+## Automated GitHub Releases
+
+Relevant pushes to `main` run the tests, build both platforms, and create a
+GitHub Release containing:
+
+- `weather-helper-windows-<version>.zip`
+- `weather-helper-android-<version>.apk`
+
+The Android build works without repository secrets using a temporary debug key.
+Configure the four signing secrets described in the Android guide so APKs from
+different workflow runs can update one another.
+
 ## Project Structure
 
 ```bash
@@ -102,6 +129,7 @@ weather-helper/
 │   ├── core/           # Core business logic and data models
 │   ├── gui/            # Tkinter GUI components and theming
 │   └── mobile/         # Flet mobile UI and presentation state
+├── docs/               # Development and build guides
 ├── tests/              # Test suite
 ├── pyproject.toml      # Project metadata and dependencies
 └── README.md           # This file

@@ -1,33 +1,24 @@
-"""Minimal Flet UI for the first Weather Helper mobile milestone."""
+"""Responsive Flet interface for desktop previews and Android builds."""
 
 import asyncio
 from datetime import date
 from importlib import import_module
 from typing import Any, Optional
 
+from src.application.presentation import (
+    BASE_COLORS,
+    get_rating_background as rating_background,
+    get_rating_color as rating_color,
+)
 from src.core.locations import LOCATION_GROUPS
 from src.core.scoring import ACTIVITY_PROFILE_LABELS
 from src.mobile.view_model import MobileWeatherViewModel, RankedLocationView
 
-BACKGROUND_COLOR = "#f8fafc"
-SURFACE_COLOR = "#ffffff"
-TEXT_COLOR = "#1e293b"
-TEXT_SECONDARY_COLOR = "#64748b"
-PRIMARY_COLOR = "#1e3a8a"
-RATING_COLORS = {
-    "Excellent": "#15803d",
-    "Very Good": "#65a30d",
-    "Good": "#ca8a04",
-    "Fair": "#ea580c",
-    "Poor": "#b91c1c",
-}
-RATING_BACKGROUNDS = {
-    "Excellent": "#f0fdf4",
-    "Very Good": "#f7fee7",
-    "Good": "#fefce8",
-    "Fair": "#fff7ed",
-    "Poor": "#fef2f2",
-}
+BACKGROUND_COLOR = BASE_COLORS["background"]
+SURFACE_COLOR = BASE_COLORS["surface"]
+TEXT_COLOR = BASE_COLORS["text"]
+TEXT_SECONDARY_COLOR = BASE_COLORS["text_secondary"]
+PRIMARY_COLOR = BASE_COLORS["primary"]
 
 FLET_INSTALL_HINT = (
     "Flet is not installed in the active environment. Activate a project virtual "
@@ -43,23 +34,13 @@ def _load_flet():
         raise RuntimeError(FLET_INSTALL_HINT) from exc
 
 
-def rating_color(rating: str) -> str:
-    """Return the same rating color used by the Windows application."""
-    return RATING_COLORS.get(rating, TEXT_COLOR)
-
-
-def rating_background(rating: str) -> str:
-    """Return a subtle background that keeps rating cards readable."""
-    return RATING_BACKGROUNDS.get(rating, SURFACE_COLOR)
-
-
 def create_mobile_app(
     page: Any,
     *,
     ft: Optional[Any] = None,
     view_model: Optional[MobileWeatherViewModel] = None,
 ) -> None:
-    """Build a compact, touch-friendly forecast comparison screen."""
+    """Build a responsive forecast overview with persistent ranking and details."""
     ft = ft or _load_flet()
     model = view_model or MobileWeatherViewModel()
 
@@ -68,18 +49,18 @@ def create_mobile_app(
     page.padding = 0
     page.bgcolor = BACKGROUND_COLOR
 
-    status = ft.Text("Loading the default Asturias forecast…")
-    progress = ft.ProgressBar(visible=False)
-    results = ft.Column(spacing=8)
-    hourly = ft.Column(spacing=8)
-    hourly_heading = ft.Text(
-        "Hourly Forecast",
-        size=20,
-        weight=ft.FontWeight.BOLD,
-        color=TEXT_COLOR,
+    status = ft.Text(
+        "Loading the default Asturias forecast…",
+        color=TEXT_SECONDARY_COLOR,
+        size=13,
     )
-    hourly_hint = ft.Text(
-        "Select a location above to view its hourly details.",
+    progress = ft.ProgressBar(visible=False)
+    ranking = ft.Column(spacing=6)
+    selected_summary = ft.Column(spacing=8)
+    hourly = ft.Column(spacing=8)
+    detail_heading = ft.Text("Location Forecast", size=21, weight=ft.FontWeight.BOLD)
+    detail_context = ft.Text(
+        "Choose any loaded location to view its hourly forecast.",
         color=TEXT_SECONDARY_COLOR,
     )
 
@@ -87,6 +68,12 @@ def create_mobile_app(
         label="Region",
         value=model.group_name,
         options=[ft.DropdownOption(key=name, text=name) for name in LOCATION_GROUPS],
+    )
+    location_dropdown = ft.Dropdown(
+        label="Location",
+        disabled=True,
+        options=[],
+        hint_text="Loading locations…",
     )
     profile_dropdown = ft.Dropdown(
         label="Activity",
@@ -99,10 +86,72 @@ def create_mobile_app(
     date_dropdown = ft.Dropdown(label="Date", disabled=True, options=[])
     refresh_button = ft.Button(content="Refresh forecast")
 
-    def render_hourly(card: RankedLocationView) -> None:
+    def render_details(card: RankedLocationView) -> None:
+        color = rating_color(card.rating)
+        selected_summary.controls = [
+            ft.Container(
+                padding=16,
+                bgcolor=rating_background(card.rating),
+                border=ft.Border.all(2, color),
+                border_radius=12,
+                content=ft.Column(
+                    spacing=7,
+                    controls=[
+                        ft.Row(
+                            vertical_alignment=ft.CrossAxisAlignment.START,
+                            controls=[
+                                ft.Column(
+                                    expand=True,
+                                    spacing=2,
+                                    controls=[
+                                        ft.Text(
+                                            card.location_name,
+                                            size=23,
+                                            weight=ft.FontWeight.BOLD,
+                                            color=TEXT_COLOR,
+                                        ),
+                                        ft.Text(
+                                            f"#{card.rank} in {model.group_name} · "
+                                            f"{card.weather_description}",
+                                            color=TEXT_SECONDARY_COLOR,
+                                        ),
+                                    ],
+                                ),
+                                ft.Column(
+                                    horizontal_alignment=ft.CrossAxisAlignment.END,
+                                    spacing=1,
+                                    controls=[
+                                        ft.Text(
+                                            f"{card.normalized_score}/100",
+                                            size=22,
+                                            weight=ft.FontWeight.BOLD,
+                                            color=color,
+                                        ),
+                                        ft.Text(card.rating, color=color),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        ft.Divider(height=1, color=color),
+                        ft.Text(
+                            f"Best Window: {card.best_window}.",
+                            weight=ft.FontWeight.BOLD,
+                            color=TEXT_COLOR,
+                        ),
+                        ft.Text(card.best_window_details, color=TEXT_SECONDARY_COLOR),
+                    ],
+                ),
+            )
+        ]
+
         rows = model.hourly_forecast(card.location_key)
-        hourly_heading.value = f"Hourly Forecast · {card.location_name}"
-        hourly_hint.value = "All available hours for the selected date."
+        selected_date = model.selected_date
+        date_label = f"{selected_date:%A, %d %B}" if selected_date else "selected date"
+        detail_heading.value = f"Hourly Forecast · {card.location_name}"
+        detail_context.value = (
+            f"{date_label} · {ACTIVITY_PROFILE_LABELS[model.activity_profile]} · "
+            "each row is one forecast hour"
+        )
         hourly.controls = [
             ft.Container(
                 padding=12,
@@ -123,15 +172,15 @@ def create_mobile_app(
                                     color=TEXT_COLOR,
                                 ),
                                 ft.Text(
-                                    f"Temperature: {row.temperature} · Wind: {row.wind}",
+                                    f"Temperature {row.temperature} · Wind {row.wind}",
                                     color=TEXT_COLOR,
                                 ),
                                 ft.Text(
-                                    f"Clouds: {row.clouds} · Rain: {row.precipitation}",
+                                    f"Clouds {row.clouds} · Rain {row.precipitation}",
                                     color=TEXT_SECONDARY_COLOR,
                                 ),
                                 ft.Text(
-                                    f"Rain Risk: {row.rain_risk} · Humidity: {row.humidity}",
+                                    f"Rain Risk {row.rain_risk} · Humidity {row.humidity}",
                                     color=TEXT_SECONDARY_COLOR,
                                 ),
                             ],
@@ -159,89 +208,95 @@ def create_mobile_app(
         if not rows:
             hourly.controls = [ft.Text("No hourly forecast is available.")]
 
-    def select_location(location_key: str):
-        return lambda event: render_results(location_key)
+    def choose_location(location_key: str) -> None:
+        model.select_location(location_key)
+        location_dropdown.value = location_key
+        render_ranking()
+        selected = model.selected_location()
+        if selected:
+            render_details(selected)
+        page.update()
 
-    def location_card(card: RankedLocationView, selected: bool):
+    def select_ranked_location(location_key: str):
+        return lambda event: choose_location(location_key)
+
+    def ranking_row(card: RankedLocationView, selected: bool):
         color = rating_color(card.rating)
         return ft.Container(
-            padding=12,
-            bgcolor=rating_background(card.rating),
-            border=ft.Border.all(3 if selected else 1, color),
-            border_radius=12,
+            padding=6,
+            bgcolor=rating_background(card.rating) if selected else SURFACE_COLOR,
+            border=ft.Border.all(2 if selected else 1, color),
+            border_radius=9,
             ink=True,
-            on_click=select_location(card.location_key),
+            on_click=select_ranked_location(card.location_key),
             content=ft.Row(
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 controls=[
-                    ft.Column(
+                    ft.Text(
+                        f"{card.rank}",
+                        width=22,
+                        text_align=ft.TextAlign.CENTER,
+                        weight=ft.FontWeight.BOLD,
+                        color=color,
+                    ),
+                    ft.Text(
                         expand=True,
-                        spacing=4,
-                        controls=[
-                            ft.Text(
-                                f"#{card.rank}  {card.location_name}",
-                                size=17,
-                                weight=ft.FontWeight.BOLD,
-                                color=TEXT_COLOR,
-                            ),
-                            ft.Text(
-                                f"{card.weather_description} · "
-                                f"Best Window: {card.best_window}.",
-                                color=TEXT_COLOR,
-                            ),
-                            ft.Text(
-                                card.best_window_details,
-                                color=TEXT_SECONDARY_COLOR,
-                            ),
-                            ft.Text(
-                                "Selected · hourly details shown below"
-                                if selected
-                                else "Tap to view hourly details →",
-                                size=12,
-                                weight=ft.FontWeight.BOLD,
-                                color=color,
-                            ),
-                        ],
+                        value=("Selected · " if selected else "")
+                        + f"{card.location_name} · {card.best_window}",
+                        size=13,
+                        weight=ft.FontWeight.BOLD,
+                        color=TEXT_COLOR,
+                        max_lines=1,
                     ),
                     ft.Column(
                         horizontal_alignment=ft.CrossAxisAlignment.END,
+                        spacing=0,
                         controls=[
                             ft.Text(
                                 f"{card.normalized_score}/100",
-                                size=18,
+                                size=14,
                                 weight=ft.FontWeight.BOLD,
                                 color=color,
                             ),
-                            ft.Text(card.rating, color=color),
+                            ft.Text(card.rating, size=10, color=color),
                         ],
                     ),
                 ],
             ),
         )
 
-    def render_results(preferred_location_key: Optional[str] = None) -> None:
+    def render_ranking() -> None:
         cards = model.ranked_locations()
         if not cards:
-            results.controls = [ft.Text("No ranked locations are available for this date.")]
-            hourly_heading.value = "Hourly Forecast"
-            hourly_hint.value = "No location is selected."
-            hourly.controls = []
-            page.update()
+            ranking.controls = [
+                ft.Text("No ranked locations are available for this date.")
+            ]
             return
+        ranking.controls = [
+            ranking_row(card, card.location_key == model.selected_location_key)
+            for card in cards
+        ]
 
-        card_keys = {card.location_key for card in cards}
-        selected_key = preferred_location_key or model.selected_location_key
-        if selected_key not in card_keys:
-            selected_key = cards[0].location_key
-        selected_card = next(card for card in cards if card.location_key == selected_key)
-        render_hourly(selected_card)
-        result_controls = []
-        for card in cards:
-            selected = card.location_key == selected_key
-            result_controls.append(location_card(card, selected))
-            if selected:
-                result_controls.extend([hourly_heading, hourly_hint, hourly])
-        results.controls = result_controls
+    def update_location_options() -> None:
+        options = model.location_options()
+        location_dropdown.options = [
+            ft.DropdownOption(key=key, text=name) for key, name in options
+        ]
+        location_dropdown.disabled = not options
+        location_dropdown.hint_text = "Choose a location"
+        location_dropdown.value = model.selected_location_key or None
+
+    def render_dashboard() -> None:
+        update_location_options()
+        render_ranking()
+        card = model.selected_location()
+        if card:
+            render_details(card)
+        else:
+            detail_heading.value = "Location Forecast"
+            detail_context.value = "No location is available for this date."
+            selected_summary.controls = []
+            hourly.controls = []
         page.update()
 
     def update_date_options() -> None:
@@ -256,21 +311,28 @@ def create_mobile_app(
     def on_group_select(event: Any) -> None:
         model.select_group(event.control.value)
         update_date_options()
-        results.controls = []
+        location_dropdown.options = []
+        location_dropdown.value = None
+        location_dropdown.disabled = True
+        ranking.controls = []
+        selected_summary.controls = []
         hourly.controls = []
-        hourly_heading.value = "Hourly Forecast"
-        hourly_hint.value = "Loading the selected region…"
+        detail_heading.value = "Location Forecast"
+        detail_context.value = "Loading the selected region…"
         status.value = f"Loading {model.group_name} forecasts…"
         page.update()
         page.run_task(refresh_forecast)
 
+    def on_location_select(event: Any) -> None:
+        choose_location(event.control.value)
+
     def on_profile_select(event: Any) -> None:
         model.select_activity_profile(event.control.value)
-        render_results()
+        render_dashboard()
 
     def on_date_select(event: Any) -> None:
         model.select_date(date.fromisoformat(event.control.value))
-        render_results()
+        render_dashboard()
 
     async def refresh_forecast(event: Any = None) -> None:
         refresh_button.disabled = True
@@ -285,10 +347,11 @@ def create_mobile_app(
             status.value = f"Loaded {batch.loaded_count} locations"
             if batch.errors:
                 status.value += f" · {len(batch.errors)} failed"
-            render_results()
+            render_dashboard()
         except Exception as exc:
             status.value = f"Unable to load forecasts: {exc}"
-            results.controls = []
+            ranking.controls = []
+            selected_summary.controls = []
             hourly.controls = []
         finally:
             progress.visible = False
@@ -297,9 +360,85 @@ def create_mobile_app(
             page.update()
 
     group_dropdown.on_select = on_group_select
+    location_dropdown.on_select = on_location_select
     profile_dropdown.on_select = on_profile_select
     date_dropdown.on_select = on_date_select
     refresh_button.on_click = refresh_forecast
+
+    filter_panel = ft.Container(
+        col={"sm": 12, "md": 5},
+        padding=16,
+        bgcolor=SURFACE_COLOR,
+        border=ft.Border.all(1, "#e2e8f0"),
+        border_radius=14,
+        content=ft.Column(
+            spacing=10,
+            controls=[
+                ft.Text("Plan Your Day", size=21, weight=ft.FontWeight.BOLD),
+                ft.Text(
+                    "Choose a region for the overview, or select any specific "
+                    "location for its full forecast.",
+                    color=TEXT_SECONDARY_COLOR,
+                ),
+                group_dropdown,
+                location_dropdown,
+                ft.ResponsiveRow(
+                    columns=12,
+                    spacing=10,
+                    controls=[
+                        ft.Container(col={"sm": 12, "md": 6}, content=date_dropdown),
+                        ft.Container(
+                            col={"sm": 12, "md": 6}, content=profile_dropdown
+                        ),
+                    ],
+                ),
+                refresh_button,
+                progress,
+                status,
+            ],
+        ),
+    )
+    ranking_panel = ft.Container(
+        col={"sm": 12, "md": 7},
+        padding=16,
+        bgcolor=SURFACE_COLOR,
+        border=ft.Border.all(1, "#e2e8f0"),
+        border_radius=14,
+        content=ft.Column(
+            spacing=5,
+            controls=[
+                ft.Text("Regional Top 10", size=21, weight=ft.FontWeight.BOLD),
+                ft.Text(
+                    "A quick whole-day comparison. Tap a row to inspect it; "
+                    "the ranking stays in place.",
+                    color=TEXT_SECONDARY_COLOR,
+                ),
+                ranking,
+            ],
+        ),
+    )
+    details_panel = ft.Container(
+        padding=16,
+        bgcolor=SURFACE_COLOR,
+        border=ft.Border.all(1, "#cbd5e1"),
+        border_radius=14,
+        content=ft.Column(
+            spacing=10,
+            controls=[
+                ft.Text(
+                    "SELECTED LOCATION",
+                    size=12,
+                    weight=ft.FontWeight.BOLD,
+                    color=PRIMARY_COLOR,
+                ),
+                selected_summary,
+                ft.Divider(),
+                detail_heading,
+                detail_context,
+                hourly,
+            ],
+        ),
+    )
 
     page.add(
         ft.SafeArea(
@@ -316,24 +455,18 @@ def create_mobile_app(
                         color=PRIMARY_COLOR,
                     ),
                     ft.Text(
-                        "Compare whole-day outdoor weather scores.",
+                        "See the regional outlook, then inspect any place hour by hour.",
                         color=TEXT_SECONDARY_COLOR,
                     ),
-                    group_dropdown,
-                    profile_dropdown,
-                    date_dropdown,
-                    refresh_button,
-                    progress,
-                    status,
-                    ft.Divider(),
-                    ft.Text("Top Locations", size=20, weight=ft.FontWeight.BOLD),
-                    ft.Text(
-                        "Colors indicate rating quality. Tap any location for details.",
-                        color=TEXT_SECONDARY_COLOR,
+                    ft.ResponsiveRow(
+                        columns=12,
+                        spacing=12,
+                        run_spacing=12,
+                        controls=[filter_panel, ranking_panel],
                     ),
-                    results,
+                    details_panel,
                 ],
-            )
+            ),
         )
     )
     page.run_task(refresh_forecast)

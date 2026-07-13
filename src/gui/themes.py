@@ -4,9 +4,11 @@ Theme and styling configuration for the weather helper GUI.
 
 from tkinter import ttk
 
+from src.application.presentation import BASE_COLORS, get_rating_color
+
 # Modern color scheme with better contrast and visual hierarchy
 COLORS = {
-    "primary": "#1e3a8a",  # Deep blue
+    **BASE_COLORS,
     "primary_light": "#3b82f6",  # Bright blue
     "secondary": "#0f766e",  # Teal
     "secondary_light": "#14b8a6",  # Light teal
@@ -17,18 +19,8 @@ COLORS = {
     "warning": "#d97706",  # Orange
     "warning_light": "#f59e0b",  # Light orange
     "error": "#dc2626",  # Red
-    "background": "#f8fafc",  # Very light gray
-    "surface": "#ffffff",  # White
     "surface_secondary": "#f1f5f9",  # Light gray
-    "border": "#e2e8f0",  # Light border
-    "text": "#1e293b",  # Dark slate
-    "text_secondary": "#64748b",  # Medium gray
     "text_muted": "#94a3b8",  # Light gray
-    "excellent": "#15803d",  # Darker Green
-    "very_good": "#65a30d",  # Darker Yellow-Green
-    "good": "#ca8a04",  # Darker Yellow
-    "fair": "#ea580c",  # Darker Orange
-    "poor": "#b91c1c",  # Darker Red
 }
 
 # Enhanced font configurations with better hierarchy
@@ -299,13 +291,11 @@ def _configure_author_style(style):
     )
 
 
-def get_rating_color(rating: str) -> str:
-    """Get the color for a specific rating."""
-    rating_colors = {
-        "Excellent": COLORS["excellent"],
-        "Very Good": COLORS["very_good"],
-        "Good": COLORS["good"],
-        "Fair": COLORS["fair"],
-        "Poor": COLORS["poor"],
-    }
-    return rating_colors.get(rating, COLORS["text"])
+__all__ = [
+    "BORDER",
+    "COLORS",
+    "FONTS",
+    "PADDING",
+    "apply_theme",
+    "get_rating_color",
+]

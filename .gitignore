@@ -1,28 +1,28 @@
-venv
+# Python environments and local configuration
 .env
-*,cover
+.venv/
+.venv-*/
+venv/
+env/
+ENV/
+
+# Python caches, coverage, and packaging metadata
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
 .coverage
-*.egg-info
-__pycache__
-.pytest_cache
-.cursor
+.coverage.*
+htmlcov/
 
 # PyInstaller build artifacts
 build/
 dist/
 *.spec
 
-# Python cache files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environment
-venv/
-env/
-ENV/
-
 # IDE specific files
+.cursor/
 .idea/
 .vscode/
 *.swp
@@ -31,3 +31,7 @@ ENV/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Android signing keys must never be committed
+*.jks
+*.keystore

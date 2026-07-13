@@ -59,6 +59,8 @@ def test_load_exposes_dates_rankings_and_hourly_details():
 
     assert loaded is batch
     assert model.selected_date == forecast_date
+    assert model.selected_location_key == "gijon"
+    assert model.location_options() == [("gijon", "Gijón"), ("oviedo", "Oviedo")]
     assert [item.location_name for item in ranked] == ["Gijón", "Oviedo"]
     assert ranked[0].raw_score == 18
     assert ranked[0].best_window == "12:00–13:00"
@@ -74,6 +76,30 @@ def test_load_exposes_dates_rankings_and_hourly_details():
     assert hourly[0].normalized_score == 90
     assert hourly[0].rating == "Excellent"
     assert service.requested_locations == model.locations
+
+
+def test_any_loaded_location_can_be_selected_outside_a_short_ranking():
+    forecast_date = get_current_date() + timedelta(days=1)
+    forecasts = {
+        key: _processed_forecast(
+            location.name, forecast_date, 20 - index
+        )
+        for index, (key, location) in enumerate(
+            MobileWeatherViewModel().locations.items()
+        )
+    }
+    model = MobileWeatherViewModel(
+        service=StubForecastService(ForecastBatch(forecasts=forecasts))
+    )
+    model.load()
+
+    outside_top_ten = model.ranked_locations(12)[-1]
+    model.select_location(outside_top_ten.location_key)
+
+    assert outside_top_ten.location_key not in {
+        item.location_key for item in model.ranked_locations(10)
+    }
+    assert model.selected_location() == outside_top_ten
 
 
 def test_profile_and_group_changes_reset_only_relevant_state():
@@ -98,3 +124,6 @@ def test_invalid_mobile_selections_fail_clearly():
         model.select_group("Atlantis")
     with pytest.raises(ValueError, match="Unknown activity profile"):
         model.select_activity_profile("surfing")
+
+    with pytest.raises(ValueError, match="Location is not available"):
+        model.select_location("nowhere")

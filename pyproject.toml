@@ -28,7 +28,7 @@ product = "Weather Helper"
 artifact = "weather-helper"
 org = "com.maximbk"
 bundle_id = "com.maximbk.weatherhelper"
-build_number = 1
+build_number = 2
 
 [tool.flet.app]
 module = "weather_helper_mobile.py"

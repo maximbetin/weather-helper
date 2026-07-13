@@ -5,6 +5,12 @@ from datetime import date, timedelta
 from typing import Optional
 
 from src.application.forecast_service import ForecastBatch, ForecastService
+from src.application.presentation import (
+    format_percentage,
+    format_precipitation,
+    format_temperature,
+    format_wind_speed,
+)
 from src.core.evaluation import (
     get_available_dates,
     get_time_blocks_for_date,
@@ -88,7 +94,7 @@ class MobileWeatherViewModel:
         self.errors = batch.errors
         available_dates = self.available_dates()
         self.selected_date = available_dates[0] if available_dates else None
-        self.selected_location_key = ""
+        self._select_default_location()
         return batch
 
     def available_dates(self) -> list[date]:
@@ -103,7 +109,40 @@ class MobileWeatherViewModel:
         if value not in self.available_dates():
             raise ValueError(f"Date is not available: {value.isoformat()}")
         self.selected_date = value
-        self.selected_location_key = ""
+        if self.selected_location_key not in self.available_location_keys():
+            self._select_default_location()
+
+    def available_location_keys(self) -> list[str]:
+        """Return locations that have a score for the selected date."""
+        return [item.location_key for item in self.ranked_locations(len(self.forecasts))]
+
+    def location_options(self) -> list[tuple[str, str]]:
+        """Return selectable locations sorted by their display name."""
+        options = [
+            (key, self.locations[key].name)
+            for key in self.available_location_keys()
+            if key in self.locations
+        ]
+        return sorted(options, key=lambda item: item[1].casefold())
+
+    def select_location(self, location_key: str) -> None:
+        """Select any loaded location, including one outside the Top 10."""
+        if location_key not in self.available_location_keys():
+            raise ValueError(f"Location is not available: {location_key}")
+        self.selected_location_key = location_key
+
+    def selected_location(self) -> Optional[RankedLocationView]:
+        """Return the selected location with its overall regional rank."""
+        if not self.selected_location_key:
+            return None
+        return next(
+            (
+                item
+                for item in self.ranked_locations(len(self.forecasts))
+                if item.location_key == self.selected_location_key
+            ),
+            None,
+        )
 
     def ranked_locations(self, top_n: int = 10) -> list[RankedLocationView]:
         if self.selected_date is None:
@@ -122,9 +161,12 @@ class MobileWeatherViewModel:
     def hourly_forecast(self, location_key: str) -> list[HourlyForecastView]:
         if self.selected_date is None or location_key not in self.forecasts:
             return []
-        self.selected_location_key = location_key
         hours = get_time_blocks_for_date(self.forecasts[location_key], self.selected_date)
         return [self._hourly_forecast_view(hour) for hour in hours]
+
+    def _select_default_location(self) -> None:
+        ranked = self.ranked_locations(1)
+        self.selected_location_key = ranked[0].location_key if ranked else ""
 
     def _clear_forecasts(self) -> None:
         self.forecasts = {}
@@ -154,35 +196,22 @@ class MobileWeatherViewModel:
         normalized = normalize_score(raw_score, self.activity_profile)
         return HourlyForecastView(
             time=f"{hour.time:%H:%M}",
-            temperature=_format_number(hour.temp, "°C"),
-            wind=_format_number(hour.wind, " m/s"),
-            clouds=_format_percentage(hour.cloud_coverage),
-            precipitation=_format_precipitation(hour.precipitation_amount),
-            rain_risk=_format_percentage(hour.precipitation_probability),
-            humidity=_format_percentage(hour.relative_humidity),
+            temperature=format_temperature(hour.temp),
+            wind=format_wind_speed(hour.wind),
+            clouds=format_percentage(hour.cloud_coverage),
+            precipitation=format_precipitation(hour.precipitation_amount),
+            rain_risk=format_percentage(hour.precipitation_probability),
+            humidity=format_percentage(hour.relative_humidity),
             normalized_score=normalized,
             rating=get_rating_info(raw_score, self.activity_profile),
         )
 
 
-def _format_number(value, suffix: str) -> str:
-    return "N/A" if value is None else f"{value:.1f}{suffix}"
-
-
-def _format_percentage(value) -> str:
-    return "N/A" if value is None else f"{value:.0f}%"
-
-
-def _format_precipitation(value) -> str:
-    amount = 0 if value is None else value
-    return f"{amount:.1f} mm"
-
-
 def _format_best_window_details(block: dict) -> str:
     return (
-        f"Temp: {_format_number(block.get('temp'), '°C')} · "
-        f"Wind: {_format_number(block.get('wind'), ' m/s')} · "
-        f"Clouds: {_format_percentage(block.get('cloud'))} · "
-        f"Rain: {_format_precipitation(block.get('precip'))} · "
-        f"Rain Risk: {_format_percentage(block.get('precip_probability'))}"
+        f"Temp: {format_temperature(block.get('temp'))} · "
+        f"Wind: {format_wind_speed(block.get('wind'))} · "
+        f"Clouds: {format_percentage(block.get('cloud'))} · "
+        f"Rain: {format_precipitation(block.get('precip'))} · "
+        f"Rain Risk: {format_percentage(block.get('precip_probability'))}"
     )
