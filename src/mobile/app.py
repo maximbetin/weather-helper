@@ -65,26 +65,39 @@ def create_mobile_app(
         color=TEXT_SECONDARY_COLOR,
     )
 
-    group_dropdown = ft.Dropdown(
+    def style_dropdown(dd: ft.Dropdown) -> ft.Dropdown:
+        dd.dense = True
+        dd.border_radius = 8
+        dd.content_padding = 10
+        dd.border_color = "#cbd5e1"
+        return dd
+
+    group_dropdown = style_dropdown(ft.Dropdown(
         label="Region",
         value=model.group_name,
         options=[ft.DropdownOption(key=name, text=name) for name in LOCATION_GROUPS],
-    )
-    location_dropdown = ft.Dropdown(
+    ))
+    location_dropdown = style_dropdown(ft.Dropdown(
         label="Location",
         disabled=True,
         options=[],
         hint_text="Loading locations…",
-    )
-    profile_dropdown = ft.Dropdown(
+    ))
+    profile_dropdown = style_dropdown(ft.Dropdown(
         label="Activity",
         value=model.activity_profile,
         options=[
             ft.DropdownOption(key=key, text=label)
             for key, label in ACTIVITY_PROFILE_LABELS.items()
         ],
+    ))
+    date_dropdown = style_dropdown(ft.Dropdown(label="Date", disabled=True, options=[]))
+    details_header = ft.Text(
+        "SELECTED LOCATION",
+        size=12,
+        weight=ft.FontWeight.BOLD,
+        color=PRIMARY_COLOR,
     )
-    date_dropdown = ft.Dropdown(label="Date", disabled=True, options=[])
     refresh_button = ft.Button(content="Refresh forecast")
 
     def render_details(card: RankedLocationView) -> None:
@@ -167,6 +180,7 @@ def create_mobile_app(
         selected_date = model.selected_date
         date_label = f"{selected_date:%A, %d %B}" if selected_date else "selected date"
         detail_heading.value = f"Hourly Forecast · {card.location_name}"
+        details_header.value = f"VIEWING DETAILS FOR: {card.location_name.upper()}"
         detail_context.value = (
             f"{date_label} · {ACTIVITY_PROFILE_LABELS[model.activity_profile]} · "
             "each row is one forecast hour"
@@ -235,6 +249,7 @@ def create_mobile_app(
         if selected:
             render_details(selected)
         page.update()
+        page.scroll_to(key="details_panel", duration=300)
 
     def select_ranked_location(location_key: str):
         return lambda event: choose_location(location_key)
@@ -313,6 +328,7 @@ def create_mobile_app(
             render_details(card)
         else:
             detail_heading.value = "Location Forecast"
+            details_header.value = "SELECTED LOCATION"
             detail_context.value = "No location is available for this date."
             selected_summary.controls = []
             hourly.controls = []
@@ -404,16 +420,15 @@ def create_mobile_app(
                     "location for its full forecast.",
                     color=TEXT_SECONDARY_COLOR,
                 ),
-                group_dropdown,
-                location_dropdown,
                 ft.ResponsiveRow(
                     columns=12,
                     spacing=10,
+                    run_spacing=10,
                     controls=[
-                        ft.Container(col={"sm": 12, "md": 6}, content=date_dropdown),
-                        ft.Container(
-                            col={"sm": 12, "md": 6}, content=profile_dropdown
-                        ),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=group_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=location_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=date_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=profile_dropdown),
                     ],
                 ),
                 refresh_button,
@@ -442,6 +457,7 @@ def create_mobile_app(
         ),
     )
     details_panel = ft.Container(
+        key="details_panel",
         padding=16,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#cbd5e1"),
@@ -449,12 +465,7 @@ def create_mobile_app(
         content=ft.Column(
             spacing=10,
             controls=[
-                ft.Text(
-                    "SELECTED LOCATION",
-                    size=12,
-                    weight=ft.FontWeight.BOLD,
-                    color=PRIMARY_COLOR,
-                ),
+                details_header,
                 selected_summary,
                 ft.Divider(),
                 detail_heading,
