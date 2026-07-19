@@ -68,8 +68,9 @@ def create_mobile_app(
     def style_dropdown(dd: ft.Dropdown) -> ft.Dropdown:
         dd.dense = True
         dd.border_radius = 8
-        dd.content_padding = 10
+        dd.content_padding = 6
         dd.border_color = "#cbd5e1"
+        dd.text_size = 12
         return dd
 
     group_dropdown = style_dropdown(ft.Dropdown(
@@ -337,7 +338,7 @@ def create_mobile_app(
     def update_date_options() -> None:
         available_dates = model.available_dates()
         date_dropdown.options = [
-            ft.DropdownOption(key=value.isoformat(), text=f"{value:%a, %d %b}")
+            ft.DropdownOption(key=value.isoformat(), text=f"{value:%d/%m}")
             for value in available_dates
         ]
         date_dropdown.disabled = not available_dates
@@ -407,18 +408,18 @@ def create_mobile_app(
 
     filter_panel = ft.Container(
         col={"xs": 6, "sm": 5},
-        padding=16,
+        padding=8,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
         border_radius=14,
         content=ft.Column(
-            spacing=10,
+            spacing=4,
             controls=[
-                ft.Text("Filters", size=16, weight=ft.FontWeight.BOLD),
+                ft.Text("Filters", size=14, weight=ft.FontWeight.BOLD),
                 ft.ResponsiveRow(
                     columns=12,
-                    spacing=10,
-                    run_spacing=10,
+                    spacing=4,
+                    run_spacing=4,
                     controls=[
                         ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=group_dropdown),
                         ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=location_dropdown),
@@ -434,14 +435,14 @@ def create_mobile_app(
     )
     ranking_panel = ft.Container(
         col={"xs": 6, "sm": 7},
-        padding=16,
+        padding=8,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
         border_radius=14,
         content=ft.Column(
-            spacing=5,
+            spacing=4,
             controls=[
-                ft.Text("Top 10", size=16, weight=ft.FontWeight.BOLD),
+                ft.Text("Top 10", size=14, weight=ft.FontWeight.BOLD),
                 ranking,
             ],
         ),
