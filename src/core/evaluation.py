@@ -160,16 +160,24 @@ def _valid_minimum_duration_block(
     return block
 
 
-def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
+def _create_hourly_weather(entry: dict[str, Any], ocean_entry: Optional[dict[str, Any]] = None) -> HourlyWeather:
     """Create an HourlyWeather object from a forecast timeseries entry."""
-    weather_values = _extract_hourly_weather_values(entry)
+    weather_values = _extract_hourly_weather_values(entry, ocean_entry)
     return _build_hourly_weather(weather_values)
 
 
-def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
+def _extract_hourly_weather_values(entry: dict[str, Any], ocean_entry: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     """Extract raw weather values from a timeseries entry."""
     instant_details = entry["data"]["instant"]["details"]
     precipitation_amount, precipitation_probability = _get_precipitation_values(entry)
+    
+    water_temp = None
+    wave_height = None
+    if ocean_entry and "data" in ocean_entry and "instant" in ocean_entry["data"]:
+        ocean_details = ocean_entry["data"]["instant"]["details"]
+        water_temp = ocean_details.get("sea_water_temperature")
+        wave_height = ocean_details.get("sea_surface_wave_height")
+        
     return {
         "time": _parse_local_forecast_time(entry["time"]),
         "temp": instant_details.get("air_temperature"),
@@ -179,6 +187,8 @@ def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
         "precipitation_probability": precipitation_probability,
         "symbol_code": _get_symbol_code(entry),
         "relative_humidity": instant_details.get("relative_humidity"),
+        "water_temp": water_temp,
+        "wave_height": wave_height,
     }
 
 
@@ -231,13 +241,16 @@ def _build_hourly_weather(values: dict[str, Any]) -> HourlyWeather:
 
 def _process_timeseries(
     forecast_timeseries: list[dict[str, Any]],
+    ocean_by_time: dict[str, dict[str, Any]] = None,
 ) -> dict[date, list[HourlyWeather]]:
     """Process forecast timeseries data into a dictionary of daily forecasts."""
+    if ocean_by_time is None:
+        ocean_by_time = {}
     daily_forecasts = defaultdict(list)
     today = get_current_date()
     end_date = today + timedelta(days=FORECAST_DAYS)
     for entry in forecast_timeseries:
-        _append_forecast_entry(entry, daily_forecasts, today, end_date)
+        _append_forecast_entry(entry, daily_forecasts, today, end_date, ocean_by_time)
     return daily_forecasts
 
 
@@ -246,20 +259,29 @@ def _append_forecast_entry(
     daily_forecasts: dict[date, list[HourlyWeather]],
     today: date,
     end_date: date,
+    ocean_by_time: dict[str, dict[str, Any]],
 ) -> None:
     """Append one forecast entry when it falls in the visible date range."""
     forecast_date = _parse_local_forecast_time(entry["time"]).date()
     if not (today <= forecast_date < end_date):
         return
-    daily_forecasts[forecast_date].append(_create_hourly_weather(entry))
+    ocean_entry = ocean_by_time.get(entry["time"])
+    daily_forecasts[forecast_date].append(_create_hourly_weather(entry, ocean_entry))
 
 
 def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
     """Process weather forecast data into daily summaries and hourly blocks."""
-    forecast_timeseries = _get_forecast_timeseries(forecast_data)
+    weather_data = forecast_data.get("weather", forecast_data)
+    ocean_data = forecast_data.get("ocean")
+    
+    forecast_timeseries = _get_forecast_timeseries(weather_data)
     if forecast_timeseries is None:
         return None
-    daily_forecasts = _process_timeseries(forecast_timeseries)
+        
+    ocean_timeseries = _get_forecast_timeseries(ocean_data) if ocean_data else []
+    ocean_by_time = {entry["time"]: entry for entry in ocean_timeseries}
+        
+    daily_forecasts = _process_timeseries(forecast_timeseries, ocean_by_time)
     day_scores_reports = _build_daily_reports(daily_forecasts, location_name)
     return {"daily_forecasts": daily_forecasts, "day_scores": day_scores_reports}
 

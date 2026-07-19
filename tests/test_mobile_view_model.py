@@ -52,6 +52,7 @@ def test_load_exposes_dates_rankings_and_hourly_details():
     )
     service = StubForecastService(batch)
     model = MobileWeatherViewModel(service=service)
+    model.activity_profile = "hiking"
 
     loaded = model.load()
     ranked = model.ranked_locations()
@@ -111,6 +112,7 @@ def test_loaded_location_without_qualifying_block_is_selectable():
         )
     )
 
+    model.activity_profile = "hiking"
     model.load()
     model.select_location("gijon")
     selected = model.selected_location()

@@ -18,6 +18,7 @@ MET_NORWAY_LICENSE_URL = "https://api.met.no/doc/License"
 USER_AGENT = f"WeatherHelper ({PROJECT_URL})"
 API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 API_URL_COMPACT = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+OCEAN_API_URL = "https://api.met.no/weatherapi/oceanforecast/2.0/complete"
 
 # Time zone
 TIMEZONE = "Europe/Madrid"

@@ -324,7 +324,7 @@ def test_location_ranking_favors_sustained_positive_hours(create_hour):
         ),
     }
 
-    ranked = get_top_locations_for_date(all_locations, forecast_date)
+    ranked = get_top_locations_for_date(all_locations, forecast_date, activity_profile='hiking')
 
     assert [result["location_key"] for result in ranked] == [
         "sustained",
@@ -357,7 +357,7 @@ def test_location_score_uses_whole_day_not_only_best_window(create_hour):
         ),
     }
 
-    ranked = get_top_locations_for_date(all_locations, forecast_date)
+    ranked = get_top_locations_for_date(all_locations, forecast_date, activity_profile='hiking')
 
     assert ranked[0]["location_key"] == "steady"
     assert ranked[1]["optimal_block"]["avg_score"] == 20
@@ -384,7 +384,7 @@ def test_drastic_changes_reduce_day_score_more_than_consistent_weather(create_ho
         ),
     }
 
-    ranked = get_top_locations_for_date(all_locations, forecast_date)
+    ranked = get_top_locations_for_date(all_locations, forecast_date, activity_profile='hiking')
     results = {result["location_key"]: result for result in ranked}
 
     assert results["consistent"]["day_avg_score"] == 10
@@ -413,35 +413,37 @@ def test_normalize_score():
     # Test key thresholds based on piecewise linear mapping
 
     # Max score
-    assert normalize_score(23) == 100
-    assert normalize_score(25) == 100  # Cap at 100
+    assert normalize_score(23, profile_key='hiking') == 100
+    assert normalize_score(25, profile_key='hiking') == 100  # Cap at 100
 
     # Excellent threshold (18) -> 90
-    assert normalize_score(18) == 90
+    assert normalize_score(18, profile_key='hiking') == 90
 
     # Very Good threshold (13) -> 80
-    assert normalize_score(13) == 80
+    assert normalize_score(13, profile_key='hiking') == 80
 
     # Good threshold (7) -> 65
-    assert normalize_score(7) == 65
+    assert normalize_score(7, profile_key='hiking') == 65
 
     # Fair threshold (2) -> 50
-    assert normalize_score(2) == 50
+    assert normalize_score(2, profile_key='hiking') == 50
 
     # Zero/Negative
     # Score < 2: 50 + (score - 2) * 6
     # -2 -> 50 + (-4)*6 = 26
-    assert normalize_score(-2) == 26
+    assert normalize_score(-2, profile_key='hiking') == 26
 
     # -10 -> 50 + (-12)*6 = -22 -> 0 (capped)
-    assert normalize_score(-10) == 0
+    assert normalize_score(0, profile_key='hiking') == 38  # 50 - 2 * 6
+    assert normalize_score(-5, profile_key='hiking') == 8  # 50 - 7 * 6
+    assert normalize_score(-10, profile_key='hiking') == 0  # Cap at 0with new logic
 
     # None
-    assert normalize_score(None) == 0
+    assert normalize_score(None, profile_key='hiking') == 0
 
     # Test user reported values with new logic
     # "17" (Very Good) -> 80 + (17-13)*2 = 88
-    assert normalize_score(17) == 88
+    assert normalize_score(17, profile_key='hiking') == 88
 
     # "3" (Fair) -> 50 + (3-2)*3 = 53
-    assert normalize_score(3) == 53
+    assert normalize_score(3, profile_key='hiking') == 53

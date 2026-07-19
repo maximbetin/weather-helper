@@ -27,11 +27,15 @@ class HourlyWeather:
     precipitation_probability: Optional[NumericType] = None
     symbol_code: Optional[str] = None
     relative_humidity: Optional[NumericType] = None
+    water_temp: Optional[NumericType] = None
+    wave_height: Optional[NumericType] = None
     temp_score: NumericType = 0
     wind_score: NumericType = 0
     cloud_score: NumericType = 0
     precip_amount_score: NumericType = 0
     humidity_score: NumericType = 0
+    water_temp_score: NumericType = 0
+    wave_height_score: NumericType = 0
     total_score: NumericType = field(init=False)
     hour: int = field(init=False)
 
@@ -48,6 +52,8 @@ class HourlyWeather:
             + self.cloud_score
             + self.precip_amount_score
             + self.humidity_score
+            + self.water_temp_score
+            + self.wave_height_score
         )
 
 
