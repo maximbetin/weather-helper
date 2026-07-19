@@ -71,6 +71,7 @@ def create_mobile_app(
         dd.content_padding = 6
         dd.border_color = "#cbd5e1"
         dd.text_size = 12
+        dd.expand = True
         return dd
 
     group_dropdown = style_dropdown(ft.Dropdown(
@@ -276,8 +277,7 @@ def create_mobile_app(
                     ),
                     ft.Text(
                         expand=True,
-                        value=("Selected · " if selected else "")
-                        + f"{card.location_name} · {card.best_window}",
+                        value=f"{card.location_name} · {card.best_window}",
                         size=13,
                         weight=ft.FontWeight.BOLD,
                         color=TEXT_COLOR,
@@ -407,7 +407,7 @@ def create_mobile_app(
     refresh_button.on_click = refresh_forecast
 
     filter_panel = ft.Container(
-        col={"xs": 6, "sm": 5},
+        col={"xs": 12, "md": 5},
         padding=8,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
@@ -421,10 +421,10 @@ def create_mobile_app(
                     spacing=4,
                     run_spacing=4,
                     controls=[
-                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=group_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=location_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=date_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=profile_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=group_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=location_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=date_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 6}, content=profile_dropdown),
                     ],
                 ),
                 refresh_button,
@@ -434,7 +434,7 @@ def create_mobile_app(
         ),
     )
     ranking_panel = ft.Container(
-        col={"xs": 6, "sm": 7},
+        col={"xs": 12, "md": 7},
         padding=8,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
