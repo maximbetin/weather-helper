@@ -406,7 +406,7 @@ def create_mobile_app(
     refresh_button.on_click = refresh_forecast
 
     filter_panel = ft.Container(
-        col={"sm": 12, "md": 5},
+        col={"xs": 6, "sm": 5},
         padding=16,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
@@ -414,21 +414,16 @@ def create_mobile_app(
         content=ft.Column(
             spacing=10,
             controls=[
-                ft.Text("Plan Your Day", size=21, weight=ft.FontWeight.BOLD),
-                ft.Text(
-                    "Choose a region for the overview, or select any specific "
-                    "location for its full forecast.",
-                    color=TEXT_SECONDARY_COLOR,
-                ),
+                ft.Text("Filters", size=16, weight=ft.FontWeight.BOLD),
                 ft.ResponsiveRow(
                     columns=12,
                     spacing=10,
                     run_spacing=10,
                     controls=[
-                        ft.Container(col={"xs": 12, "sm": 6}, content=group_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=location_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=date_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=profile_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=group_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=location_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=date_dropdown),
+                        ft.Container(col={"xs": 12, "sm": 12, "md": 6}, content=profile_dropdown),
                     ],
                 ),
                 refresh_button,
@@ -438,7 +433,7 @@ def create_mobile_app(
         ),
     )
     ranking_panel = ft.Container(
-        col={"sm": 12, "md": 7},
+        col={"xs": 6, "sm": 7},
         padding=16,
         bgcolor=SURFACE_COLOR,
         border=ft.Border.all(1, "#e2e8f0"),
@@ -446,12 +441,7 @@ def create_mobile_app(
         content=ft.Column(
             spacing=5,
             controls=[
-                ft.Text("Regional Top 10", size=21, weight=ft.FontWeight.BOLD),
-                ft.Text(
-                    "A quick whole-day comparison. Tap a row to inspect it; "
-                    "the ranking stays in place.",
-                    color=TEXT_SECONDARY_COLOR,
-                ),
+                ft.Text("Top 10", size=16, weight=ft.FontWeight.BOLD),
                 ranking,
             ],
         ),
