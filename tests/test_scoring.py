@@ -3,7 +3,6 @@ from datetime import datetime
 import pytest
 
 from src.core.scoring import (
-    ACTIVITY_SWIMMING,
     ACTIVITY_BEACH_DAY,
     ACTIVITY_HIKING,
     beach_day_score,
@@ -143,7 +142,7 @@ def test_symbol_risk_is_profile_aware():
 def test_activity_profile_labels_round_trip():
     assert get_activity_profile_label(ACTIVITY_HIKING) == "Hiking"
     assert get_activity_profile_key("Beach") == ACTIVITY_BEACH_DAY
-    assert get_activity_profile_key("Unknown") == ACTIVITY_SWIMMING
+    assert get_activity_profile_key("Unknown") == ACTIVITY_BEACH_DAY
 
 
 def test_activity_score_uses_selected_profile(create_hour):

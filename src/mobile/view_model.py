@@ -57,7 +57,6 @@ class HourlyForecastView:
     wind: str
     clouds: str
     precipitation: str
-    rain_risk: str
     humidity: str
     normalized_score: int
     rating: str
@@ -209,7 +208,7 @@ class MobileWeatherViewModel:
         raw_score = float(item["raw_score"])
         block = item["optimal_block"]
         end_time = block["end"] + timedelta(hours=1)
-        best_window = f"{block['start']:%H:%M}–{end_time:%H:%M}"
+        best_window = f"{block['start']:%H:%M} - {end_time:%H:%M}"
         return RankedLocationView(
             rank=rank,
             location_key=item["location_key"],
@@ -254,7 +253,6 @@ class MobileWeatherViewModel:
             wind=format_wind_speed(hour.wind),
             clouds=format_percentage(hour.cloud_coverage),
             precipitation=format_precipitation(hour.precipitation_amount),
-            rain_risk=format_percentage(hour.precipitation_probability),
             humidity=format_percentage(hour.relative_humidity),
             normalized_score=normalized,
             rating=get_rating_info(raw_score, self.activity_profile),
@@ -266,6 +264,5 @@ def _format_best_window_details(block: dict) -> str:
         f"Temp: {format_temperature(block.get('temp'))} · "
         f"Wind: {format_wind_speed(block.get('wind'))} · "
         f"Clouds: {format_percentage(block.get('cloud'))} · "
-        f"Rain: {format_precipitation(block.get('precip'))} · "
-        f"Rain Risk: {format_percentage(block.get('precip_probability'))}"
+        f"Rain: {format_precipitation(block.get('precip'))}"
     )

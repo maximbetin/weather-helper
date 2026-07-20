@@ -51,8 +51,8 @@ def test_fetch_weather_data_success():
         mock_request.side_effect = [mock_data, None]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": mock_data, "ocean": None}
-        assert result is not None and len(result["weather"]["properties"]["timeseries"]) >= 5
+        assert result == mock_data
+        assert result is not None and len(result["properties"]["timeseries"]) >= 5
         headers = mock_request.call_args_list[0].args[2]
         assert headers["User-Agent"] == USER_AGENT
         assert PROJECT_URL in headers["User-Agent"]
@@ -79,12 +79,11 @@ def test_fetch_weather_data_fallback_to_compact():
     }
 
     with patch("src.core.weather_api._make_request") as mock_request:
-        # First call (complete) returns insufficient data, second call (compact) returns good data, third call (ocean) returns None
-        mock_request.side_effect = [insufficient_data, sufficient_data, None]
+        mock_request.side_effect = [insufficient_data, sufficient_data]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": sufficient_data, "ocean": None}
-        assert mock_request.call_count == 3
+        assert result == sufficient_data
+        assert mock_request.call_count == 2
 
 
 def test_make_request_success():
@@ -166,12 +165,12 @@ def test_fetch_weather_data_complete_endpoint_empty_timeseries():
     }
 
     with patch("src.core.weather_api._make_request") as mock_request:
-        # First call returns empty data, second call returns good data, third returns None
-        mock_request.side_effect = [empty_data, sufficient_data, None]
+        # First call returns empty data, second call returns good data
+        mock_request.side_effect = [empty_data, sufficient_data]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": sufficient_data, "ocean": None}
-        assert mock_request.call_count == 3
+        assert result == sufficient_data
+        assert mock_request.call_count == 2
 
 
 def test_fetch_weather_data_complete_endpoint_no_properties():
@@ -189,39 +188,11 @@ def test_fetch_weather_data_complete_endpoint_no_properties():
     }
 
     with patch("src.core.weather_api._make_request") as mock_request:
-        # First call returns data without properties, second call returns good data, third returns None
-        mock_request.side_effect = [no_properties_data, sufficient_data, None]
+        # First call returns data without properties, second call returns good data
+        mock_request.side_effect = [no_properties_data, sufficient_data]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": sufficient_data, "ocean": None}
-        assert mock_request.call_count == 3
-
-
-def test_fetch_weather_data_with_ocean_success():
-    """Test successful weather data fetch alongside successful ocean data fetch."""
-    location = Location("madrid", "Madrid", 40.4168, -3.7038)
-
-    mock_weather_data = {
-        "properties": {
-            "timeseries": [
-                {"time": "2024-03-15T10:00:00Z"} for _ in range(6)
-            ]
-        }
-    }
-    
-    mock_ocean_data = {
-        "properties": {
-            "timeseries": [
-                {"data": {"instant": {"details": {"sea_water_temperature": 15.0}}}}
-            ]
-        }
-    }
-
-    with patch("src.core.weather_api._make_request") as mock_request:
-        mock_request.side_effect = [mock_weather_data, mock_ocean_data]
-
-        result = fetch_weather_data(location)
-        assert result == {"weather": mock_weather_data, "ocean": mock_ocean_data}
+        assert result == sufficient_data
         assert mock_request.call_count == 2
 
 
@@ -236,12 +207,12 @@ def test_fetch_weather_data_both_endpoints_insufficient():
     }
 
     with patch("src.core.weather_api._make_request") as mock_request:
-        # First call (complete) -> insufficient, second call (compact) -> insufficient, third call (ocean) -> None
-        mock_request.side_effect = [insufficient_data, insufficient_data, None]
+        # First call (complete) -> insufficient, second call (compact) -> insufficient
+        mock_request.side_effect = [insufficient_data, insufficient_data]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": insufficient_data, "ocean": None}
-        assert mock_request.call_count == 3
+        assert result == insufficient_data
+        assert mock_request.call_count == 2
 
 
 def test_fetch_weather_data_complete_endpoint_null_properties():
@@ -258,31 +229,9 @@ def test_fetch_weather_data_complete_endpoint_null_properties():
     }
 
     with patch("src.core.weather_api._make_request") as mock_request:
-        mock_request.side_effect = [null_properties_data, sufficient_data, None]
+        mock_request.side_effect = [null_properties_data, sufficient_data]
 
         result = fetch_weather_data(location)
-        assert result == {"weather": sufficient_data, "ocean": None}
-        assert mock_request.call_count == 3
+        assert result == sufficient_data
+        assert mock_request.call_count == 2
 
-
-def test_fetch_ocean_data_success():
-    """Test successful ocean data fetch."""
-    location = Location("test", "Test", 40.0, -3.0)
-
-    mock_ocean_data = {
-        "properties": {
-            "timeseries": [
-                {"data": {"instant": {"details": {"sea_water_temperature": 15.0}}}}
-            ]
-        }
-    }
-
-    with patch("src.core.weather_api._make_request") as mock_request:
-        mock_request.return_value = mock_ocean_data
-        
-        # We need to import fetch_ocean_data inside the test or it should be imported at the top
-        from src.core.weather_api import fetch_ocean_data
-
-        result = fetch_ocean_data(location)
-        assert result == mock_ocean_data
-        assert mock_request.call_count == 1

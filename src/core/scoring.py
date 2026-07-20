@@ -78,13 +78,11 @@ def calculate_score(
 
 ACTIVITY_HIKING = "hiking"
 ACTIVITY_BEACH_DAY = "beach_day"
-ACTIVITY_SWIMMING = "swimming"
-DEFAULT_ACTIVITY_PROFILE = ACTIVITY_SWIMMING
+DEFAULT_ACTIVITY_PROFILE = ACTIVITY_BEACH_DAY
 
 ACTIVITY_PROFILE_LABELS = {
     ACTIVITY_HIKING: "Hiking",
     ACTIVITY_BEACH_DAY: "Beach",
-    ACTIVITY_SWIMMING: "Swimming",
 }
 
 
@@ -220,33 +218,7 @@ BEACH_PRECIP_PROBABILITY_RANGES: List[RangeType] = [
     (None, -10),      # High risk of a wet beach window
 ]
 
-SWIMMING_WATER_TEMP_RANGES: List[RangeType] = [
-    ((20, 26), 5),   # Ideal
-    ((17, 20), 3),   # Refreshing, might need wetsuit
-    ((26, 30), 3),   # Warm
-    ((15, 17), 0),   # Chilly, wetsuit recommended
-    ((10, 15), -5),  # Cold, wetsuit required
-    ((0, 10), -10),  # Very cold, dangerous
-    (None, 0),       # Neutral fallback if unknown
-]
 
-SWIMMING_WAVE_HEIGHT_RANGES: List[RangeType] = [
-    ((0, 0.5), 5),   # Flat, ideal
-    ((0.5, 1.0), 3), # Minor chop
-    ((1.0, 1.5), -2),# Noticeable chop
-    ((1.5, 2.5), -6),# Rough
-    ((2.5, None), -10), # Dangerous
-    (None, 0),       # Neutral fallback
-]
-
-SWIMMING_WIND_RANGES: List[RangeType] = [
-    ((0, 2), 5),      # Calm
-    ((2, 4), 3),      # Light breeze
-    ((4, 7), -2),     # Noticeable chop
-    ((7, 10), -8),    # Strong wind
-    ((10, None), -14),# Dangerous for swimming
-    (None, -14),
-]
 
 SYMBOL_RISK_TERMS = (
     ("thunder", -12, -16, -20),
@@ -277,14 +249,12 @@ BEACH_RATING_RANGES: List[RangeType] = [
 RATING_RANGES_BY_PROFILE = {
     ACTIVITY_HIKING: RATING_RANGES,
     ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
-    ACTIVITY_SWIMMING: BEACH_RATING_RANGES,
 }
 
 # excellent, very_good, good, fair, max_expected, poor_slope
 NORMALIZATION_CONFIG_BY_PROFILE = {
     ACTIVITY_HIKING: (18, 13, 7, 2, 23, 6),
     ACTIVITY_BEACH_DAY: (22, 17, 11, 5, 26, 5),
-    ACTIVITY_SWIMMING: (22, 17, 11, 5, 26, 5),
 }
 
 
@@ -359,10 +329,8 @@ def symbol_risk_score(
         return 0
 
     normalized_symbol = symbol_code.lower()
-    for term, hiking_penalty, beach_penalty, swim_penalty in SYMBOL_RISK_TERMS:
+    for term, hiking_penalty, beach_penalty, _swim_penalty in SYMBOL_RISK_TERMS:
         if term in normalized_symbol:
-            if profile_key == ACTIVITY_SWIMMING:
-                return swim_penalty
             if profile_key == ACTIVITY_BEACH_DAY:
                 return beach_penalty
             return hiking_penalty
@@ -397,12 +365,6 @@ def activity_risk_score(
     profile_key: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> int:
     """Return forecast risk adjustments for the selected profile."""
-    if profile_key == ACTIVITY_SWIMMING:
-        return (
-            precip_probability_score(precipitation_probability)
-            + symbol_risk_score(symbol_code, profile_key)
-        )
-
     if profile_key == ACTIVITY_BEACH_DAY:
         return (
             beach_precip_probability_score(precipitation_probability)
@@ -412,31 +374,6 @@ def activity_risk_score(
     return (
         precip_probability_score(precipitation_probability)
         + symbol_risk_score(symbol_code, profile_key)
-    )
-
-
-def swimming_day_score(
-    temp: Optional[NumericType],
-    wind_speed: Optional[NumericType],
-    cloud_coverage: Optional[NumericType],
-    precipitation_amount: Optional[NumericType],
-    relative_humidity: Optional[NumericType],
-    water_temp: Optional[NumericType] = None,
-    wave_height: Optional[NumericType] = None,
-    precipitation_probability: Optional[NumericType] = None,
-    symbol_code: Optional[str] = None,
-) -> int:
-    """Score an hour for open water swimming."""
-    return (
-        temp_score(temp)
-        + calculate_score(wind_speed, SWIMMING_WIND_RANGES, inclusive=False)
-        + cloud_score(cloud_coverage)
-        + precip_amount_score(precipitation_amount)
-        + humidity_score(relative_humidity)
-        + calculate_score(water_temp, SWIMMING_WATER_TEMP_RANGES, inclusive=True)
-        + calculate_score(wave_height, SWIMMING_WAVE_HEIGHT_RANGES, inclusive=False)
-        + precip_probability_score(precipitation_probability)
-        + symbol_risk_score(symbol_code, ACTIVITY_SWIMMING)
     )
 
 
@@ -459,19 +396,6 @@ def get_activity_score(
     hour: Any, profile_key: str = DEFAULT_ACTIVITY_PROFILE
 ) -> NumericType:
     """Return an hour score using the requested activity profile."""
-    if profile_key == ACTIVITY_SWIMMING:
-        return swimming_day_score(
-            hour.temp,
-            hour.wind,
-            hour.cloud_coverage,
-            hour.precipitation_amount,
-            hour.relative_humidity,
-            getattr(hour, "water_temp", None),
-            getattr(hour, "wave_height", None),
-            getattr(hour, "precipitation_probability", None),
-            getattr(hour, "symbol_code", None),
-        )
-
     if profile_key == ACTIVITY_BEACH_DAY:
         return beach_day_score(
             hour.temp,

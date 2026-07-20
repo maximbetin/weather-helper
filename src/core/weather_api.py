@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from src.core.config import API_URL, API_URL_COMPACT, OCEAN_API_URL, USER_AGENT
+from src.core.config import API_URL, API_URL_COMPACT, USER_AGENT
 from src.core.locations import Location
 
 REQUEST_TIMEOUT_SECONDS = 10
@@ -28,6 +28,9 @@ def _make_request(
         response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
         response.raise_for_status()
         return response.json()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"Error fetching forecast from {url} for {location.name}: {e}")
+        return None
     except (requests.exceptions.RequestException, ValueError) as e:
         logger.error(f"Error fetching forecast from {url} for {location.name}: {e}")
         return None
@@ -51,22 +54,14 @@ def _has_complete_forecast(data: Optional[Dict[str, Any]]) -> bool:
     return len(_get_timeseries(data)) >= MIN_COMPLETE_TIMESERIES_LENGTH
 
 
-def fetch_ocean_data(location: Location) -> Optional[Dict[str, Any]]:
-    """Fetch ocean data from the API."""
-    headers = {"User-Agent": USER_AGENT}
-    ocean_url = _build_forecast_url(OCEAN_API_URL, location)
-    return _make_request(ocean_url, location, headers)
-
-
 def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
     """Fetch weather data, falling back to compact when complete is too sparse.
-    Also attempts to fetch ocean data and returns a combined dictionary.
 
     Args:
         location: Location object containing lat/lon coordinates
 
     Returns:
-        JSON response with 'weather' and 'ocean' keys, or None if weather request failed
+        JSON response with the forecast data, or None if weather request failed
     """
     headers = {"User-Agent": USER_AGENT}
     complete_url = _build_forecast_url(API_URL, location)
@@ -76,12 +71,4 @@ def fetch_weather_data(location: Location) -> Optional[Dict[str, Any]]:
         compact_url = _build_forecast_url(API_URL_COMPACT, location)
         data = _make_request(compact_url, location, headers)
         
-    if data is None:
-        return None
-        
-    ocean_data = fetch_ocean_data(location)
-    
-    return {
-        "weather": data,
-        "ocean": ocean_data
-    }
+    return data

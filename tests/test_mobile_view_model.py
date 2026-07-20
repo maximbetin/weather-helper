@@ -64,15 +64,14 @@ def test_load_exposes_dates_rankings_and_hourly_details():
     assert model.location_options() == [("gijon", "Gijón"), ("oviedo", "Oviedo")]
     assert [item.location_name for item in ranked] == ["Gijón", "Oviedo"]
     assert ranked[0].raw_score == 18
-    assert ranked[0].best_window == "12:00–13:00"
+    assert ranked[0].best_window == "12:00 - 13:00"
     assert "Temp: 24.0°C" in ranked[0].best_window_details
-    assert "Rain Risk: 10%" in ranked[0].best_window_details
+    assert "Rain Risk" not in ranked[0].best_window_details
     assert hourly[0].time == "12:00"
     assert hourly[0].temperature == "24.0°C"
     assert hourly[0].wind == "2.0 m/s"
     assert hourly[0].clouds == "20%"
     assert hourly[0].precipitation == "0.0 mm"
-    assert hourly[0].rain_risk == "10%"
     assert hourly[0].humidity == "60%"
     assert hourly[0].normalized_score == 90
     assert hourly[0].rating == "Excellent"
