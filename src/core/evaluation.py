@@ -396,8 +396,6 @@ def _is_acceptable_block(
     max_score_variance: float,
 ) -> bool:
     """Return True when a block passes score and variance thresholds."""
-    if len(scores) > 1 and min(scores) < 0:
-        return False
     if avg_score < _minimum_average_score(len(block)):
         return False
     return std_dev <= _adjusted_variance_threshold(len(block), max_score_variance)
@@ -575,7 +573,7 @@ def _rank_location_for_date(
     optimal_block = _find_optimal_consistent_block(filtered_hours, activity_profile)
     if not optimal_block:
         return None
-    day_score = _calculate_day_activity_score(filtered_hours, activity_profile)
+    day_score = _calculate_day_activity_score(report.daylight_hours, activity_profile)
     return _build_location_result(
         loc_key,
         report,

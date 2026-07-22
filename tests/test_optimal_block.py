@@ -77,10 +77,10 @@ def test_find_optimal_block_with_no_good_blocks(create_hour):
 def test_find_optimal_block_with_single_best_hour(create_hour):
     base_time = datetime(2023, 1, 1, 10)
     hours = [
-        create_hour(base_time, 2),
-        create_hour(base_time + timedelta(hours=1), -5),
+        create_hour(base_time, -20),
+        create_hour(base_time + timedelta(hours=1), -20),
         create_hour(base_time + timedelta(hours=2), 8),  # The single best hour
-        create_hour(base_time + timedelta(hours=3), -2),
+        create_hour(base_time + timedelta(hours=3), -20),
     ]
     result = find_optimal_weather_block(hours, activity_profile='hiking')
     assert result is not None
