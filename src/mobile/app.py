@@ -98,6 +98,7 @@ def create_mobile_app(
     )
     progress = ft.ProgressBar(visible=False)
     ranking = ft.Column(spacing=6)
+    daily_summary = ft.Column(spacing=4)
     selected_summary = ft.Column(spacing=8)
     hourly = ft.Column(spacing=8)
 
@@ -321,6 +322,85 @@ def create_mobile_app(
         page.update()
         page.run_task(page.scroll_to, scroll_key="details_panel", duration=300)
 
+    # --- Daily summary with stable columns ---
+
+    def summary_table_row(summary: Any) -> ft.Row:
+        return ft.Row(
+            spacing=6,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            controls=[
+                ft.Text(
+                    summary.activity_label,
+                    width=72,
+                    size=12,
+                    color=TEXT_COLOR,
+                    no_wrap=True,
+                ),
+                ft.Text(
+                    summary.location_name,
+                    width=104,
+                    size=12,
+                    color=TEXT_COLOR,
+                    no_wrap=True,
+                ),
+                ft.Text(
+                    summary.score_text,
+                    width=58,
+                    size=12,
+                    weight=ft.FontWeight.BOLD,
+                    text_align=ft.TextAlign.RIGHT,
+                    color=PRIMARY_COLOR,
+                    no_wrap=True,
+                ),
+                ft.Text(
+                    summary.best_window,
+                    expand=True,
+                    size=12,
+                    color=TEXT_SECONDARY_COLOR,
+                    no_wrap=True,
+                ),
+            ],
+        )
+
+    def render_daily_summary() -> None:
+        rows = model.daily_summary_rows()
+        if not rows:
+            daily_summary.controls = [
+                ft.Text(
+                    "No daily activity recommendations are available.",
+                    size=13,
+                    color=TEXT_SECONDARY_COLOR,
+                )
+            ]
+            return
+
+        controls = [
+            ft.Row(
+                spacing=6,
+                controls=[
+                    ft.Text("Activity", width=72, size=11, color=TEXT_SECONDARY_COLOR),
+                    ft.Text("Location", width=104, size=11, color=TEXT_SECONDARY_COLOR),
+                    ft.Text("Score", width=58, size=11, color=TEXT_SECONDARY_COLOR),
+                    ft.Text("Best time", expand=True, size=11, color=TEXT_SECONDARY_COLOR),
+                ],
+            )
+        ]
+        alternatives_started = False
+        for summary in rows:
+            if not summary.is_priority and not alternatives_started:
+                controls.append(ft.Divider(height=8))
+                controls.append(
+                    ft.Text(
+                        "Alternatives",
+                        size=12,
+                        weight=ft.FontWeight.BOLD,
+                        color=TEXT_SECONDARY_COLOR,
+                    )
+                )
+                alternatives_started = True
+            controls.append(summary_table_row(summary))
+        daily_summary.controls = controls
+
     # --- Top 10 ranking (read-only overview) ---
 
     def ranking_row(card: RankedLocationView) -> ft.Container:
@@ -400,6 +480,7 @@ def create_mobile_app(
 
     def render_dashboard() -> None:
         update_location_options()
+        render_daily_summary()
         render_ranking()
         card = model.selected_location()
         if card:
@@ -432,6 +513,7 @@ def create_mobile_app(
         location_dropdown.value = None
         location_dropdown.disabled = True
         ranking.controls = []
+        daily_summary.controls = []
         selected_summary.controls = []
         hourly.controls = []
         status.value = f"Loading {model.group_name} forecasts\u2026"
@@ -471,6 +553,7 @@ def create_mobile_app(
         except Exception:
             status.value = "Unable to load forecasts right now. Please try again."
             ranking.controls = []
+            daily_summary.controls = []
             selected_summary.controls = []
             hourly.controls = []
         finally:
@@ -530,6 +613,29 @@ def create_mobile_app(
             controls=[
                 ft.Text("Top 10", size=16, weight=ft.FontWeight.BOLD),
                 ranking,
+            ],
+        ),
+    )
+
+    daily_summary_panel = ft.Container(
+        padding=14,
+        bgcolor=SURFACE_COLOR,
+        border=ft.Border.all(1, "#e2e8f0"),
+        border_radius=14,
+        content=ft.Column(
+            spacing=6,
+            controls=[
+                ft.Text(
+                    "Daily summary",
+                    size=16,
+                    weight=ft.FontWeight.BOLD,
+                ),
+                ft.Text(
+                    "Oviedo and Gijón are shown first for hiking and beach plans.",
+                    size=12,
+                    color=TEXT_SECONDARY_COLOR,
+                ),
+                daily_summary,
             ],
         ),
     )
@@ -598,6 +704,7 @@ def create_mobile_app(
                         weight=ft.FontWeight.BOLD,
                         color=PRIMARY_COLOR,
                     ),
+                    daily_summary_panel,
                     swipe_tabs,
                     details_panel,
                     ft.Markdown(

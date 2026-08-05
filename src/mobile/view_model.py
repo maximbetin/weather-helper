@@ -24,6 +24,11 @@ from src.core.scoring import (
     get_rating_info,
     normalize_score,
 )
+from src.mobile.daily_summary import (
+    DailySummaryRow,
+    build_daily_summary,
+    format_daily_summary,
+)
 
 DEFAULT_LOCATION_GROUP = "Asturias"
 
@@ -189,6 +194,23 @@ class MobileWeatherViewModel:
             return []
         hours = get_time_blocks_for_date(self.forecasts[location_key], self.selected_date)
         return [self._hourly_forecast_view(hour) for hour in hours]
+
+    def daily_summary_rows(self) -> list[DailySummaryRow]:
+        """Return both activities with priority cities before alternatives."""
+        if self.selected_date is None:
+            return []
+        return build_daily_summary(
+            self.forecasts,
+            self.selected_date,
+            self.locations,
+        )
+
+    def daily_summary_text(self) -> str:
+        """Return the aligned summary text used by a notification or preview."""
+        return format_daily_summary(
+            self.daily_summary_rows(),
+            forecast_date=self.selected_date,
+        )
 
     def _select_default_location(self) -> None:
         ranked = self.ranked_locations(1)
