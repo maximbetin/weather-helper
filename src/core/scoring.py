@@ -88,20 +88,24 @@ ACTIVITY_PROFILE_LABELS = {
 
 # --- Scoring Ranges ---
 
+# Walking warms you up, so the ideal is cooler than for sitting outdoors, and
+# the range that suits it is most of an Asturian year. Heat is the harder
+# problem on foot: 30C uphill is worse than 12C, which the old ordering, built
+# around a sunny-Mediterranean ideal of 20-24C, had backwards.
 TEMP_RANGES: List[RangeType] = [
-    ((20, 24), 7),   # Ideal temperature range
-    ((17, 20), 6),   # Cool but very pleasant
-    ((24, 27), 6),   # Warm but very pleasant
-    ((15, 17), 4),   # Cool but comfortable
-    ((27, 30), 4),   # Warm but comfortable
-    ((10, 15), 2),   # Cool but acceptable
-    ((30, 33), 1),   # Hot but manageable
-    ((5, 10), -1),   # Cold
-    ((33, 36), -3),  # Very hot
-    ((0, 5), -6),    # Very cold
-    ((36, 40), -9),  # Extremely hot
-    ((-5, 0), -9),   # Extremely cold
-    (None, -15),     # Beyond extreme temperatures
+    ((13, 21), 7),   # Ideal on foot
+    ((21, 24), 6),   # Warm but very pleasant
+    ((10, 13), 5),   # Cool, and fine once moving
+    ((24, 27), 4),   # Warm enough to slow you down
+    ((7, 10), 3),    # Brisk
+    ((27, 30), 1),   # Hot for climbing
+    ((3, 7), 1),     # Cold but walkable
+    ((30, 33), -3),  # Uncomfortably hot on foot
+    ((0, 3), -3),    # Near freezing
+    ((33, 36), -7),  # Heat becomes the hazard
+    ((-5, 0), -7),   # Freezing
+    ((36, 40), -11),  # Dangerous heat
+    (None, -15),     # Beyond extremes
 ]
 
 WIND_RANGES: List[RangeType] = [
@@ -115,13 +119,14 @@ WIND_RANGES: List[RangeType] = [
     (None, -8),     # Gale and above - dangerous
 ]
 
+# Cloud hardly decides whether a walk is worth taking, and a grey sky is the
+# default here. Overcast costs a little for the lost views, full sun costs a
+# little for the exposure, and everything between is simply walking weather.
 CLOUD_RANGES: List[RangeType] = [
-    ((10, 30), 4),  # Few to scattered clouds - ideal
-    ((0, 10), 3),   # Clear skies - very good but can be hot
-    ((30, 60), 2),  # Partly cloudy - good conditions
-    ((60, 80), 0),  # Mostly cloudy - neutral
-    ((80, 95), -1), # Very cloudy - slightly gloomy
-    (None, -3),     # Overcast - gloomy
+    ((10, 70), 2),   # Anything from bright to mostly grey
+    ((0, 10), 1),    # Clear: pleasant, but no shade
+    ((70, 95), 1),   # Grey, which is most days
+    (None, 0),       # Overcast: the views go, the walk does not
 ]
 
 # Rainfall is the measured evidence and now carries the weight that used to be
@@ -140,19 +145,14 @@ PRECIP_AMOUNT_RANGES: List[RangeType] = [
     (None, -15),         # Extreme precipitation - dangerous
 ]
 
+# Damp air is only really unpleasant when it is also warm, and at the
+# temperatures this coast actually offers it is just what the air is like. It
+# nudges rather than decides, on the same reasoning as the beach profile.
 HUMIDITY_RANGES: List[RangeType] = [
-    ((40, 60), 3),   # Ideal humidity range - very comfortable
-    ((30, 40), 2),   # Low humidity - good but can feel dry
-    ((60, 70), 1),   # Moderate humidity - acceptable
-    ((20, 30), 0),   # Very low humidity - neutral
-    ((70, 80), 0),   # High humidity - neutral
-    ((80, 85), -1),  # Very high humidity - noticeable discomfort
-    ((15, 20), -1),  # Very low humidity - can cause dryness
-    ((85, 90), -2),  # Extremely high humidity - significant discomfort
-    ((10, 15), -2),  # Extremely low humidity - can cause irritation
-    ((90, 95), -3),  # Near saturation - very uncomfortable
-    ((5, 10), -3),   # Near zero - very uncomfortable
-    (None, -4),      # Beyond extreme humidity levels
+    ((30, 90), 1),   # Ordinary, including an Atlantic 85%
+    ((90, 96), 0),   # Saturated: the air feels heavy
+    ((20, 30), 0),   # Dry
+    (None, -1),      # Extremes either way
 ]
 
 BEACH_TEMP_RANGES: List[RangeType] = [
@@ -257,26 +257,33 @@ PRECIPITATION_SYMBOL_TERMS = (
     "showers",
 )
 
-RATING_RANGES: List[RangeType] = [
-    ((18.0, float("inf")), "Excellent"),  # >= 18
-    ((13.0, 18.0), "Very Good"),          # 13 <= x < 18
-    ((7.0, 13.0), "Good"),                # 7 <= x < 13
-    ((2.0, 7.0), "Fair"),                 # 2 <= x < 7
-    (None, "Poor"),                       # < 2
-]
-
-BEACH_RATING_RANGES: List[RangeType] = [
-    ((22.0, float("inf")), "Excellent"),  # Excellent beach conditions
-    ((17.0, 22.0), "Very Good"),
-    ((11.0, 17.0), "Good"),
-    ((5.0, 11.0), "Fair"),
-    (None, "Poor"),
-]
-
-RATING_RANGES_BY_PROFILE = {
-    ACTIVITY_HIKING: RATING_RANGES,
-    ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
+# Where each rating begins, as a share of the best score the profile can award.
+# Expressing them this way rather than as fixed numbers is what stops the two
+# drifting apart: retuning a weather element changes the maximum, and absolute
+# thresholds silently become unreachable when it does. Hiking is the more
+# forgiving of the two, because a walk survives weather a beach day does not.
+RATING_FRACTIONS_BY_PROFILE = {
+    ACTIVITY_HIKING: (0.86, 0.62, 0.33, 0.10),
+    ACTIVITY_BEACH_DAY: (0.88, 0.68, 0.44, 0.20),
 }
+
+
+def _rating_thresholds(profile_key: str, maximum: int) -> tuple:
+    """Return the excellent/very good/good/fair cut-offs for a profile."""
+    fractions = RATING_FRACTIONS_BY_PROFILE[profile_key]
+    return tuple(round(fraction * maximum) for fraction in fractions)
+
+
+def _rating_ranges(thresholds: tuple) -> List[RangeType]:
+    """Build descending rating bands from four ascending cut-offs."""
+    excellent, very_good, good, fair = thresholds
+    return [
+        ((float(excellent), float("inf")), "Excellent"),
+        ((float(very_good), float(excellent)), "Very Good"),
+        ((float(good), float(very_good)), "Good"),
+        ((float(fair), float(good)), "Fair"),
+        (None, "Poor"),
+    ]
 
 def _best_possible(*range_lists: List[RangeType]) -> int:
     """Return the highest score these ranges can award in total."""
@@ -302,10 +309,23 @@ MAX_BEACH_SCORE = _best_possible(
     BEACH_HUMIDITY_RANGES,
 )
 
+HIKING_THRESHOLDS = _rating_thresholds(ACTIVITY_HIKING, MAX_HIKING_SCORE)
+BEACH_THRESHOLDS = _rating_thresholds(ACTIVITY_BEACH_DAY, MAX_BEACH_SCORE)
+
+RATING_RANGES: List[RangeType] = _rating_ranges(HIKING_THRESHOLDS)
+BEACH_RATING_RANGES: List[RangeType] = _rating_ranges(BEACH_THRESHOLDS)
+
+RATING_RANGES_BY_PROFILE = {
+    ACTIVITY_HIKING: RATING_RANGES,
+    ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
+}
+
+# The word and the number come from the same cut-offs, so a rating and its
+# 0-100 score can never tell different stories.
 # excellent, very_good, good, fair, max_expected, poor_slope
 NORMALIZATION_CONFIG_BY_PROFILE = {
-    ACTIVITY_HIKING: (18, 13, 7, 2, MAX_HIKING_SCORE, 6),
-    ACTIVITY_BEACH_DAY: (22, 17, 11, 5, MAX_BEACH_SCORE, 5),
+    ACTIVITY_HIKING: (*HIKING_THRESHOLDS, MAX_HIKING_SCORE, 6),
+    ACTIVITY_BEACH_DAY: (*BEACH_THRESHOLDS, MAX_BEACH_SCORE, 5),
 }
 
 

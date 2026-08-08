@@ -9,7 +9,10 @@ from src.core.scoring import (
     BEACH_HUMIDITY_RANGES,
     MAX_BEACH_SCORE,
     MAX_HIKING_SCORE,
+    CLOUD_RANGES,
     NORMALIZATION_CONFIG_BY_PROFILE,
+    _rating_thresholds,
+    humidity_score,
     beach_precip_amount_score,
     rain_risk_score,
     beach_day_score,
@@ -31,18 +34,20 @@ from src.core.scoring import (
 @pytest.mark.parametrize(
     "temp, expected_score",
     [
-        (22, 7),  # Ideal temperature
-        (19, 6),  # Cool but very pleasant
-        (25, 6),  # Warm but very pleasant
-        (16, 4),  # Cool but comfortable
-        (28, 4),  # Warm but comfortable
-        (12, 2),  # Cool but acceptable
-        (31, 1),  # Hot but manageable
-        (8, -1),  # Cold
-        (34, -3),  # Very hot
-        (2, -6),  # Very cold
-        (38, -9),  # Extremely hot
-        (-2, -9),  # Extremely cold
+        # Calibrated for walking, where you generate your own heat: the ideal
+        # band is cool and wide, and heat costs more than chill.
+        (19, 7),  # Ideal on foot
+        (16, 7),  # Also ideal
+        (22, 6),  # Warm but very pleasant
+        (12, 5),  # Cool, fine once moving
+        (25, 4),  # Warm enough to slow you down
+        (8, 3),  # Brisk
+        (28, 1),  # Hot for climbing
+        (31, -3),  # Uncomfortably hot on foot
+        (2, -3),  # Near freezing
+        (34, -7),  # Heat becomes the hazard
+        (-2, -7),  # Freezing
+        (38, -11),  # Dangerous heat
         (50, -15),  # Beyond extreme
         (None, 0),  # No value
     ],
@@ -72,12 +77,12 @@ def test_wind_score(wind, expected_score):
 @pytest.mark.parametrize(
     "clouds, expected_score",
     [
-        (20, 4),  # Few to scattered clouds - ideal
-        (5, 3),  # Clear skies - very good
-        (45, 2),  # Partly cloudy - good
-        (70, 0),  # Mostly cloudy - neutral
-        (85, -1),  # Very cloudy - gloomy
-        (100, -3),  # Overcast - gloomy
+        # Cloud barely decides whether a walk is worth taking here.
+        (20, 2),  # Bright through to mostly grey
+        (45, 2),  # Partly cloudy
+        (5, 1),  # Clear: pleasant, but no shade
+        (85, 1),  # Grey, which is most days
+        (100, 0),  # Overcast: the views go, the walk does not
         (None, 0),  # No value
     ],
 )
@@ -307,3 +312,52 @@ def test_a_rain_symbol_does_not_stack_with_the_chance_of_rain():
     assert with_rain_symbol == min(
         probability_only, symbol_risk_score("rain", ACTIVITY_BEACH_DAY)
     )
+
+
+# --- Hiking is calibrated for this coast, not a sunny-Mediterranean ideal ---
+
+def test_a_grey_dry_asturian_day_is_good_walking_weather():
+    """17C and overcast is the standard good walk here, not a mediocre one."""
+    score = (
+        temp_score(17)
+        + wind_score(4)
+        + cloud_score(100)
+        + humidity_score(82)
+        + precip_amount_score(0.0)
+    )
+
+    assert get_rating_info(score, ACTIVITY_HIKING) in ("Very Good", "Excellent")
+
+
+def test_walking_prefers_cool_over_hot():
+    """You make your own heat on foot, so 30C is worse than 12C."""
+    assert temp_score(12) > temp_score(30)
+    assert temp_score(17) > temp_score(28)
+
+
+def test_cloud_barely_moves_a_walk_but_still_decides_a_beach_day():
+    hiking_swing = max(v for _, v in CLOUD_RANGES) - min(v for _, v in CLOUD_RANGES)
+    beach_swing = max(v for _, v in BEACH_CLOUD_RANGES) - min(
+        v for _, v in BEACH_CLOUD_RANGES
+    )
+
+    assert hiking_swing * 3 <= beach_swing
+
+
+def test_atlantic_humidity_is_not_a_penalty_for_either_activity():
+    for humidity in (70, 80, 85):
+        assert humidity_score(humidity) == humidity_score(50)
+
+
+def test_rating_thresholds_follow_the_best_score_a_profile_can_award():
+    """Retuning an element must never make a rating unreachable."""
+    for profile, maximum in (
+        (ACTIVITY_HIKING, MAX_HIKING_SCORE),
+        (ACTIVITY_BEACH_DAY, MAX_BEACH_SCORE),
+    ):
+        thresholds = _rating_thresholds(profile, maximum)
+        assert thresholds == tuple(sorted(thresholds, reverse=True))
+        assert thresholds[0] <= maximum
+        assert get_rating_info(maximum, profile) == "Excellent"
+        # The word and the number are cut from the same cloth.
+        assert NORMALIZATION_CONFIG_BY_PROFILE[profile][:4] == thresholds

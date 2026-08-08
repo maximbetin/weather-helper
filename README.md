@@ -32,8 +32,12 @@ The data is available under MET Norway's
 ## How the scores work
 
 Every score is on a 0-100 scale for the **selected activity**, where 100 is the
-best weather that activity can ask for. Two different scores appear, and each
-is labelled on screen because they answer different questions:
+best weather that activity can ask for. The rating words and the numbers are
+both derived from that maximum, so retuning a weather element can never leave
+a rating stranded out of reach.
+
+Two different scores appear, and each is labelled on screen because they
+answer different questions:
 
 | Score | What it measures | Where it appears |
 | --- | --- | --- |
@@ -66,10 +70,14 @@ activity:
   warning. A 45% chance on a dry hour barely registers, and orbayu does not
   call off a walk. What is measured to actually fall still counts fully, and
   sustained rain still reads as Poor.
-- **The two activities disagree about rain, deliberately.** The same drizzly
-  hour can be a perfectly good walk and a written-off beach day.
-- **Humidity barely matters on a beach day.** Anything a coastal summer
-  normally produces is treated as normal rather than as a penalty.
+- **The two activities disagree, deliberately.** The same grey, drizzly hour
+  can be a perfectly good walk and a written-off beach day.
+- **Walking is scored for this coast.** Cloud barely counts against a walk —
+  a dry overcast 17 °C day is good walking weather here, and the profile says
+  so. You generate your own heat on foot, so the ideal band is cool and wide
+  and heat costs more than chill.
+- **Humidity barely matters to either activity.** Anything an Atlantic
+  summer normally produces is treated as normal rather than as a penalty.
 - **Cloud does not break up a good spell.** One dull hour inside a long sunny
   window no longer truncates the recommendation; actual rain still does.
 

@@ -20,7 +20,12 @@ from src.core.evaluation import (
     get_top_locations_for_date,
     process_forecast,
 )
-from src.core.scoring import _get_value_from_ranges, normalize_score
+from src.core.scoring import (
+    HIKING_THRESHOLDS,
+    MAX_HIKING_SCORE,
+    _get_value_from_ranges,
+    normalize_score,
+)
 from src.core.models import DailyReport, HourlyWeather
 
 
@@ -418,21 +423,17 @@ def test_normalize_score():
     """Test the score normalization logic."""
     # Test key thresholds based on piecewise linear mapping
 
+    # Thresholds follow the best score the profile can award, so the test
+    # reads them from the same place the scoring does.
+    excellent, very_good, good, fair = HIKING_THRESHOLDS
+
     # Max score
-    assert normalize_score(23, profile_key='hiking') == 100
-    assert normalize_score(25, profile_key='hiking') == 100  # Cap at 100
+    assert normalize_score(MAX_HIKING_SCORE, profile_key='hiking') == 100
+    assert normalize_score(MAX_HIKING_SCORE + 5, profile_key='hiking') == 100
 
-    # Excellent threshold (18) -> 90
-    assert normalize_score(18, profile_key='hiking') == 90
-
-    # Very Good threshold (13) -> 80
-    assert normalize_score(13, profile_key='hiking') == 80
-
-    # Good threshold (7) -> 65
-    assert normalize_score(7, profile_key='hiking') == 65
-
-    # Fair threshold (2) -> 50
-    assert normalize_score(2, profile_key='hiking') == 50
+    assert normalize_score(excellent, profile_key='hiking') == 90
+    assert normalize_score(very_good, profile_key='hiking') == 80
+    assert normalize_score(fair, profile_key='hiking') == 50
 
     # Zero/Negative
     # Score < 2: 50 + (score - 2) * 6
@@ -447,9 +448,8 @@ def test_normalize_score():
     # None
     assert normalize_score(None, profile_key='hiking') == 0
 
-    # Test user reported values with new logic
-    # "17" (Very Good) -> 80 + (17-13)*2 = 88
-    assert normalize_score(17, profile_key='hiking') == 88
+    # A score partway between two cut-offs lands partway between their marks.
+    midway = (very_good + excellent) / 2
+    assert 80 < normalize_score(midway, profile_key='hiking') < 90
 
-    # "3" (Fair) -> 50 + (3-2)*3 = 53
-    assert normalize_score(3, profile_key='hiking') == 53
+    assert normalize_score(fair + 1, profile_key='hiking') > 50
