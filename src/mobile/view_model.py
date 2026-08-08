@@ -10,6 +10,7 @@ from src.application.forecast_service import (
     ProgressCallback,
 )
 from src.application.presentation import (
+    format_duration,
     format_percentage,
     format_precipitation,
     format_temperature,
@@ -69,9 +70,7 @@ class RankedLocationView:
     @property
     def window_length_label(self) -> str:
         """Return how long the recommended window lasts."""
-        if not self.window_hours:
-            return ""
-        return "1 hour" if self.window_hours == 1 else f"{self.window_hours} hours"
+        return format_duration(self.window_hours) if self.window_hours else ""
 
 
 @dataclass(frozen=True)
@@ -93,6 +92,15 @@ class HourlyForecastView:
     def is_hourly(self) -> bool:
         """Return True when this row describes a single hour."""
         return self.coverage_hours == 1
+
+    @property
+    def precipitation_unit(self) -> str:
+        """Return the unit the precipitation figure is expressed in.
+
+        Multi-hour entries report a rate, which is what they are scored on, so
+        the number on screen and the rating beside it always agree.
+        """
+        return " mm" if self.is_hourly else " mm/h"
 
     @property
     def span_label(self) -> str:
@@ -133,24 +141,25 @@ class MobileWeatherViewModel:
         if self.selected_location_key not in self.available_location_keys():
             self._select_default_location()
 
-    def _ranked_results(self, top_n: int) -> list[dict]:
+    def _ranked_results(self, top_n: Optional[int] = None) -> list[dict]:
         """Return ranked results for the current selection, computed once.
 
-        Ranking scans every location's forecast, and a single screen refresh
-        asks for it several times. Caching per selection keeps changing a
-        filter responsive on a phone.
+        Ranking scans every location's forecast, which is the most expensive
+        thing a redraw does. The full ordering is computed once per selection
+        and sliced, so a screen refresh cannot rank the same region repeatedly.
         """
         if self.selected_date is None:
             return []
-        cache_key = (self.selected_date, self.activity_profile, top_n)
+        cache_key = (self.selected_date, self.activity_profile)
         if cache_key not in self._ranking_cache:
             self._ranking_cache[cache_key] = get_top_locations_for_date(
                 self.forecasts,
                 self.selected_date,
-                top_n=top_n,
+                top_n=max(1, len(self.forecasts)),
                 activity_profile=self.activity_profile,
             )
-        return self._ranking_cache[cache_key]
+        ranked = self._ranking_cache[cache_key]
+        return ranked if top_n is None else ranked[:top_n]
 
     def invalidate_rankings(self) -> None:
         """Drop cached rankings so time-sensitive results are recomputed."""
@@ -224,9 +233,7 @@ class MobileWeatherViewModel:
         ranked = next(
             (
                 self._ranked_location_view(index, item)
-                for index, item in enumerate(
-                    self._ranked_results(max(1, len(self.forecasts))), 1
-                )
+                for index, item in enumerate(self._ranked_results(), 1)
                 if item["location_key"] == self.selected_location_key
             ),
             None,
@@ -258,12 +265,6 @@ class MobileWeatherViewModel:
         window = self._best_window_bounds(location_key)
         return [self._hourly_forecast_view(hour, window) for hour in hours]
 
-    def selected_hourly_forecast(self) -> list[HourlyForecastView]:
-        """Return the breakdown for the currently selected location."""
-        if not self.selected_location_key:
-            return []
-        return self.hourly_forecast(self.selected_location_key)
-
     def _best_window_bounds(
         self, location_key: str
     ) -> Optional[tuple[datetime, datetime]]:
@@ -271,7 +272,7 @@ class MobileWeatherViewModel:
         ranked = next(
             (
                 item
-                for item in self._ranked_results(len(self.forecasts))
+                for item in self._ranked_results()
                 if item["location_key"] == location_key
             ),
             None,
@@ -412,14 +413,12 @@ class MobileWeatherViewModel:
             temperature=hour.temp,
             wind=hour.wind,
             clouds=hour.cloud_coverage,
-            precipitation=hour.precipitation_amount,
+            # The rate is shown, because the rate is what was scored.
+            precipitation=hour.precipitation_rate,
             humidity=hour.relative_humidity,
             normalized_score=normalize_score(raw_score, self.activity_profile),
             rating=get_rating_info(raw_score, self.activity_profile),
-            coverage_hours=int(
-                round((visible_end - visible_start).total_seconds() / 3600)
-            )
-            or 1,
+            coverage_hours=hour.coverage_hours,
             in_best_window=_is_inside_window(hour, window),
         )
 

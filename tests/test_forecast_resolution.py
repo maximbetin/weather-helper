@@ -158,3 +158,31 @@ def test_daylight_bounds_leave_an_ordinary_hour_alone():
 
     assert start == midday.time
     assert end == midday.end_time
+
+
+def test_rain_hours_never_exceed_the_daylight_the_day_has():
+    """Six-hour entries hang off both ends of the day; rain hours must not."""
+    from src.core.models import DailyReport
+
+    hours = [
+        _hour(8, coverage_hours=6, precipitation_amount=6.0),
+        _hour(14, coverage_hours=6, precipitation_amount=6.0),
+        _hour(20, coverage_hours=6, precipitation_amount=6.0),
+    ]
+
+    report = DailyReport(datetime(2026, 8, 10), hours, "Test")
+    daylight_length = DAYLIGHT_END_HOUR + 1 - DAYLIGHT_START_HOUR
+
+    assert report.likely_rain_hours <= daylight_length
+    assert report.weather_description == f"Rain ({daylight_length}h)"
+
+
+def test_a_block_hanging_off_the_end_of_the_day_earns_no_extra_credit():
+    """A 20:00 six-hour entry offers one usable hour, not six."""
+    late = _hour(20, coverage_hours=6, precipitation_amount=0.0)
+
+    block = find_optimal_weather_block([late], activity_profile=ACTIVITY_BEACH_DAY)
+
+    assert block is not None
+    assert block["positive_hour_count"] <= 1
+    assert block["duration_hours"] == 1

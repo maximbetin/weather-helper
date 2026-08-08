@@ -7,7 +7,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
 
-from src.core.config import NumericType, safe_average
+from src.core.config import (
+    DAYLIGHT_END_HOUR,
+    DAYLIGHT_START_HOUR,
+    NumericType,
+    safe_average,
+)
 
 SIGNIFICANT_RAIN_MM = 0.5
 WARM_TEMP_C = 22
@@ -54,6 +59,30 @@ class HourlyWeather:
     def is_hourly(self) -> bool:
         """Return True when this entry describes a single hour."""
         return self.coverage_hours == 1
+
+    @property
+    def daylight_span(self) -> tuple[datetime, datetime]:
+        """Return the part of this entry that falls inside the daylight window.
+
+        A six-hour entry starting at 04:00 counts towards the morning, but only
+        its daylight part is time anyone can use, so that is the part reported
+        as a window, counted as rain hours, or rewarded with a duration bonus.
+        """
+        day_start = self.time.replace(
+            hour=DAYLIGHT_START_HOUR, minute=0, second=0, microsecond=0
+        )
+        day_end = self.time.replace(
+            hour=DAYLIGHT_END_HOUR, minute=0, second=0, microsecond=0
+        ) + timedelta(hours=1)
+        start = max(self.time, day_start)
+        end = min(self.end_time, day_end)
+        return start, max(start, end)
+
+    @property
+    def daylight_hours(self) -> int:
+        """Return how many usable daylight hours this entry offers."""
+        start, end = self.daylight_span
+        return int(round((end - start).total_seconds() / 3600))
 
     @property
     def has_core_readings(self) -> bool:
@@ -156,8 +185,12 @@ def _valid_temperatures(hours: list[HourlyWeather]) -> list[NumericType]:
 
 
 def _count_likely_rain_hours(hours: list[HourlyWeather]) -> int:
-    """Count the hours covered by entries above the rain threshold."""
-    return sum(hour.coverage_hours for hour in hours if _has_significant_rain(hour))
+    """Count the usable daylight hours likely to be rained on.
+
+    Counting an entry's whole span would report more rain hours than the day
+    has daylight, because a six-hour entry can hang off either end of it.
+    """
+    return sum(hour.daylight_hours for hour in hours if _has_significant_rain(hour))
 
 
 def _has_significant_rain(hour: HourlyWeather) -> bool:

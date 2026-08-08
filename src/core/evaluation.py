@@ -120,21 +120,8 @@ def _is_daylight_hour(hour: HourlyWeather) -> bool:
 
 
 def daylight_bounds(hour: HourlyWeather) -> tuple[datetime, datetime]:
-    """Return the part of an entry that falls inside the daylight window.
-
-    A six-hour entry starting at 04:00 counts towards the morning, but telling
-    someone their best window begins at 04:00 would be nonsense. Only the
-    daylight part of an entry is ever presented as time to go out.
-    """
-    day_start = hour.time.replace(
-        hour=DAYLIGHT_START_HOUR, minute=0, second=0, microsecond=0
-    )
-    day_end = hour.time.replace(
-        hour=DAYLIGHT_END_HOUR, minute=0, second=0, microsecond=0
-    ) + timedelta(hours=1)
-    start = max(hour.time, day_start)
-    end = min(hour.end_time, day_end)
-    return start, max(start, end)
+    """Return the part of an entry that falls inside the daylight window."""
+    return hour.daylight_span
 
 
 def _is_future_or_current_hour(hour: HourlyWeather, now_local: datetime) -> bool:
@@ -528,11 +515,7 @@ def _base_block_info(
 
 def _daylight_hours_in(block: list[HourlyWeather]) -> int:
     """Return how many usable daylight hours a block really offers."""
-    total = timedelta()
-    for hour in block:
-        start, end = daylight_bounds(hour)
-        total += end - start
-    return int(round(total.total_seconds() / 3600))
+    return sum(hour.daylight_hours for hour in block)
 
 
 def _weather_block_info(block: list[HourlyWeather]) -> dict[str, Optional[float]]:
@@ -616,9 +599,14 @@ def _duration_bonus(positive_hour_count: int) -> float:
 def _positive_hour_count(
     block_info: dict[str, Any], activity_profile: str
 ) -> int:
-    """Return how many hours inside a block score positively."""
+    """Return how many usable daylight hours inside a block score positively.
+
+    Counting an entry's whole span would hand a six-hour block that only
+    overlaps daylight by an hour the same duration bonus as a genuine
+    six-hour stretch of good weather.
+    """
     return sum(
-        hour.coverage_hours
+        hour.daylight_hours
         for hour in block_info["block"]
         if get_activity_score(hour, activity_profile) > 0
     )

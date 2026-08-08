@@ -11,7 +11,7 @@ import pytest
 
 from src.application.forecast_service import ForecastBatch
 from src.core.config import get_current_date
-from src.core.models import DailyReport, HourlyWeather
+from src.core.models import DailyReport, HourlyWeather  # noqa: F401
 from src.core.scoring import (
     cloud_score,
     humidity_score,
@@ -363,3 +363,44 @@ def test_a_slow_load_never_overwrites_a_newer_one():
 def _find_screen(page):
     """Recover the screen object from the handlers it registered."""
     return page.on_platform_brightness_change.__self__
+
+
+def test_a_six_hour_row_shows_the_rate_it_was_scored_on():
+    """The number on screen must be the number the rating came from."""
+    forecast_date = get_current_date() + timedelta(days=1)
+    block = HourlyWeather(
+        time=datetime.combine(forecast_date, datetime.min.time()).replace(hour=10),
+        coverage_hours=6,
+        temp=24,
+        wind=2,
+        cloud_coverage=15,
+        precipitation_amount=3.0,
+        relative_humidity=55,
+    )
+    batch = ForecastBatch(
+        forecasts={"gijon": _processed("Gijón", forecast_date, [block])}
+    )
+    page, model = _screen(batch)
+    _run_pending_tasks(page)
+    screen = _find_screen(page)
+
+    screen.on_tile_toggle("gijon", True)
+
+    texts = _screen_text(page)
+    # 3 mm across six hours is 0.5 mm/h, which is what the score reflects.
+    assert "0.5 mm/h" in texts
+    assert "3.0 mm" not in texts
+    assert "6h block" in texts
+
+
+def test_progress_updates_do_not_survive_the_load_they_belong_to():
+    """A late progress callback must not overwrite the finished result."""
+    page, _ = _screen()
+    _run_pending_tasks(page)
+    screen = _find_screen(page)
+
+    final_status = screen.status.value
+    _run_pending_tasks(page)  # Drain any progress updates queued during the load.
+
+    assert screen.status.value == final_status
+    assert "loaded" in final_status

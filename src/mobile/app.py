@@ -7,7 +7,7 @@ on screen is traceable to the hours listed inside the card that produced it.
 
 import asyncio
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from importlib import import_module
 from typing import Any, Callable, Optional
 
@@ -26,7 +26,6 @@ from src.core.config import (
     DAYLIGHT_START_HOUR,
     MET_NORWAY_LICENSE_URL,
     MET_NORWAY_SOURCE_URL,
-    get_current_date,
 )
 from src.core.locations import LOCATION_GROUPS
 from src.core.scoring import ACTIVITY_PROFILE_LABELS
@@ -101,6 +100,7 @@ class _Screen:
         self.model = model
         self.palette = Palette(dark=self._prefers_dark())
         self._load_generation = 0
+        self._in_flight_generation = 0
         self._expanded_keys: set[str] = set()
 
     # --- Colour and theme -------------------------------------------------
@@ -149,7 +149,9 @@ class _Screen:
             **kwargs,
         )
 
-    def _metric(self, metric: "_Metric", value: Optional[float]) -> Any:
+    def _metric(
+        self, metric: "_Metric", value: Optional[float], *, unit: Optional[str] = None
+    ) -> Any:
         """Render one weather reading with its icon and an accessible label.
 
         A missing reading keeps the muted colour and a dash. It is never given
@@ -158,7 +160,12 @@ class _Screen:
         """
         ft = self.ft
         missing = value is None
-        text = format_optional(value, metric.formatter)
+        formatter = (
+            metric.formatter
+            if unit is None
+            else (lambda reading: metric.formatter(reading, unit))
+        )
+        text = format_optional(value, formatter)
         colour = self.palette.text_secondary if missing else self.palette.text
         described = f"{metric.label}: {text if not missing else 'not available'}"
         return ft.Row(
@@ -678,7 +685,11 @@ class _Screen:
                                     self._metric(TEMPERATURE, row.temperature),
                                     self._metric(WIND, row.wind),
                                     self._metric(CLOUDS, row.clouds),
-                                    self._metric(RAIN, row.precipitation),
+                                    self._metric(
+                                        RAIN,
+                                        row.precipitation,
+                                        unit=row.precipitation_unit,
+                                    ),
                                     self._metric(HUMIDITY, row.humidity),
                                 ],
                             ),
@@ -742,11 +753,11 @@ class _Screen:
     def _selected_day_label(self) -> str:
         if self.model.selected_date is None:
             return "today"
-        return format_relative_date(self.model.selected_date, get_current_date())
+        return format_relative_date(self.model.selected_date, _device_today())
 
     def _update_date_options(self) -> None:
         ft = self.ft
-        today = get_current_date()
+        today = _device_today()
         available_dates = self.model.available_dates()
         self.date_dropdown.options = [
             ft.DropdownOption(
@@ -839,19 +850,32 @@ class _Screen:
         """Reload the selected region, ignoring results from a superseded load."""
         self._load_generation += 1
         generation = self._load_generation
+        self._in_flight_generation = generation
         self._set_loading(True)
         self.status.value = f"Loading {self.model.group_name}…"
         self.page.update()
 
+        async def show_progress(current: int, total: int) -> None:
+            # A progress update can be delivered after its load has finished;
+            # it must never overwrite the final result with a stale count.
+            if generation == self._in_flight_generation:
+                self.status.value = (
+                    f"Loading {self.model.group_name}… {current}/{total}"
+                )
+                self.page.update()
+
         def report_progress(current: int, total: int, location: Any) -> None:
-            if generation == self._load_generation:
-                self.status.value = f"Loading {self.model.group_name}… {current}/{total}"
+            # Called from a worker thread; run_task hands the update back to
+            # the page's event loop so the counter is actually painted.
+            if generation == self._in_flight_generation:
+                self.page.run_task(show_progress, current, total)
 
         try:
             self.model.invalidate_rankings()
             batch = await asyncio.to_thread(self.model.load, report_progress)
         except Exception:
             if generation == self._load_generation:
+                self._in_flight_generation = 0
                 self.status.value = (
                     "Could not load forecasts. Check your connection and try again."
                 )
@@ -862,6 +886,7 @@ class _Screen:
         if generation != self._load_generation:
             return  # A newer load is already in flight; its result wins.
 
+        self._in_flight_generation = 0
         self.status.value = _load_summary(batch, self.model.group_name)
         self._set_loading(False)
         self.render_dashboard()
@@ -901,6 +926,16 @@ class _Screen:
 
         if initial_load:
             self.page.run_task(self.refresh_forecast)
+
+
+def _device_today() -> date:
+    """Return today's date on this device.
+
+    "Today" and "Tomorrow" describe where the person reading the screen is,
+    not the application's fallback time zone, which would mislabel a day in a
+    region on the other side of the world.
+    """
+    return datetime.now().date()
 
 
 def _rating_for_rank_marker(rank: int) -> str:
