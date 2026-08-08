@@ -56,6 +56,20 @@ class HourlyWeather:
         return self.coverage_hours == 1
 
     @property
+    def has_core_readings(self) -> bool:
+        """Return True when the readings a recommendation depends on are present.
+
+        A missing reading scores as zero, which is indistinguishable from a
+        mediocre real one. Rather than let a gap in the data masquerade as
+        weather, entries missing a core reading are shown but never form the
+        basis of a recommendation.
+        """
+        return all(
+            value is not None
+            for value in (self.temp, self.wind, self.precipitation_amount)
+        )
+
+    @property
     def precipitation_rate(self) -> Optional[NumericType]:
         """Return precipitation in mm per hour.
 

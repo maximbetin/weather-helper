@@ -163,3 +163,51 @@ def test_the_breakdown_shows_exactly_the_hours_the_ranking_used():
 
     assert window["start"] >= considered[0].time
     assert window["end_time"] <= considered[-1].end_time
+
+
+def test_an_entry_missing_core_readings_is_never_recommended():
+    """A gap in the data must not be scored as if it were mild weather."""
+    forecast_date = get_current_date() + timedelta(days=1)
+    complete = [_hour(forecast_date, hour) for hour in (10, 11, 12)]
+    incomplete = [
+        HourlyWeather(
+            time=hour.time,
+            temp=None,
+            wind=None,
+            cloud_coverage=None,
+            precipitation_amount=None,
+            relative_humidity=None,
+        )
+        for hour in complete
+    ]
+
+    ranked_complete = get_top_locations_for_date(
+        {"a": _processed(forecast_date, complete)},
+        forecast_date,
+        activity_profile=ACTIVITY_HIKING,
+    )
+    ranked_incomplete = get_top_locations_for_date(
+        {"a": _processed(forecast_date, incomplete)},
+        forecast_date,
+        activity_profile=ACTIVITY_HIKING,
+    )
+
+    assert ranked_complete
+    assert ranked_incomplete == []
+
+
+def test_the_window_score_describes_the_window_not_the_day():
+    """A brilliant hour in a poor day must not be reported as a poor window."""
+    forecast_date = get_current_date() + timedelta(days=1)
+    hours = [_hour(forecast_date, 10, 22), _hour(forecast_date, 11, 22)]
+    hours += [_hour(forecast_date, hour, 2) for hour in range(12, 21)]
+
+    ranked = get_top_locations_for_date(
+        {"a": _processed(forecast_date, hours)},
+        forecast_date,
+        activity_profile=ACTIVITY_HIKING,
+    )
+
+    result = ranked[0]
+    assert result["window_score"] > result["score"]
+    assert result["optimal_block"]["start"].hour == 10

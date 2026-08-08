@@ -470,7 +470,9 @@ def _is_acceptable_block(
     std_dev: float,
     max_score_variance: float,
 ) -> bool:
-    """Return True when a block passes score and variance thresholds."""
+    """Return True when a block passes score, data and variance thresholds."""
+    if not all(hour.has_core_readings for hour in block):
+        return False
     if avg_score < _minimum_average_score(len(block)):
         return False
     return std_dev <= _adjusted_variance_threshold(len(block), max_score_variance)
@@ -643,7 +645,10 @@ def get_top_locations_for_date(
         )
         if location_result:
             results.append(location_result)
-    results.sort(key=lambda x: x["score"], reverse=True)
+    # Locations are ranked on the day as a whole, including a penalty for
+    # volatile weather: a steady good day is a safer bet than one bright hour
+    # in an unsettled one. The window's own score is reported separately.
+    results.sort(key=lambda x: (x["score"], x["window_score"]), reverse=True)
     return results[:top_n]
 
 
@@ -718,15 +723,22 @@ def _build_location_result(
     day_score: dict[str, float],
     activity_profile: str,
 ) -> dict[str, Any]:
-    """Build the side-panel result dictionary for a location."""
+    """Build the ranking result for one location on one date.
+
+    Two different scores matter and they are kept distinct: the day score,
+    which ranks locations and accounts for how settled the weather is, and the
+    window score, which describes the specific hours being recommended. The
+    interface labels both, because a single unlabelled number printed beside a
+    time reads as a claim about that time.
+    """
     return {
         "location_key": loc_key,
         "location_name": report.location_name,
         "score": day_score["score"],
         "raw_score": day_score["score"],
+        "window_score": optimal_block["avg_score"],
         "day_avg_score": day_score["average"],
         "volatility_penalty": day_score["volatility_penalty"],
-        "window_score": optimal_block["avg_score"],
         "optimal_block": optimal_block,
         "weather_desc": report.weather_description,
         "activity_profile": activity_profile,

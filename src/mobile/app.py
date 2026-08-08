@@ -332,7 +332,12 @@ class _Screen:
                             ),
                         ],
                     ),
-                    self._score_badge(best.normalized_score, best.rating, large=True),
+                    self._score_badge(
+                        best.window_score,
+                        best.window_rating,
+                        caption="this window",
+                        large=True,
+                    ),
                 ],
             ),
             self._secondary(best.best_window_details, size=BODY_SIZE),
@@ -341,7 +346,8 @@ class _Screen:
                 bgcolor=self.palette.rating_background(best.rating),
                 border_radius=8,
                 content=self._text(
-                    f"{best.rating} · {best.weather_description}",
+                    f"Rest of the day: {best.rating.lower()} "
+                    f"({best.normalized_score}/100) · {best.weather_description}",
                     size=LABEL_SIZE,
                     color=colour,
                     weight=ft.FontWeight.BOLD,
@@ -350,32 +356,45 @@ class _Screen:
         ]
 
     def _score_badge(
-        self, score: Optional[int], rating: str, *, large: bool = False
+        self,
+        score: Optional[int],
+        rating: str,
+        *,
+        caption: str = "",
+        large: bool = False,
     ) -> Any:
-        """Render a score as a number out of 100 with its rating word."""
+        """Render a score out of 100 with its rating word and what it measures.
+
+        Every score on screen states its scale and its subject, so a number
+        printed beside a time is never mistaken for a claim about something
+        else.
+        """
         ft = self.ft
         colour = self.palette.rating(rating)
+        controls = [
+            ft.Row(
+                spacing=1,
+                tight=True,
+                vertical_alignment=ft.CrossAxisAlignment.END,
+                controls=[
+                    self._text(
+                        MISSING_VALUE if score is None else str(score),
+                        size=HEADLINE_SIZE if large else SUBTITLE_SIZE + 3,
+                        weight=ft.FontWeight.BOLD,
+                        color=colour,
+                    ),
+                    self._secondary("/100", size=LABEL_SIZE - 1),
+                ],
+            ),
+            self._text(rating, size=LABEL_SIZE, color=colour),
+        ]
+        if caption:
+            controls.append(self._secondary(caption, size=LABEL_SIZE - 2))
         return ft.Column(
             horizontal_alignment=ft.CrossAxisAlignment.END,
             spacing=0,
             tight=True,
-            controls=[
-                ft.Row(
-                    spacing=1,
-                    tight=True,
-                    vertical_alignment=ft.CrossAxisAlignment.END,
-                    controls=[
-                        self._text(
-                            MISSING_VALUE if score is None else str(score),
-                            size=HEADLINE_SIZE if large else SUBTITLE_SIZE + 3,
-                            weight=ft.FontWeight.BOLD,
-                            color=colour,
-                        ),
-                        self._secondary("/100", size=LABEL_SIZE - 1),
-                    ],
-                ),
-                self._text(rating, size=LABEL_SIZE, color=colour),
-            ],
+            controls=controls,
         )
 
     # --- Pinned locations -------------------------------------------------
@@ -476,6 +495,7 @@ class _Screen:
                     ],
                 ),
                 self._secondary(
+                    "Ordered by how settled the whole day looks. "
                     "Tap a location to see the hours behind its score."
                 ),
                 self.forecast_list,
@@ -516,11 +536,17 @@ class _Screen:
                 card.location_name, size=SUBTITLE_SIZE, weight=ft.FontWeight.BOLD
             ),
             subtitle=self._secondary(
-                card.best_window if card.is_ranked else "No window to recommend",
+                f"{card.best_window} · window {card.window_score}/100"
+                if card.is_ranked
+                else "No window to recommend",
                 size=BODY_SIZE,
             ),
             leading=self._rank_marker(rank, colour),
-            trailing=self._score_badge(card.normalized_score, card.rating),
+            # The list is ordered by how the day as a whole looks, so that is
+            # the score shown here; the window's own score is on the row above.
+            trailing=self._score_badge(
+                card.normalized_score, card.rating, caption="the day"
+            ),
             expanded=is_expanded,
             maintain_state=False,
             tile_padding=ft.Padding(left=SPACING, top=8, right=SPACING, bottom=8),

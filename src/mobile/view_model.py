@@ -58,6 +58,8 @@ class RankedLocationView:
     best_window: str
     best_window_details: str
     window_hours: int = 0
+    window_score: Optional[int] = None
+    window_rating: str = "N/A"
 
     @property
     def is_ranked(self) -> bool:
@@ -366,6 +368,12 @@ class MobileWeatherViewModel:
             best_window=best_window,
             best_window_details=_format_best_window_details(block),
             window_hours=block.get("duration_hours", block.get("duration", 0)),
+            window_score=normalize_score(
+                item["window_score"], self.activity_profile
+            ),
+            window_rating=get_rating_info(
+                item["window_score"], self.activity_profile
+            ),
         )
 
     def _unranked_location_view(self, location_key: str) -> RankedLocationView:
