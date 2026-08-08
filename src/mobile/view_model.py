@@ -1,18 +1,25 @@
 """Pure presentation state for the Flet Weather Helper screen."""
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
-from src.application.forecast_service import ForecastBatch, ForecastService
+from src.application.forecast_service import (
+    ForecastBatch,
+    ForecastService,
+    ProgressCallback,
+)
 from src.application.presentation import (
+    format_duration,
     format_percentage,
     format_precipitation,
     format_temperature,
     format_wind_speed,
 )
 from src.core.evaluation import (
+    daylight_bounds,
     get_available_dates,
+    get_recommendation_hours,
     get_time_blocks_for_date,
     get_top_locations_for_date,
 )
@@ -28,9 +35,14 @@ from src.mobile.daily_summary import (
     DailySummaryRow,
     build_daily_summary,
     format_daily_summary,
+    resolve_priority_keys,
 )
 
 DEFAULT_LOCATION_GROUP = "Asturias"
+
+# Forecasts older than this are flagged, so a screen opened the next morning
+# never presents yesterday's plan as if it were current.
+STALE_AFTER = timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -46,25 +58,54 @@ class RankedLocationView:
     weather_description: str
     best_window: str
     best_window_details: str
+    window_hours: int = 0
+    window_score: Optional[int] = None
+    window_rating: str = "N/A"
 
     @property
     def is_ranked(self) -> bool:
         """Return True when the location has a qualifying recommendation."""
         return self.rank is not None
 
+    @property
+    def window_length_label(self) -> str:
+        """Return how long the recommended window lasts."""
+        return format_duration(self.window_hours) if self.window_hours else ""
+
 
 @dataclass(frozen=True)
 class HourlyForecastView:
-    """Mobile-friendly summary of one hourly forecast row."""
+    """Mobile-friendly summary of one forecast entry."""
 
     time: str
-    temperature: str
-    wind: str
-    clouds: str
-    precipitation: str
-    humidity: str
+    temperature: Optional[float]
+    wind: Optional[float]
+    clouds: Optional[float]
+    precipitation: Optional[float]
+    humidity: Optional[float]
     normalized_score: int
     rating: str
+    coverage_hours: int
+    in_best_window: bool
+
+    @property
+    def is_hourly(self) -> bool:
+        """Return True when this row describes a single hour."""
+        return self.coverage_hours == 1
+
+    @property
+    def precipitation_unit(self) -> str:
+        """Return the unit the precipitation figure is expressed in.
+
+        Multi-hour entries report a rate, which is what they are scored on, so
+        the number on screen and the rating beside it always agree.
+        """
+        return " mm" if self.is_hourly else " mm/h"
+
+    @property
+    def span_label(self) -> str:
+        """Return a label stating the period a row covers."""
+        return "" if self.is_hourly else f"{self.coverage_hours}h block"
 
 
 class MobileWeatherViewModel:
@@ -78,6 +119,8 @@ class MobileWeatherViewModel:
         self.selected_location_key = ""
         self.forecasts: dict[str, dict] = {}
         self.errors: dict[str, str] = {}
+        self.loaded_at: Optional[datetime] = None
+        self._ranking_cache: dict[tuple, list[dict]] = {}
 
     @property
     def locations(self):
@@ -98,13 +141,39 @@ class MobileWeatherViewModel:
         if self.selected_location_key not in self.available_location_keys():
             self._select_default_location()
 
-    def load(self) -> ForecastBatch:
+    def _ranked_results(self, top_n: Optional[int] = None) -> list[dict]:
+        """Return ranked results for the current selection, computed once.
+
+        Ranking scans every location's forecast, which is the most expensive
+        thing a redraw does. The full ordering is computed once per selection
+        and sliced, so a screen refresh cannot rank the same region repeatedly.
+        """
+        if self.selected_date is None:
+            return []
+        cache_key = (self.selected_date, self.activity_profile)
+        if cache_key not in self._ranking_cache:
+            self._ranking_cache[cache_key] = get_top_locations_for_date(
+                self.forecasts,
+                self.selected_date,
+                top_n=max(1, len(self.forecasts)),
+                activity_profile=self.activity_profile,
+            )
+        ranked = self._ranking_cache[cache_key]
+        return ranked if top_n is None else ranked[:top_n]
+
+    def invalidate_rankings(self) -> None:
+        """Drop cached rankings so time-sensitive results are recomputed."""
+        self._ranking_cache.clear()
+
+    def load(self, on_progress: Optional[ProgressCallback] = None) -> ForecastBatch:
         """Load the selected group while preserving valid user selections."""
         previous_date = self.selected_date
         previous_location_key = self.selected_location_key
-        batch = self.service.load_locations(self.locations)
+        batch = self.service.load_locations(self.locations, on_progress)
         self.forecasts = batch.forecasts
         self.errors = batch.errors
+        self.loaded_at = datetime.now()
+        self.invalidate_rankings()
         available_dates = self.available_dates()
         self.selected_date = (
             previous_date if previous_date in available_dates
@@ -163,9 +232,9 @@ class MobileWeatherViewModel:
             return None
         ranked = next(
             (
-                item
-                for item in self.ranked_locations(len(self.forecasts))
-                if item.location_key == self.selected_location_key
+                self._ranked_location_view(index, item)
+                for index, item in enumerate(self._ranked_results(), 1)
+                if item["location_key"] == self.selected_location_key
             ),
             None,
         )
@@ -176,34 +245,99 @@ class MobileWeatherViewModel:
         return self._unranked_location_view(self.selected_location_key)
 
     def ranked_locations(self, top_n: int = 10) -> list[RankedLocationView]:
-        if self.selected_date is None:
-            return []
-        ranked = get_top_locations_for_date(
-            self.forecasts,
-            self.selected_date,
-            top_n=top_n,
-            activity_profile=self.activity_profile,
-        )
         return [
             self._ranked_location_view(index, item)
-            for index, item in enumerate(ranked, 1)
+            for index, item in enumerate(self._ranked_results(top_n), 1)
         ]
 
     def hourly_forecast(self, location_key: str) -> list[HourlyForecastView]:
+        """Return the entries the recommendation for this location is based on.
+
+        These are exactly the hours the ranking considered, so the breakdown
+        can never show a glowing 03:00 that the recommendation ignored, nor
+        hours that have already passed.
+        """
         if self.selected_date is None or location_key not in self.forecasts:
             return []
-        hours = get_time_blocks_for_date(self.forecasts[location_key], self.selected_date)
-        return [self._hourly_forecast_view(hour) for hour in hours]
+        hours = get_recommendation_hours(
+            self.forecasts[location_key], self.selected_date
+        )
+        window = self._best_window_bounds(location_key)
+        return [self._hourly_forecast_view(hour, window) for hour in hours]
+
+    def _best_window_bounds(
+        self, location_key: str
+    ) -> Optional[tuple[datetime, datetime]]:
+        """Return the start and end of the recommended window, if any."""
+        ranked = next(
+            (
+                item
+                for item in self._ranked_results()
+                if item["location_key"] == location_key
+            ),
+            None,
+        )
+        if ranked is None:
+            return None
+        block = ranked["optimal_block"]
+        return block["start"], block["end_time"]
+
+    def _select_default_location(self) -> None:
+        ranked = self._ranked_results(1)
+        if ranked:
+            self.selected_location_key = ranked[0]["location_key"]
+            return
+        available = self.available_location_keys()
+        self.selected_location_key = available[0] if available else ""
 
     def daily_summary_rows(self) -> list[DailySummaryRow]:
-        """Return both activities with priority cities before alternatives."""
+        """Return the pinned locations and best alternatives for the activity.
+
+        The summary follows the selected activity, so it can never recommend a
+        beach window while the rest of the screen is ranked for hiking.
+        """
         if self.selected_date is None:
             return []
         return build_daily_summary(
             self.forecasts,
             self.selected_date,
             self.locations,
+            activity_profiles=(self.activity_profile,),
         )
+
+    def top_recommendation(self) -> Optional[RankedLocationView]:
+        """Return the single best place to be, which is the app's whole point."""
+        ranked = self.ranked_locations(1)
+        return ranked[0] if ranked else None
+
+    def is_stale(self, max_age: timedelta = STALE_AFTER) -> bool:
+        """Return True when the loaded data is too old to trust for today."""
+        if self.loaded_at is None:
+            return True
+        if datetime.now().date() != self.loaded_at.date():
+            return True
+        return datetime.now() - self.loaded_at > max_age
+
+    def freshness_label(self) -> str:
+        """Return a short description of how current the data is."""
+        if self.loaded_at is None:
+            return "Not loaded yet"
+        if self.is_stale():
+            return f"Updated {self.loaded_at:%H:%M} · may be out of date"
+        return f"Updated {self.loaded_at:%H:%M}"
+
+    def activity_label(self) -> str:
+        """Return the display label for the selected activity."""
+        return ACTIVITY_PROFILE_LABELS.get(
+            self.activity_profile, self.activity_profile
+        )
+
+    def priority_location_names(self) -> list[str]:
+        """Return the names of the locations pinned in the current region."""
+        return [
+            self.locations[key].name
+            for key in resolve_priority_keys(self.locations, self.forecasts)
+        ]
 
     def daily_summary_text(self) -> str:
         """Return the aligned summary text used by a notification or preview."""
@@ -212,25 +346,18 @@ class MobileWeatherViewModel:
             forecast_date=self.selected_date,
         )
 
-    def _select_default_location(self) -> None:
-        ranked = self.ranked_locations(1)
-        if ranked:
-            self.selected_location_key = ranked[0].location_key
-            return
-        available = self.available_location_keys()
-        self.selected_location_key = available[0] if available else ""
-
     def _clear_forecasts(self) -> None:
         self.forecasts = {}
         self.errors = {}
         self.selected_date = None
         self.selected_location_key = ""
+        self.loaded_at = None
+        self.invalidate_rankings()
 
     def _ranked_location_view(self, rank: int, item: dict) -> RankedLocationView:
         raw_score = float(item["raw_score"])
         block = item["optimal_block"]
-        end_time = block["end"] + timedelta(hours=1)
-        best_window = f"{block['start']:%H:%M} - {end_time:%H:%M}"
+        best_window = format_window(block["start"], block["end_time"])
         return RankedLocationView(
             rank=rank,
             location_key=item["location_key"],
@@ -241,6 +368,13 @@ class MobileWeatherViewModel:
             weather_description=item["weather_desc"],
             best_window=best_window,
             best_window_details=_format_best_window_details(block),
+            window_hours=block.get("duration_hours", block.get("duration", 0)),
+            window_score=normalize_score(
+                item["window_score"], self.activity_profile
+            ),
+            window_rating=get_rating_info(
+                item["window_score"], self.activity_profile
+            ),
         )
 
     def _unranked_location_view(self, location_key: str) -> RankedLocationView:
@@ -261,24 +395,50 @@ class MobileWeatherViewModel:
             weather_description=description,
             best_window="",
             best_window_details=(
-                "No qualifying recommended window for this activity. "
-                "Review the hourly conditions below."
+                "No window here is good enough to recommend for this activity. "
+                "The hours below are what was considered."
             ),
+            window_hours=0,
         )
 
-    def _hourly_forecast_view(self, hour) -> HourlyForecastView:
+    def _hourly_forecast_view(
+        self, hour, window: Optional[tuple[datetime, datetime]]
+    ) -> HourlyForecastView:
         raw_score = get_activity_score(hour, self.activity_profile)
-        normalized = normalize_score(raw_score, self.activity_profile)
+        visible_start, visible_end = daylight_bounds(hour)
         return HourlyForecastView(
-            time=f"{hour.time:%H:%M}",
-            temperature=format_temperature(hour.temp),
-            wind=format_wind_speed(hour.wind),
-            clouds=format_percentage(hour.cloud_coverage),
-            precipitation=format_precipitation(hour.precipitation_amount),
-            humidity=format_percentage(hour.relative_humidity),
-            normalized_score=normalized,
+            time=f"{hour.time:%H:%M}"
+            if hour.is_hourly
+            else format_window(visible_start, visible_end),
+            temperature=hour.temp,
+            wind=hour.wind,
+            clouds=hour.cloud_coverage,
+            # The rate is shown, because the rate is what was scored.
+            precipitation=hour.precipitation_rate,
+            humidity=hour.relative_humidity,
+            normalized_score=normalize_score(raw_score, self.activity_profile),
             rating=get_rating_info(raw_score, self.activity_profile),
+            coverage_hours=hour.coverage_hours,
+            in_best_window=_is_inside_window(hour, window),
         )
+
+
+def format_window(start: datetime, end: datetime) -> str:
+    """Format a recommended window as a start and end time."""
+    return f"{start:%H:%M} - {end:%H:%M}"
+
+
+def _is_inside_window(hour, window: Optional[tuple[datetime, datetime]]) -> bool:
+    """Return True when an entry overlaps the recommended window.
+
+    The comparison uses the daylight part of the entry, so the first entry of a
+    window that began before dawn is still marked as part of it.
+    """
+    if window is None:
+        return False
+    window_start, window_end = window
+    entry_start, entry_end = daylight_bounds(hour)
+    return entry_start < window_end and entry_end > window_start
 
 
 def _format_best_window_details(block: dict) -> str:

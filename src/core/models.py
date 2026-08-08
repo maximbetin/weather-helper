@@ -4,10 +4,15 @@ Defines HourlyWeather and DailyReport classes used throughout the application.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
-from src.core.config import NumericType, safe_average
+from src.core.config import (
+    DAYLIGHT_END_HOUR,
+    DAYLIGHT_START_HOUR,
+    NumericType,
+    safe_average,
+)
 
 SIGNIFICANT_RAIN_MM = 0.5
 WARM_TEMP_C = 22
@@ -29,6 +34,7 @@ class HourlyWeather:
     relative_humidity: Optional[NumericType] = None
     water_temp: Optional[NumericType] = None
     wave_height: Optional[NumericType] = None
+    coverage_hours: int = 1
     temp_score: NumericType = 0
     wind_score: NumericType = 0
     cloud_score: NumericType = 0
@@ -43,6 +49,66 @@ class HourlyWeather:
         """Calculate derived fields after initialization."""
         self.hour = self.time.hour
         self.total_score = self._calculate_total_score()
+
+    @property
+    def end_time(self) -> datetime:
+        """Return the first instant no longer described by this entry."""
+        return self.time + timedelta(hours=self.coverage_hours)
+
+    @property
+    def is_hourly(self) -> bool:
+        """Return True when this entry describes a single hour."""
+        return self.coverage_hours == 1
+
+    @property
+    def daylight_span(self) -> tuple[datetime, datetime]:
+        """Return the part of this entry that falls inside the daylight window.
+
+        A six-hour entry starting at 04:00 counts towards the morning, but only
+        its daylight part is time anyone can use, so that is the part reported
+        as a window, counted as rain hours, or rewarded with a duration bonus.
+        """
+        day_start = self.time.replace(
+            hour=DAYLIGHT_START_HOUR, minute=0, second=0, microsecond=0
+        )
+        day_end = self.time.replace(
+            hour=DAYLIGHT_END_HOUR, minute=0, second=0, microsecond=0
+        ) + timedelta(hours=1)
+        start = max(self.time, day_start)
+        end = min(self.end_time, day_end)
+        return start, max(start, end)
+
+    @property
+    def daylight_hours(self) -> int:
+        """Return how many usable daylight hours this entry offers."""
+        start, end = self.daylight_span
+        return int(round((end - start).total_seconds() / 3600))
+
+    @property
+    def has_core_readings(self) -> bool:
+        """Return True when the readings a recommendation depends on are present.
+
+        A missing reading scores as zero, which is indistinguishable from a
+        mediocre real one. Rather than let a gap in the data masquerade as
+        weather, entries missing a core reading are shown but never form the
+        basis of a recommendation.
+        """
+        return all(
+            value is not None
+            for value in (self.temp, self.wind, self.precipitation_amount)
+        )
+
+    @property
+    def precipitation_rate(self) -> Optional[NumericType]:
+        """Return precipitation in mm per hour.
+
+        Beyond roughly two days the forecast only reports six-hour totals.
+        Scoring those totals as if they fell in one hour would exaggerate rain
+        on later days, so scores are always based on the hourly rate.
+        """
+        if self.precipitation_amount is None:
+            return None
+        return self.precipitation_amount / self.coverage_hours
 
     def _calculate_total_score(self) -> NumericType:
         """Calculate the total score from individual component scores."""
@@ -119,14 +185,18 @@ def _valid_temperatures(hours: list[HourlyWeather]) -> list[NumericType]:
 
 
 def _count_likely_rain_hours(hours: list[HourlyWeather]) -> int:
-    """Count hours with precipitation above the rain threshold."""
-    return sum(1 for hour in hours if _has_significant_rain(hour))
+    """Count the usable daylight hours likely to be rained on.
+
+    Counting an entry's whole span would report more rain hours than the day
+    has daylight, because a six-hour entry can hang off either end of it.
+    """
+    return sum(hour.daylight_hours for hour in hours if _has_significant_rain(hour))
 
 
 def _has_significant_rain(hour: HourlyWeather) -> bool:
     """Return True when an hour is likely rainy."""
-    amount = hour.precipitation_amount
-    return isinstance(amount, (int, float)) and amount > SIGNIFICANT_RAIN_MM
+    rate = hour.precipitation_rate
+    return isinstance(rate, (int, float)) and rate > SIGNIFICANT_RAIN_MM
 
 
 def _describe_temperature(avg_temp: Optional[NumericType]) -> str:

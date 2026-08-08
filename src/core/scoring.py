@@ -251,10 +251,35 @@ RATING_RANGES_BY_PROFILE = {
     ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
 }
 
+def _best_possible(*range_lists: List[RangeType]) -> int:
+    """Return the highest score these ranges can award in total."""
+    return sum(max(score for _, score in ranges) for ranges in range_lists)
+
+
+# The best weather a profile can possibly describe. Deriving this rather than
+# hardcoding it keeps 100 meaning "as good as this activity gets" for every
+# profile; a stale constant previously capped perfect hiking weather at 96.
+MAX_HIKING_SCORE = _best_possible(
+    TEMP_RANGES,
+    WIND_RANGES,
+    CLOUD_RANGES,
+    PRECIP_AMOUNT_RANGES,
+    HUMIDITY_RANGES,
+    PRECIP_PROBABILITY_RANGES,
+)
+MAX_BEACH_SCORE = _best_possible(
+    BEACH_TEMP_RANGES,
+    BEACH_WIND_RANGES,
+    BEACH_CLOUD_RANGES,
+    BEACH_PRECIP_AMOUNT_RANGES,
+    BEACH_HUMIDITY_RANGES,
+    BEACH_PRECIP_PROBABILITY_RANGES,
+)
+
 # excellent, very_good, good, fair, max_expected, poor_slope
 NORMALIZATION_CONFIG_BY_PROFILE = {
-    ACTIVITY_HIKING: (18, 13, 7, 2, 23, 6),
-    ACTIVITY_BEACH_DAY: (22, 17, 11, 5, 26, 5),
+    ACTIVITY_HIKING: (18, 13, 7, 2, MAX_HIKING_SCORE, 6),
+    ACTIVITY_BEACH_DAY: (22, 17, 11, 5, MAX_BEACH_SCORE, 5),
 }
 
 
@@ -392,6 +417,18 @@ def get_activity_profile_key(label: str) -> str:
     return DEFAULT_ACTIVITY_PROFILE
 
 
+def _hourly_precipitation_rate(hour: Any) -> Optional[NumericType]:
+    """Return an entry's precipitation as mm per hour.
+
+    Later forecast days only carry six-hour totals; scoring those directly
+    would treat a normal wet afternoon as a downpour.
+    """
+    rate = getattr(hour, "precipitation_rate", None)
+    if rate is not None:
+        return rate
+    return getattr(hour, "precipitation_amount", None)
+
+
 def get_activity_score(
     hour: Any, profile_key: str = DEFAULT_ACTIVITY_PROFILE
 ) -> NumericType:
@@ -401,7 +438,7 @@ def get_activity_score(
             hour.temp,
             hour.wind,
             hour.cloud_coverage,
-            hour.precipitation_amount,
+            _hourly_precipitation_rate(hour),
             hour.relative_humidity,
             getattr(hour, "precipitation_probability", None),
             getattr(hour, "symbol_code", None),

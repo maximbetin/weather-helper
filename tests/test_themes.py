@@ -2,14 +2,15 @@
 Tests for GUI themes and styling functionality.
 """
 
-import tkinter as tk
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.gui.themes import BORDER, COLORS, FONTS, PADDING, apply_theme, get_rating_color
-
 pytestmark = pytest.mark.windows_gui
+
+tk = pytest.importorskip("tkinter")
+
+from src.gui.themes import BORDER, COLORS, FONTS, PADDING, apply_theme, get_rating_color  # noqa: E402
 
 
 class TestColorsAndConstants:

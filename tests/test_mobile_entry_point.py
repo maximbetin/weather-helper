@@ -1,6 +1,7 @@
 import pytest
 
 from src.mobile import app
+from src.mobile.theme import Palette
 
 
 def test_missing_flet_has_actionable_install_message(monkeypatch):
@@ -24,5 +25,16 @@ def test_missing_flet_has_actionable_install_message(monkeypatch):
     ],
 )
 def test_mobile_rating_colors_match_windows_palette(rating, expected):
-    assert app.rating_color(rating) == expected
-    assert app.rating_background(rating) != app.SURFACE_COLOR
+    light = Palette(dark=False)
+
+    assert light.rating(rating) == expected
+    assert light.rating_background(rating) != light.surface
+
+
+@pytest.mark.parametrize("rating", ["Excellent", "Very Good", "Good", "Fair", "Poor"])
+def test_every_rating_stays_distinguishable_in_dark_mode(rating):
+    dark = Palette(dark=True)
+
+    assert dark.rating(rating) != dark.text
+    assert dark.rating_background(rating) != dark.surface
+    assert dark.rating(rating) != Palette(dark=False).rating(rating)

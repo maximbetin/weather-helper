@@ -1,10 +1,13 @@
 import pytest
 from unittest.mock import MagicMock
-from src.application.forecast_service import LocationForecastResult
-from src.gui.app import WeatherHelperApp
-from src.core.locations import LOCATION_GROUPS
 
 pytestmark = pytest.mark.windows_gui
+
+pytest.importorskip("tkinter")
+
+from src.application.forecast_service import LocationForecastResult  # noqa: E402
+from src.core.locations import LOCATION_GROUPS  # noqa: E402
+from src.gui.app import WeatherHelperApp  # noqa: E402
 
 
 def test_group_switching_logic(mock_app):

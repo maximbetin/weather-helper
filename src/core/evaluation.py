@@ -28,8 +28,9 @@ from src.core.scoring import (
     wind_score,
 )
 
-ADJACENT_FORECAST_MINUTES_MIN = 50
-ADJACENT_FORECAST_MINUTES_MAX = 70
+HOURLY_COVERAGE_HOURS = 1
+SIX_HOURLY_COVERAGE_HOURS = 6
+ADJACENT_TOLERANCE_MINUTES = 10
 CURRENT_HOUR_RELEVANCE_MINUTE = 30
 DEFAULT_MAX_SCORE_VARIANCE = 7.0
 OPTIMAL_MAX_SCORE_VARIANCE = 8.0
@@ -85,19 +86,16 @@ def _are_adjacent_forecast_hours(
     previous_hour: HourlyWeather,
     next_hour: HourlyWeather,
 ) -> bool:
-    """Return True when two forecast entries represent adjacent hourly data."""
-    delta = next_hour.time - previous_hour.time
-    return _adjacent_min_delta() <= delta <= _adjacent_max_delta()
+    """Return True when one forecast entry continues directly into the next.
 
-
-def _adjacent_min_delta() -> timedelta:
-    """Return the shortest allowed gap between adjacent forecast rows."""
-    return timedelta(minutes=ADJACENT_FORECAST_MINUTES_MIN)
-
-
-def _adjacent_max_delta() -> timedelta:
-    """Return the longest allowed gap between adjacent forecast rows."""
-    return timedelta(minutes=ADJACENT_FORECAST_MINUTES_MAX)
+    Entries are adjacent when the next one starts where the previous one stops,
+    which keeps hourly and six-hourly data on the same footing and refuses to
+    bridge a gap between two different resolutions.
+    """
+    if previous_hour.coverage_hours != next_hour.coverage_hours:
+        return False
+    gap = abs(next_hour.time - previous_hour.end_time)
+    return gap <= timedelta(minutes=ADJACENT_TOLERANCE_MINUTES)
 
 
 def _get_period_data(
@@ -109,17 +107,33 @@ def _get_period_data(
 
 
 def _is_daylight_hour(hour: HourlyWeather) -> bool:
-    """Return True when an hour is inside the configured daytime window."""
-    return DAYLIGHT_START_HOUR <= hour.hour <= DAYLIGHT_END_HOUR
+    """Return True when an entry overlaps the configured daytime window.
+
+    Six-hourly entries are kept when any part of them falls inside the window,
+    so a 06:00-12:00 entry still counts towards a morning recommendation.
+    """
+    starts_before_window_ends = hour.hour <= DAYLIGHT_END_HOUR
+    ends_after_window_starts = (
+        hour.hour + hour.coverage_hours > DAYLIGHT_START_HOUR
+    )
+    return starts_before_window_ends and ends_after_window_starts
+
+
+def daylight_bounds(hour: HourlyWeather) -> tuple[datetime, datetime]:
+    """Return the part of an entry that falls inside the daylight window."""
+    return hour.daylight_span
 
 
 def _is_future_or_current_hour(hour: HourlyWeather, now_local: datetime) -> bool:
-    """Return True when an hour is still useful for today's recommendations."""
-    return (
-        hour.time > now_local
-        or hour.time.hour == now_local.hour
-        and now_local.minute < CURRENT_HOUR_RELEVANCE_MINUTE
-    )
+    """Return True when an entry still has usable time left in it.
+
+    An entry counts while it is running, but only if enough of it remains to be
+    worth recommending, so a window is never suggested as it is ending.
+    """
+    if hour.time > now_local:
+        return True
+    remaining = hour.end_time - now_local
+    return remaining >= timedelta(minutes=CURRENT_HOUR_RELEVANCE_MINUTE)
 
 
 def _filter_hours_for_recommendations(
@@ -160,19 +174,24 @@ def _valid_minimum_duration_block(
     return block
 
 
-def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
+def _create_hourly_weather(
+    entry: dict[str, Any], timezone_name: Optional[str] = None
+) -> HourlyWeather:
     """Create an HourlyWeather object from a forecast timeseries entry."""
-    weather_values = _extract_hourly_weather_values(entry)
+    weather_values = _extract_hourly_weather_values(entry, timezone_name)
     return _build_hourly_weather(weather_values)
 
 
-def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
+def _extract_hourly_weather_values(
+    entry: dict[str, Any], timezone_name: Optional[str] = None
+) -> dict[str, Any]:
     """Extract raw weather values from a timeseries entry."""
     instant_details = entry["data"]["instant"]["details"]
     precipitation_amount, precipitation_probability = _get_precipitation_values(entry)
-    
+
     return {
-        "time": _parse_local_forecast_time(entry["time"]),
+        "coverage_hours": _get_coverage_hours(entry),
+        "time": _parse_local_forecast_time(entry["time"], timezone_name),
         "temp": instant_details.get("air_temperature"),
         "wind": instant_details.get("wind_speed"),
         "cloud_coverage": instant_details.get("cloud_area_fraction"),
@@ -185,10 +204,28 @@ def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _parse_local_forecast_time(timestamp: str) -> datetime:
-    """Parse an API timestamp into the application timezone."""
+def _parse_local_forecast_time(
+    timestamp: str, timezone_name: Optional[str] = None
+) -> datetime:
+    """Parse an API timestamp into a location's local time."""
     time_utc = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    return time_utc.astimezone(get_timezone())
+    return time_utc.astimezone(get_timezone(timezone_name))
+
+
+def _get_coverage_hours(entry: dict[str, Any]) -> int:
+    """Return how many hours a timeseries entry describes.
+
+    MET Norway publishes hourly entries for roughly the first two days and
+    six-hourly entries after that. Treating a six-hour entry as a single hour
+    would misreport both rain totals and the length of a recommended window.
+    """
+    next_1h_summary, next_1h_details = _get_period_data(entry, "next_1_hours")
+    if next_1h_summary or next_1h_details:
+        return HOURLY_COVERAGE_HOURS
+    next_6h_summary, next_6h_details = _get_period_data(entry, "next_6_hours")
+    if next_6h_summary or next_6h_details:
+        return SIX_HOURLY_COVERAGE_HOURS
+    return HOURLY_COVERAGE_HOURS
 
 
 def _get_precipitation_values(
@@ -227,21 +264,30 @@ def _build_hourly_weather(values: dict[str, Any]) -> HourlyWeather:
         temp_score=temp_score(values["temp"]),
         wind_score=wind_score(values["wind"]),
         cloud_score=cloud_score(values["cloud_coverage"]),
-        precip_amount_score=precip_amount_score(values["precipitation_amount"]),
+        precip_amount_score=precip_amount_score(_precipitation_rate(values)),
         humidity_score=humidity_score(values["relative_humidity"]),
     )
 
 
+def _precipitation_rate(values: dict[str, Any]) -> Optional[NumericType]:
+    """Return precipitation in mm per hour for an extracted entry."""
+    amount = values["precipitation_amount"]
+    if amount is None:
+        return None
+    return amount / max(1, values.get("coverage_hours", HOURLY_COVERAGE_HOURS))
+
+
 def _process_timeseries(
-    forecast_timeseries: list[dict[str, Any]]
+    forecast_timeseries: list[dict[str, Any]],
+    timezone_name: Optional[str] = None,
 ) -> dict[date, list[HourlyWeather]]:
-    """Group a raw forecast timeseries by date."""
+    """Group a raw forecast timeseries by the location's local date."""
     daily_forecasts: dict[date, list[HourlyWeather]] = defaultdict(list)
-    today = get_current_date()
+    today = get_current_date(timezone_name)
     end_date = today + timedelta(days=FORECAST_DAYS)
 
     for entry in forecast_timeseries:
-        _append_forecast_entry(entry, daily_forecasts, today, end_date)
+        _append_forecast_entry(entry, daily_forecasts, today, end_date, timezone_name)
 
     return dict(daily_forecasts)
 
@@ -251,26 +297,42 @@ def _append_forecast_entry(
     daily_forecasts: dict[date, list[HourlyWeather]],
     today: date,
     end_date: date,
+    timezone_name: Optional[str] = None,
 ) -> None:
     """Append a timeseries entry to the corresponding daily forecast list."""
-    forecast_time = _parse_local_forecast_time(entry["time"])
+    forecast_time = _parse_local_forecast_time(entry["time"], timezone_name)
     forecast_date = forecast_time.date()
 
     if today <= forecast_date <= end_date:
-        daily_forecasts[forecast_date].append(_create_hourly_weather(entry))
+        daily_forecasts[forecast_date].append(
+            _create_hourly_weather(entry, timezone_name)
+        )
 
 
-def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
-    """Process weather forecast data into daily summaries and hourly blocks."""
+def process_forecast(
+    forecast_data: dict,
+    location_name: str,
+    timezone_name: Optional[str] = None,
+) -> Optional[dict]:
+    """Process weather forecast data into daily summaries and hourly blocks.
+
+    All times are converted to the location's own time zone, so the daylight
+    window and "already passed" checks describe the place being forecast rather
+    than wherever the app happens to be configured.
+    """
     weather_data = forecast_data.get("weather", forecast_data)
-    
+
     forecast_timeseries = _get_forecast_timeseries(weather_data)
     if forecast_timeseries is None:
         return None
-        
-    daily_forecasts = _process_timeseries(forecast_timeseries)
+
+    daily_forecasts = _process_timeseries(forecast_timeseries, timezone_name)
     day_scores_reports = _build_daily_reports(daily_forecasts, location_name)
-    return {"daily_forecasts": daily_forecasts, "day_scores": day_scores_reports}
+    return {
+        "daily_forecasts": daily_forecasts,
+        "day_scores": day_scores_reports,
+        "timezone": timezone_name,
+    }
 
 
 def _get_forecast_timeseries(forecast_data: dict) -> Optional[list[dict[str, Any]]]:
@@ -395,7 +457,9 @@ def _is_acceptable_block(
     std_dev: float,
     max_score_variance: float,
 ) -> bool:
-    """Return True when a block passes score and variance thresholds."""
+    """Return True when a block passes score, data and variance thresholds."""
+    if not all(hour.has_core_readings for hour in block):
+        return False
     if avg_score < _minimum_average_score(len(block)):
         return False
     return std_dev <= _adjusted_variance_threshold(len(block), max_score_variance)
@@ -433,15 +497,25 @@ def _base_block_info(
     block: list[HourlyWeather], avg_score: float, std_dev: float
 ) -> dict[str, Any]:
     """Return timing, score, and consistency fields for a block."""
+    window_start, _ = daylight_bounds(block[0])
+    _, window_end = daylight_bounds(block[-1])
     return {
         "block": block,
-        "start": block[0].time,
+        "start": window_start,
         "end": block[-1].time,
+        "end_time": window_end,
         "avg_score": avg_score,
         "duration": len(block),
+        "duration_hours": _daylight_hours_in(block),
+        "coverage_hours": block[0].coverage_hours,
         "consistency": 1 / (1 + std_dev),
         "variance": std_dev,
     }
+
+
+def _daylight_hours_in(block: list[HourlyWeather]) -> int:
+    """Return how many usable daylight hours a block really offers."""
+    return sum(hour.daylight_hours for hour in block)
 
 
 def _weather_block_info(block: list[HourlyWeather]) -> dict[str, Optional[float]]:
@@ -525,10 +599,16 @@ def _duration_bonus(positive_hour_count: int) -> float:
 def _positive_hour_count(
     block_info: dict[str, Any], activity_profile: str
 ) -> int:
-    """Return the number of individually positive hours in a block."""
+    """Return how many usable daylight hours inside a block score positively.
+
+    Counting an entry's whole span would hand a six-hour block that only
+    overlaps daylight by an hour the same duration bonus as a genuine
+    six-hour stretch of good weather.
+    """
     return sum(
-        get_activity_score(hour, activity_profile) > 0
+        hour.daylight_hours
         for hour in block_info["block"]
+        if get_activity_score(hour, activity_profile) > 0
     )
 
 
@@ -547,15 +627,24 @@ def get_top_locations_for_date(
 ) -> list[dict]:
     """Return the top N locations for a given date."""
     results = []
-    now_local = datetime.now(timezone.utc).astimezone(get_timezone())
     for loc_key, processed in all_location_processed.items():
         location_result = _rank_location_for_date(
-            loc_key, processed, d, now_local, activity_profile
+            loc_key, processed, d, _location_now(processed), activity_profile
         )
         if location_result:
             results.append(location_result)
-    results.sort(key=lambda x: x["score"], reverse=True)
+    # Locations are ranked on the day as a whole, including a penalty for
+    # volatile weather: a steady good day is a safer bet than one bright hour
+    # in an unsettled one. The window's own score is reported separately.
+    results.sort(key=lambda x: (x["score"], x["window_score"]), reverse=True)
     return results[:top_n]
+
+
+def _location_now(processed: dict) -> datetime:
+    """Return the current time in the time zone of a processed forecast."""
+    return datetime.now(timezone.utc).astimezone(
+        get_timezone(processed.get("timezone"))
+    )
 
 
 def _rank_location_for_date(
@@ -566,14 +655,19 @@ def _rank_location_for_date(
     activity_profile: str,
 ) -> Optional[dict[str, Any]]:
     """Return a ranked location result for a date, if data is usable."""
-    report = processed.get("day_scores", {}).get(forecast_date)
-    if not report:
+    if not processed.get("day_scores", {}).get(forecast_date):
         return None
-    filtered_hours = _location_recommendation_hours(processed, forecast_date, now_local)
+    filtered_hours = get_recommendation_hours(processed, forecast_date, now_local)
+    if not filtered_hours:
+        return None
     optimal_block = _find_optimal_consistent_block(filtered_hours, activity_profile)
     if not optimal_block:
         return None
-    day_score = _calculate_day_activity_score(report.daylight_hours, activity_profile)
+
+    # Score the day on the same hours the window was drawn from, so a location
+    # is never ranked highly on a morning that has already passed.
+    report = _daily_report(forecast_date, filtered_hours, _location_name(processed))
+    day_score = _calculate_day_activity_score(filtered_hours, activity_profile)
     return _build_location_result(
         loc_key,
         report,
@@ -583,15 +677,30 @@ def _rank_location_for_date(
     )
 
 
-def _location_recommendation_hours(
-    processed: dict, forecast_date: date, now_local: datetime
+def _location_name(processed: dict) -> str:
+    """Return the location name recorded on a processed forecast."""
+    for report in processed.get("day_scores", {}).values():
+        return report.location_name
+    return ""
+
+
+def get_recommendation_hours(
+    processed: dict,
+    forecast_date: date,
+    now_local: Optional[datetime] = None,
 ) -> list[HourlyWeather]:
-    """Return forecast hours considered for a location recommendation."""
+    """Return the forecast entries a recommendation for a date is based on.
+
+    This is the single definition of "hours that count": daylight entries, and
+    for today only those with usable time left. The ranking, the recommended
+    window and the hourly breakdown shown to the user all read from here, so
+    they can never disagree about which hours were considered.
+    """
     daily_forecasts = processed.get("daily_forecasts", {})
     return _filter_hours_for_recommendations(
-        daily_forecasts.get(forecast_date, []),
+        sorted(daily_forecasts.get(forecast_date, []), key=lambda hour: hour.time),
         forecast_date,
-        now_local,
+        now_local if now_local is not None else _location_now(processed),
     )
 
 
@@ -602,15 +711,22 @@ def _build_location_result(
     day_score: dict[str, float],
     activity_profile: str,
 ) -> dict[str, Any]:
-    """Build the side-panel result dictionary for a location."""
+    """Build the ranking result for one location on one date.
+
+    Two different scores matter and they are kept distinct: the day score,
+    which ranks locations and accounts for how settled the weather is, and the
+    window score, which describes the specific hours being recommended. The
+    interface labels both, because a single unlabelled number printed beside a
+    time reads as a claim about that time.
+    """
     return {
         "location_key": loc_key,
         "location_name": report.location_name,
         "score": day_score["score"],
         "raw_score": day_score["score"],
+        "window_score": optimal_block["avg_score"],
         "day_avg_score": day_score["average"],
         "volatility_penalty": day_score["volatility_penalty"],
-        "window_score": optimal_block["avg_score"],
         "optimal_block": optimal_block,
         "weather_desc": report.weather_description,
         "activity_profile": activity_profile,

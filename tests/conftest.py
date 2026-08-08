@@ -1,11 +1,9 @@
-import tkinter as tk
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.core.models import HourlyWeather
-from src.gui.app import WeatherHelperApp
 
 
 @pytest.fixture
@@ -61,6 +59,7 @@ def sample_forecast_data():
 @pytest.fixture(scope="session")
 def tk_root():
     """Fixture to create a single Tkinter root for the entire test session."""
+    tk = pytest.importorskip("tkinter")
     root = tk.Tk()
     root.withdraw()
     yield root
@@ -106,6 +105,7 @@ def create_hour():
 @pytest.fixture
 def mock_app_dependencies():
     """Patch Tkinter dependencies in app module."""
+    pytest.importorskip("tkinter")
     with patch('src.gui.app.tk') as mock_tk, \
          patch('src.gui.app.ttk') as mock_ttk, \
          patch('src.gui.app.messagebox') as mock_msgbox, \
@@ -130,6 +130,8 @@ def mock_app_dependencies():
 @pytest.fixture
 def mock_app(mock_app_dependencies):
     """Create a mocked WeatherHelperApp with dependencies already mocked."""
+    from src.gui.app import WeatherHelperApp
+
     app = WeatherHelperApp()
 
     # Mock UI components

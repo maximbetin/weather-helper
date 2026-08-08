@@ -1,32 +1,73 @@
-"""Responsive Flet interface for desktop previews and Android builds."""
+"""Responsive Flet interface for desktop previews and Android builds.
+
+The screen is built around one question: where should I go, and when. The
+answer is at the top in full, the ranked alternatives follow, and every score
+on screen is traceable to the hours listed inside the card that produced it.
+"""
 
 import asyncio
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, datetime
 from importlib import import_module
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from src.application.presentation import (
-    BASE_COLORS,
-    get_rating_background as rating_background,
-    get_rating_color as rating_color,
+    MISSING_VALUE,
+    RATING_ORDER,
+    format_optional,
+    format_percentage,
+    format_precipitation,
+    format_relative_date,
+    format_temperature,
+    format_wind_speed,
 )
-from src.core.config import MET_NORWAY_LICENSE_URL, MET_NORWAY_SOURCE_URL
+from src.core.config import (
+    DAYLIGHT_END_HOUR,
+    DAYLIGHT_START_HOUR,
+    MET_NORWAY_LICENSE_URL,
+    MET_NORWAY_SOURCE_URL,
+)
 from src.core.locations import LOCATION_GROUPS
 from src.core.scoring import ACTIVITY_PROFILE_LABELS
-from src.mobile.view_model import MobileWeatherViewModel, RankedLocationView
-
-BACKGROUND_COLOR = BASE_COLORS["background"]
-SURFACE_COLOR = BASE_COLORS["surface"]
-TEXT_COLOR = BASE_COLORS["text"]
-TEXT_SECONDARY_COLOR = BASE_COLORS["text_secondary"]
-PRIMARY_COLOR = BASE_COLORS["primary"]
-BORDER_COLOR = "#cbd5e1"
+from src.mobile.theme import (
+    BODY_SIZE,
+    CARD_RADIUS,
+    HEADLINE_SIZE,
+    LABEL_SIZE,
+    SPACING,
+    SUBTITLE_SIZE,
+    TITLE_SIZE,
+    Palette,
+)
+from src.mobile.view_model import (
+    HourlyForecastView,
+    MobileWeatherViewModel,
+    RankedLocationView,
+)
 
 FLET_INSTALL_HINT = (
     "Flet is not installed in the active environment. Activate a project virtual "
     "environment, install the mobile extra with `python -m pip install -e "
     "\".[mobile]\"`, then run `flet run weather_helper_mobile.py`."
 )
+
+RANKED_LOCATION_COUNT = 10
+
+
+@dataclass(frozen=True)
+class _Metric:
+    """One weather reading: its icon, its spoken label and its formatter."""
+
+    icon: str
+    label: str
+    formatter: Any
+
+
+TEMPERATURE = _Metric("THERMOSTAT", "Temperature", format_temperature)
+WIND = _Metric("AIR", "Wind", format_wind_speed)
+CLOUDS = _Metric("CLOUD_QUEUE", "Cloud cover", format_percentage)
+RAIN = _Metric("WATER_DROP_OUTLINED", "Precipitation", format_precipitation)
+HUMIDITY = _Metric("WATER", "Humidity", format_percentage)
 
 
 def _load_flet():
@@ -36,615 +77,884 @@ def _load_flet():
         raise RuntimeError(FLET_INSTALL_HINT) from exc
 
 
-def _get_cloud_icon(ft: Any, cloud_str: str) -> Any:
-    try:
-        val = float(cloud_str.replace('%', '').strip())
-        if val < 20: return ft.Icon(ft.Icons.WB_SUNNY, color=ft.Colors.YELLOW_600, size=15)
-        elif val < 60: return ft.Icon(ft.Icons.CLOUD_QUEUE, color=ft.Colors.GREY_400, size=15)
-        else: return ft.Icon(ft.Icons.CLOUD, color=ft.Colors.GREY_500, size=15)
-    except Exception:
-        return ft.Icon(ft.Icons.CLOUD, color=ft.Colors.GREY_500, size=15)
-
-def _get_rain_icon(ft: Any, rain_str: str) -> Any:
-    try:
-        val = float(rain_str.split()[0])
-        if val == 0: return ft.Icon(ft.Icons.WATER_DROP_OUTLINED, color=ft.Colors.GREY_400, size=15)
-        elif val < 2.0: return ft.Icon(ft.Icons.WATER_DROP, color=ft.Colors.LIGHT_BLUE_400, size=15)
-        else: return ft.Icon(ft.Icons.WATER_DROP, color=ft.Colors.BLUE_600, size=15)
-    except Exception:
-        return ft.Icon(ft.Icons.WATER_DROP, color=ft.Colors.BLUE_600, size=15)
-
-def _get_wind_icon(ft: Any, wind_str: str) -> Any:
-    try:
-        val = float(wind_str.split()[0])
-        if val < 3: return ft.Icon(ft.Icons.AIR, color=ft.Colors.GREY_400, size=15)
-        elif val < 8: return ft.Icon(ft.Icons.AIR, color=ft.Colors.BLUE_400, size=15)
-        else: return ft.Icon(ft.Icons.WIND_POWER, color=ft.Colors.BLUE_600, size=15)
-    except Exception:
-        return ft.Icon(ft.Icons.AIR, color=ft.Colors.GREY_400, size=15)
-
-def _get_temp_icon(ft: Any, temp_str: str) -> Any:
-    try:
-        val = float(temp_str.split()[0])
-        if val < 10: return ft.Icon(ft.Icons.THERMOSTAT, color=ft.Colors.BLUE_400, size=15)
-        elif val < 25: return ft.Icon(ft.Icons.THERMOSTAT, color=ft.Colors.ORANGE_400, size=15)
-        else: return ft.Icon(ft.Icons.THERMOSTAT, color=ft.Colors.RED_400, size=15)
-    except Exception:
-        return ft.Icon(ft.Icons.THERMOSTAT, color=ft.Colors.ORANGE_400, size=15)
-
-def _get_humidity_icon(ft: Any, hum_str: str) -> Any:
-    return ft.Icon(ft.Icons.WATER, color=ft.Colors.LIGHT_BLUE_400, size=15)
-
-def _get_activity_icon_name(profile_key: str) -> str:
-    return "BEACH_ACCESS" if profile_key == "beach_day" else "HIKING"
-
-
 def create_mobile_app(
     page: Any,
     *,
     ft: Any = None,
     view_model: Optional[MobileWeatherViewModel] = None,
 ) -> None:
-    """Build a single-scroll forecast overview: filters, daily plan, and a
-    ranked location list whose entries expand in place for full detail."""
+    """Build the forecast screen: today's answer, then the ranked alternatives."""
     ft = ft or _load_flet()
     assert ft is not None
     model = view_model or MobileWeatherViewModel()
+    screen = _Screen(page, ft, model)
+    screen.build()
 
-    page.title = "Weather Helper"
-    page.theme_mode = ft.ThemeMode.LIGHT
-    page.padding = 0
-    page.bgcolor = BACKGROUND_COLOR
 
-    status = ft.Text(
-        "Loading the default Asturias forecast…",
-        color=TEXT_SECONDARY_COLOR,
-        size=13,
-    )
-    progress = ft.ProgressBar(visible=False)
-    forecast_list = ft.Column(spacing=10)
-    daily_summary = ft.Column(spacing=4)
+class _Screen:
+    """Owns the Flet controls and keeps them in step with the view model."""
 
-    # --- Styled dropdowns with increased font and padding ---
+    def __init__(self, page: Any, ft: Any, model: MobileWeatherViewModel) -> None:
+        self.page = page
+        self.ft = ft
+        self.model = model
+        self.palette = Palette(dark=self._prefers_dark())
+        self._load_generation = 0
+        self._in_flight_generation = 0
+        self._expanded_keys: set[str] = set()
 
-    def style_dropdown(dd: Any) -> Any:
-        dd.dense = True
-        dd.border_radius = 10
-        dd.content_padding = 12
-        dd.border_color = BORDER_COLOR
-        dd.text_size = 15
-        dd.expand = True
-        return dd
+    # --- Colour and theme -------------------------------------------------
 
-    group_dropdown = style_dropdown(ft.Dropdown(
-        label="Region",
-        value=model.group_name,
-        options=[ft.DropdownOption(key=name, text=name) for name in LOCATION_GROUPS],
-    ))
-    location_dropdown = style_dropdown(ft.Dropdown(
-        label="Location",
-        disabled=True,
-        options=[],
-        hint_text="Loading locations…",
-    ))
-    profile_dropdown = style_dropdown(ft.Dropdown(
-        label="Activity",
-        value=model.activity_profile,
-        options=[
-            ft.DropdownOption(key=key, text=label)
-            for key, label in ACTIVITY_PROFILE_LABELS.items()
-        ],
-    ))
-    date_dropdown = style_dropdown(ft.Dropdown(label="Date", disabled=True, options=[]))
+    def _prefers_dark(self) -> bool:
+        """Return True when the device is currently in dark mode."""
+        ft = self.ft
+        return getattr(self.page, "platform_brightness", None) == ft.Brightness.DARK
 
-    refresh_button = ft.IconButton(
-        icon=ft.Icons.REFRESH,
-        icon_color=ft.Colors.WHITE,
-        icon_size=22,
-        tooltip="Refresh forecast",
-    )
+    def _apply_theme(self) -> None:
+        ft = self.ft
+        self.page.theme_mode = ft.ThemeMode.SYSTEM
+        self.page.bgcolor = self.palette.background
 
-    def elevated_card(content: Any, *, padding: int = 14) -> Any:
-        """Wrap content in a consistently elevated, rounded surface."""
-        return ft.Container(
-            padding=padding,
-            bgcolor=SURFACE_COLOR,
-            border_radius=14,
-            shadow=ft.BoxShadow(
-                spread_radius=0,
-                blur_radius=10,
-                color=ft.Colors.with_opacity(0.08, "#0f172a"),
-                offset=ft.Offset(0, 2),
-            ),
-            content=content,
+    # --- Small shared building blocks -------------------------------------
+
+    def _text(
+        self,
+        value: str,
+        *,
+        size: int = BODY_SIZE,
+        color: Optional[str] = None,
+        weight: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        ft = self.ft
+        return ft.Text(
+            value,
+            size=size,
+            color=color or self.palette.text,
+            weight=weight or ft.FontWeight.NORMAL,
+            **kwargs,
         )
 
-    # --- Hourly forecast rows (shared by every expanded location card) ---
+    def _secondary(self, value: str, *, size: int = LABEL_SIZE, **kwargs: Any) -> Any:
+        return self._text(value, size=size, color=self.palette.text_secondary, **kwargs)
 
-    def hourly_row(row: Any) -> Any:
+    def _card(self, content: Any, *, padding: int = SPACING + 2, **kwargs: Any) -> Any:
+        ft = self.ft
         return ft.Container(
-            padding=ft.Padding(left=0, top=10, right=12, bottom=10),
-            bgcolor=BACKGROUND_COLOR,
+            padding=padding,
+            bgcolor=self.palette.surface,
+            border_radius=CARD_RADIUS,
+            border=ft.Border.all(1, self.palette.border),
+            content=content,
+            **kwargs,
+        )
+
+    def _metric(
+        self, metric: "_Metric", value: Optional[float], *, unit: Optional[str] = None
+    ) -> Any:
+        """Render one weather reading with its icon and an accessible label.
+
+        A missing reading keeps the muted colour and a dash. It is never given
+        the appearance of a real value, which is what previously made an
+        absent rainfall figure look like heavy rain.
+        """
+        ft = self.ft
+        missing = value is None
+        formatter = (
+            metric.formatter
+            if unit is None
+            else (lambda reading: metric.formatter(reading, unit))
+        )
+        text = format_optional(value, formatter)
+        colour = self.palette.text_secondary if missing else self.palette.text
+        described = f"{metric.label}: {text if not missing else 'not available'}"
+        return ft.Row(
+            spacing=4,
+            tight=True,
+            tooltip=described,
+            controls=[
+                ft.Icon(
+                    getattr(ft.Icons, metric.icon),
+                    size=16,
+                    color=self.palette.text_secondary,
+                    semantics_label=metric.label,
+                ),
+                self._text(text, size=LABEL_SIZE, color=colour, semantics_label=described),
+            ],
+        )
+
+    # --- Header -----------------------------------------------------------
+
+    def _build_header(self) -> Any:
+        ft = self.ft
+        self.refresh_button = ft.IconButton(
+            icon=ft.Icons.REFRESH,
+            icon_color=ft.Colors.WHITE,
+            icon_size=24,
+            tooltip="Refresh forecast",
+            on_click=self.on_refresh_click,
+        )
+        self.page.appbar = ft.AppBar(
+            title=ft.Text(
+                "Weather Helper",
+                weight=ft.FontWeight.BOLD,
+                size=TITLE_SIZE,
+                color=ft.Colors.WHITE,
+            ),
+            center_title=False,
+            bgcolor=self.palette.primary,
+            color=ft.Colors.WHITE,
+            actions=[self.refresh_button],
+        )
+
+    # --- Status -----------------------------------------------------------
+
+    def _build_status(self) -> Any:
+        ft = self.ft
+        self.status = self._secondary("Loading forecasts…", size=BODY_SIZE)
+        self.freshness = self._secondary("")
+        self.progress = ft.ProgressBar(visible=False, color=self.palette.primary)
+        self.status_row = ft.Column(
+            spacing=4,
+            controls=[self.status, self.freshness, self.progress],
+        )
+        return self.status_row
+
+    # --- Filters ----------------------------------------------------------
+
+    def _style_dropdown(self, dropdown: Any) -> Any:
+        dropdown.border_radius = 10
+        dropdown.content_padding = SPACING
+        dropdown.border_color = self.palette.border
+        dropdown.text_size = BODY_SIZE
+        dropdown.color = self.palette.text
+        dropdown.expand = True
+        return dropdown
+
+    def _build_filters(self) -> Any:
+        ft = self.ft
+        self.group_dropdown = self._style_dropdown(
+            ft.Dropdown(
+                label="Region",
+                value=self.model.group_name,
+                options=[
+                    ft.DropdownOption(key=name, text=name) for name in LOCATION_GROUPS
+                ],
+                on_select=self.on_group_select,
+            )
+        )
+        self.date_dropdown = self._style_dropdown(
+            ft.Dropdown(label="Day", disabled=True, options=[], on_select=self.on_date_select)
+        )
+        self.profile_dropdown = self._style_dropdown(
+            ft.Dropdown(
+                label="Activity",
+                value=self.model.activity_profile,
+                options=[
+                    ft.DropdownOption(key=key, text=label)
+                    for key, label in ACTIVITY_PROFILE_LABELS.items()
+                ],
+                on_select=self.on_profile_select,
+            )
+        )
+        return self._card(
+            ft.ResponsiveRow(
+                columns=12,
+                spacing=8,
+                run_spacing=8,
+                controls=[
+                    ft.Container(col={"xs": 12, "sm": 4}, content=self.group_dropdown),
+                    ft.Container(col={"xs": 6, "sm": 4}, content=self.date_dropdown),
+                    ft.Container(col={"xs": 6, "sm": 4}, content=self.profile_dropdown),
+                ],
+            ),
+            padding=SPACING,
+        )
+
+    # --- The answer -------------------------------------------------------
+
+    def _build_headline(self) -> Any:
+        self.headline = self.ft.Column(spacing=6)
+        self.headline_card = self._card(self.headline)
+        return self.headline_card
+
+    def render_headline(self) -> None:
+        """Render the single best recommendation as the top of the screen."""
+        ft = self.ft
+        best = self.model.top_recommendation()
+        activity = self.model.activity_label()
+        day = self._selected_day_label()
+
+        if best is None:
+            self.headline.controls = [
+                self._text(
+                    f"No {activity.lower()} window worth recommending {day.lower()}",
+                    size=SUBTITLE_SIZE,
+                    weight=ft.FontWeight.BOLD,
+                ),
+                self._secondary(
+                    "Nothing in this region scores well enough for this activity. "
+                    "Try another day, activity or region.",
+                    size=BODY_SIZE,
+                ),
+            ]
+            self.headline_card.bgcolor = self.palette.surface
+            return
+
+        colour = self.palette.rating(best.rating)
+        self.headline.controls = [
+            self._secondary(f"Best for {activity.lower()} · {day}"),
+            ft.Row(
+                vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=SPACING,
+                controls=[
+                    ft.Column(
+                        expand=True,
+                        spacing=2,
+                        controls=[
+                            self._text(
+                                best.location_name,
+                                size=HEADLINE_SIZE,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                            ft.Row(
+                                spacing=6,
+                                controls=[
+                                    ft.Icon(
+                                        ft.Icons.SCHEDULE,
+                                        size=20,
+                                        color=self.palette.text,
+                                    ),
+                                    self._text(
+                                        best.best_window,
+                                        size=SUBTITLE_SIZE,
+                                        weight=ft.FontWeight.BOLD,
+                                    ),
+                                    self._secondary(
+                                        f"({best.window_length_label})"
+                                        if best.window_length_label
+                                        else ""
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    self._score_badge(
+                        best.window_score,
+                        best.window_rating,
+                        caption="this window",
+                        large=True,
+                    ),
+                ],
+            ),
+            self._secondary(best.best_window_details, size=BODY_SIZE),
+            ft.Container(
+                padding=ft.Padding(left=10, top=6, right=10, bottom=6),
+                bgcolor=self.palette.rating_background(best.rating),
+                border_radius=8,
+                content=self._text(
+                    f"Rest of the day: {best.rating.lower()} "
+                    f"({best.normalized_score}/100) · {best.weather_description}",
+                    size=LABEL_SIZE,
+                    color=colour,
+                    weight=ft.FontWeight.BOLD,
+                ),
+            ),
+        ]
+
+    def _score_badge(
+        self,
+        score: Optional[int],
+        rating: str,
+        *,
+        caption: str = "",
+        large: bool = False,
+    ) -> Any:
+        """Render a score out of 100 with its rating word and what it measures.
+
+        Every score on screen states its scale and its subject, so a number
+        printed beside a time is never mistaken for a claim about something
+        else.
+        """
+        ft = self.ft
+        colour = self.palette.rating(rating)
+        controls = [
+            ft.Row(
+                spacing=1,
+                tight=True,
+                vertical_alignment=ft.CrossAxisAlignment.END,
+                controls=[
+                    self._text(
+                        MISSING_VALUE if score is None else str(score),
+                        size=HEADLINE_SIZE if large else SUBTITLE_SIZE + 3,
+                        weight=ft.FontWeight.BOLD,
+                        color=colour,
+                    ),
+                    self._secondary("/100", size=LABEL_SIZE - 1),
+                ],
+            ),
+            self._text(rating, size=LABEL_SIZE, color=colour),
+        ]
+        if caption:
+            controls.append(self._secondary(caption, size=LABEL_SIZE - 2))
+        return ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.END,
+            spacing=0,
+            tight=True,
+            controls=controls,
+        )
+
+    # --- Pinned locations -------------------------------------------------
+
+    def _build_pinned(self) -> Any:
+        self.pinned = self.ft.Column(spacing=8)
+        self.pinned_card = self._card(self.pinned)
+        return self.pinned_card
+
+    def render_pinned(self) -> None:
+        """Render the pinned locations for the current region, if any."""
+        ft = self.ft
+        rows = self.model.daily_summary_rows()
+        names = self.model.priority_location_names()
+        if not rows:
+            self.pinned_card.visible = False
+            return
+
+        self.pinned_card.visible = True
+        heading = (
+            f"{' and '.join(names)} · {self.model.activity_label().lower()}"
+            if names
+            else f"Best alternatives for {self.model.activity_label().lower()}"
+        )
+        controls: list[Any] = [
+            ft.Row(
+                spacing=6,
+                controls=[
+                    ft.Icon(ft.Icons.PUSH_PIN_OUTLINED, size=18, color=self.palette.primary),
+                    self._text(heading, size=SUBTITLE_SIZE, weight=ft.FontWeight.BOLD),
+                ],
+            )
+        ]
+        alternatives_started = False
+        for row in rows:
+            if not row.is_priority and not alternatives_started and names:
+                controls.append(
+                    self._secondary("Better elsewhere today", size=LABEL_SIZE)
+                )
+                alternatives_started = True
+            controls.append(self._pinned_row(row))
+        self.pinned.controls = controls
+
+    def _pinned_row(self, row: Any) -> Any:
+        ft = self.ft
+        unavailable = row.normalized_score is None
+        return ft.Row(
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=8,
+            controls=[
+                ft.Container(
+                    expand=True,
+                    content=self._text(row.location_name, size=BODY_SIZE),
+                ),
+                self._text(
+                    row.best_window,
+                    size=BODY_SIZE,
+                    color=(
+                        self.palette.text_secondary if unavailable else self.palette.text
+                    ),
+                ),
+                ft.Container(
+                    width=52,
+                    alignment=ft.Alignment.CENTER_RIGHT,
+                    content=self._text(
+                        MISSING_VALUE if unavailable else str(row.normalized_score),
+                        size=BODY_SIZE,
+                        weight=ft.FontWeight.BOLD,
+                        color=self.palette.text_secondary
+                        if unavailable
+                        else self.palette.primary,
+                    ),
+                ),
+            ],
+        )
+
+    # --- Ranked list ------------------------------------------------------
+
+    def _build_ranking(self) -> Any:
+        ft = self.ft
+        self.forecast_list = ft.Column(spacing=10)
+        return ft.Column(
+            spacing=6,
+            controls=[
+                ft.Row(
+                    spacing=6,
+                    controls=[
+                        ft.Icon(
+                            ft.Icons.LEADERBOARD,
+                            size=18,
+                            color=self.palette.primary,
+                        ),
+                        self._text(
+                            "All locations, ranked",
+                            size=SUBTITLE_SIZE,
+                            weight=ft.FontWeight.BOLD,
+                        ),
+                    ],
+                ),
+                self._secondary(
+                    "Ordered by how settled the whole day looks. "
+                    "Tap a location to see the hours behind its score."
+                ),
+                self.forecast_list,
+            ],
+        )
+
+    def render_forecast_list(self) -> None:
+        ranked = self.model.ranked_locations(RANKED_LOCATION_COUNT)
+        selected = self.model.selected_location()
+        ranked_keys = {card.location_key for card in ranked}
+
+        tiles = [
+            self._location_tile(card, rank=index)
+            for index, card in enumerate(ranked, 1)
+        ]
+        if selected is not None and selected.location_key not in ranked_keys:
+            # An explicitly chosen location stays reachable, but below the
+            # ranking rather than pretending to lead it.
+            tiles.append(self._location_tile(selected, rank=None))
+
+        self.forecast_list.controls = tiles or [
+            self._secondary(
+                "No location has usable forecast data for this day.",
+                size=BODY_SIZE,
+            )
+        ]
+
+    def _location_tile(self, card: RankedLocationView, *, rank: Optional[int]) -> Any:
+        ft = self.ft
+        colour = self.palette.rating(card.rating)
+        is_expanded = card.location_key in self._expanded_keys
+
+        def on_change(event: Any) -> None:
+            self.on_tile_toggle(card.location_key, bool(event.data))
+
+        tile = ft.ExpansionTile(
+            title=self._text(
+                card.location_name, size=SUBTITLE_SIZE, weight=ft.FontWeight.BOLD
+            ),
+            subtitle=self._secondary(
+                f"{card.best_window} · window {card.window_score}/100"
+                if card.is_ranked
+                else "No window to recommend",
+                size=BODY_SIZE,
+            ),
+            leading=self._rank_marker(rank, colour),
+            # The list is ordered by how the day as a whole looks, so that is
+            # the score shown here; the window's own score is on the row above.
+            trailing=self._score_badge(
+                card.normalized_score, card.rating, caption="the day"
+            ),
+            expanded=is_expanded,
+            maintain_state=False,
+            tile_padding=ft.Padding(left=SPACING, top=8, right=SPACING, bottom=8),
+            collapsed_bgcolor=ft.Colors.TRANSPARENT,
+            bgcolor=ft.Colors.TRANSPARENT,
+            icon_color=colour,
+            collapsed_icon_color=self.palette.text_secondary,
+            on_change=on_change,
+            # Bodies are built only for the card the user opened; building all
+            # ten with their hourly rows made every filter change stutter.
+            controls=self._expanded_body(card) if is_expanded else [],
+        )
+        return ft.Container(
+            key=ft.ScrollKey(f"card_{card.location_key}"),
+            bgcolor=self.palette.surface,
+            border=ft.Border.all(
+                2 if is_expanded else 1,
+                colour if is_expanded else self.palette.border,
+            ),
+            border_radius=CARD_RADIUS,
+            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+            content=tile,
+        )
+
+    def _rank_marker(self, rank: Optional[int], colour: str) -> Any:
+        ft = self.ft
+        if rank is None:
+            return ft.Icon(
+                ft.Icons.PLACE_OUTLINED, color=self.palette.text_secondary, size=22
+            )
+        return ft.Container(
+            width=30,
+            height=30,
+            alignment=ft.Alignment.CENTER,
+            bgcolor=self.palette.rating_background(
+                _rating_for_rank_marker(rank)
+            ),
+            border=ft.Border.all(1, colour),
+            border_radius=15,
+            content=self._text(
+                str(rank), size=LABEL_SIZE, weight=ft.FontWeight.BOLD, color=colour
+            ),
+        )
+
+    def _expanded_body(self, card: RankedLocationView) -> list[Any]:
+        ft = self.ft
+        rows = self.model.hourly_forecast(card.location_key)
+        if rows:
+            hours_note = (
+                f"Hours considered ({DAYLIGHT_START_HOUR:02d}:00–"
+                f"{DAYLIGHT_END_HOUR:02d}:00, upcoming only)"
+            )
+            body: list[Any] = [self._secondary(hours_note)]
+            body.extend(self._hourly_row(row) for row in rows)
+        else:
+            body = [
+                self._secondary(
+                    "No upcoming daylight hours left for this day.", size=BODY_SIZE
+                )
+            ]
+
+        return [
+            ft.Container(
+                padding=ft.Padding(left=SPACING, top=0, right=SPACING, bottom=SPACING),
+                content=ft.Column(
+                    spacing=6,
+                    controls=[
+                        ft.Divider(height=1, color=self.palette.border),
+                        self._secondary(card.best_window_details, size=BODY_SIZE),
+                        ft.Container(height=2),
+                        *body,
+                    ],
+                ),
+            )
+        ]
+
+    def _hourly_row(self, row: HourlyForecastView) -> Any:
+        """Render one forecast entry, marking the recommended window."""
+        ft = self.ft
+        colour = self.palette.rating(row.rating)
+        highlighted = row.in_best_window
+        time_line: list[Any] = [
+            self._text(
+                row.time,
+                size=SUBTITLE_SIZE,
+                weight=ft.FontWeight.BOLD,
+            )
+        ]
+        if not row.is_hourly:
+            time_line.append(self._secondary(row.span_label))
+        if highlighted:
+            time_line.append(
+                ft.Container(
+                    padding=ft.Padding(left=6, top=1, right=6, bottom=1),
+                    bgcolor=colour,
+                    border_radius=6,
+                    content=ft.Text(
+                        "BEST",
+                        size=LABEL_SIZE - 3,
+                        weight=ft.FontWeight.BOLD,
+                        color=self.palette.surface,
+                    ),
+                )
+            )
+
+        return ft.Container(
+            padding=ft.Padding(left=0, top=8, right=10, bottom=8),
+            bgcolor=(
+                self.palette.rating_background(row.rating)
+                if highlighted
+                else self.palette.background
+            ),
             border_radius=10,
             content=ft.Row(
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=0,
                 controls=[
-                    ft.Container(
-                        width=5,
-                        height=70,
-                        bgcolor=rating_color(row.rating),
-                        border_radius=ft.BorderRadius(
-                            top_left=10, bottom_left=10,
-                            top_right=0, bottom_right=0,
-                        ),
-                    ),
+                    ft.Container(width=5, height=64, bgcolor=colour),
                     ft.Container(width=10),
                     ft.Column(
                         expand=True,
-                        spacing=2,
+                        spacing=3,
                         controls=[
-                            ft.Text(
-                                row.time,
-                                size=17,
-                                weight=ft.FontWeight.BOLD,
-                                color=TEXT_COLOR,
-                            ),
+                            ft.Row(spacing=6, controls=time_line),
                             ft.Row(
-                                spacing=4,
+                                spacing=10,
+                                wrap=True,
                                 controls=[
-                                    _get_temp_icon(ft, row.temperature),
-                                    ft.Text(f"{row.temperature}", size=14, color=TEXT_COLOR),
-                                    ft.Container(width=8),
-                                    _get_wind_icon(ft, row.wind),
-                                    ft.Text(f"{row.wind}", size=14, color=TEXT_COLOR),
-                                ],
-                            ),
-                            ft.Row(
-                                spacing=4,
-                                controls=[
-                                    _get_cloud_icon(ft, row.clouds),
-                                    ft.Text(f"{row.clouds}", size=13, color=TEXT_SECONDARY_COLOR),
-                                    ft.Container(width=4),
-                                    _get_rain_icon(ft, row.precipitation),
-                                    ft.Text(f"{row.precipitation}", size=13, color=TEXT_SECONDARY_COLOR),
-                                    ft.Container(width=4),
-                                    _get_humidity_icon(ft, row.humidity),
-                                    ft.Text(f"{row.humidity}", size=13, color=TEXT_SECONDARY_COLOR),
+                                    self._metric(TEMPERATURE, row.temperature),
+                                    self._metric(WIND, row.wind),
+                                    self._metric(CLOUDS, row.clouds),
+                                    self._metric(
+                                        RAIN,
+                                        row.precipitation,
+                                        unit=row.precipitation_unit,
+                                    ),
+                                    self._metric(HUMIDITY, row.humidity),
                                 ],
                             ),
                         ],
                     ),
-                    ft.Column(
-                        horizontal_alignment=ft.CrossAxisAlignment.END,
-                        spacing=0,
-                        controls=[
-                            ft.Text(
-                                f"{row.normalized_score}",
-                                size=20,
-                                weight=ft.FontWeight.BOLD,
-                                color=rating_color(row.rating),
-                            ),
-                            ft.Text(
-                                row.rating,
-                                size=11,
-                                color=rating_color(row.rating),
-                            ),
-                        ],
-                    ),
+                    self._score_badge(row.normalized_score, row.rating),
                 ],
             ),
         )
 
-    def expanded_body(card: RankedLocationView) -> list[Any]:
-        color = rating_color(card.rating)
-        if card.is_ranked:
-            recommendation = [
-                ft.Row(
-                    spacing=4,
-                    controls=[
-                        ft.Icon(ft.Icons.ACCESS_TIME, size=18, color=TEXT_COLOR),
-                        ft.Text(card.best_window, size=16, weight=ft.FontWeight.BOLD, color=TEXT_COLOR),
-                    ],
-                ),
-                ft.Text(card.best_window_details, size=13, color=TEXT_SECONDARY_COLOR),
-            ]
-        else:
-            recommendation = [
-                ft.Text(card.best_window_details, size=13, color=TEXT_SECONDARY_COLOR),
-            ]
+    # --- Legend and footer ------------------------------------------------
 
-        rows = model.hourly_forecast(card.location_key)
-        hourly_controls = (
-            [hourly_row(row) for row in rows]
-            if rows
-            else [ft.Text("No hourly forecast is available.", color=TEXT_SECONDARY_COLOR)]
-        )
-
-        return [
+    def _build_legend(self) -> Any:
+        ft = self.ft
+        chips = [
             ft.Container(
-                padding=ft.Padding(left=16, top=8, right=16, bottom=12),
-                content=ft.Column(
-                    spacing=6,
-                    controls=[
-                        ft.Divider(height=1, color=color),
-                        *recommendation,
-                        ft.Container(height=4),
-                        *hourly_controls,
-                    ],
-                ),
-            ),
-        ]
-
-    def location_tile(
-        card: RankedLocationView,
-        *,
-        leading: Any,
-        badge_text: str,
-        is_selected: bool,
-    ) -> Any:
-        color = rating_color(card.rating)
-        bg = rating_background(card.rating)
-        summary_bits = card.rating if card.is_ranked else "Not ranked"
-        subtitle = f"{summary_bits} · {card.weather_description}"
-
-        def on_tile_change(event: Any) -> None:
-            if event.data:
-                choose_location(card.location_key)
-
-        tile = ft.ExpansionTile(
-            key=f"tile_{card.location_key}",
-            title=ft.Text(card.location_name, size=16, weight=ft.FontWeight.BOLD, color=TEXT_COLOR),
-            subtitle=ft.Text(subtitle, size=12, color=TEXT_SECONDARY_COLOR, no_wrap=True),
-            leading=leading,
-            trailing=ft.Text(badge_text, size=14, weight=ft.FontWeight.BOLD, color=color),
-            expanded=is_selected,
-            tile_padding=ft.Padding(left=12, top=6, right=12, bottom=6),
-            collapsed_bgcolor=ft.Colors.TRANSPARENT,
-            bgcolor=ft.Colors.TRANSPARENT,
-            icon_color=color,
-            collapsed_icon_color=TEXT_SECONDARY_COLOR,
-            on_change=on_tile_change,
-            controls=expanded_body(card),
-        )
-        return ft.Container(
-            key=f"card_{card.location_key}",
-            bgcolor=bg,
-            border=ft.Border.all(1.5 if is_selected else 1, color if is_selected else BORDER_COLOR),
-            border_radius=14,
-            clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-            content=tile,
-        )
-
-    def rank_badge(rank: int, color: str) -> Any:
-        return ft.CircleAvatar(
-            content=ft.Text(f"{rank}", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-            bgcolor=color,
-            radius=15,
-        )
-
-    def choose_location(location_key: str) -> None:
-        model.select_location(location_key)
-        location_dropdown.value = location_key
-        render_forecast_list()
-        update_filters_summary()
-        page.update()
-        page.run_task(page.scroll_to, scroll_key=f"card_{location_key}", duration=300)
-
-    # --- Daily summary ---
-
-    def summary_table_row(summary: Any) -> ft.Row:
-        return ft.Row(
-            spacing=6,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            controls=[
-                ft.Icon(
-                    getattr(ft.Icons, _get_activity_icon_name(summary.activity_profile)),
-                    size=14,
-                    color=TEXT_SECONDARY_COLOR,
-                ),
-                ft.Text(
-                    summary.location_name,
-                    width=96,
-                    size=12,
-                    color=TEXT_COLOR,
-                    no_wrap=True,
-                ),
-                ft.Text(
-                    summary.score_text,
-                    width=58,
-                    size=12,
+                padding=ft.Padding(left=8, top=3, right=8, bottom=3),
+                bgcolor=self.palette.rating_background(rating),
+                border_radius=6,
+                content=self._text(
+                    rating,
+                    size=LABEL_SIZE,
+                    color=self.palette.rating(rating),
                     weight=ft.FontWeight.BOLD,
-                    text_align=ft.TextAlign.RIGHT,
-                    color=PRIMARY_COLOR,
-                    no_wrap=True,
                 ),
-                ft.Text(
-                    summary.best_window,
-                    expand=True,
-                    size=12,
-                    color=TEXT_SECONDARY_COLOR,
-                    no_wrap=True,
-                ),
-            ],
-        )
-
-    def render_daily_summary() -> None:
-        rows = model.daily_summary_rows()
-        if not rows:
-            daily_summary.controls = [
-                ft.Text(
-                    "No daily activity recommendations are available.",
-                    size=13,
-                    color=TEXT_SECONDARY_COLOR,
-                )
-            ]
-            return
-
-        controls = [
-            ft.Row(
+            )
+            for rating in RATING_ORDER
+        ]
+        return self._card(
+            ft.Column(
                 spacing=6,
                 controls=[
-                    ft.Container(width=14),
-                    ft.Text("Location", width=96, size=11, color=TEXT_SECONDARY_COLOR),
-                    ft.Text("Score", width=58, size=11, color=TEXT_SECONDARY_COLOR),
-                    ft.Text("Best time", expand=True, size=11, color=TEXT_SECONDARY_COLOR),
+                    self._secondary(
+                        "Scores run 0-100 for the selected activity: higher is better."
+                    ),
+                    ft.Row(spacing=6, wrap=True, run_spacing=6, controls=chips),
                 ],
+            ),
+            padding=SPACING,
+        )
+
+    def _build_footer(self) -> Any:
+        return self.ft.Markdown(
+            f"Data from [MET Norway]({MET_NORWAY_SOURCE_URL}), "
+            f"processed by Weather Helper · "
+            f"[license]({MET_NORWAY_LICENSE_URL})",
+            selectable=True,
+        )
+
+    # --- Rendering --------------------------------------------------------
+
+    def render_dashboard(self) -> None:
+        """Redraw every part of the screen from the current model state."""
+        self._update_date_options()
+        self.render_headline()
+        self.render_pinned()
+        self.render_forecast_list()
+        self.freshness.value = self.model.freshness_label()
+        self.page.update()
+
+    def _selected_day_label(self) -> str:
+        if self.model.selected_date is None:
+            return "today"
+        return format_relative_date(self.model.selected_date, _device_today())
+
+    def _update_date_options(self) -> None:
+        ft = self.ft
+        today = _device_today()
+        available_dates = self.model.available_dates()
+        self.date_dropdown.options = [
+            ft.DropdownOption(
+                key=value.isoformat(), text=format_relative_date(value, today)
             )
-        ]
-        alternatives_started = False
-        for summary in rows:
-            if not summary.is_priority and not alternatives_started:
-                controls.append(ft.Divider(height=8))
-                controls.append(
-                    ft.Text(
-                        "Alternatives",
-                        size=12,
-                        weight=ft.FontWeight.BOLD,
-                        color=TEXT_SECONDARY_COLOR,
-                    )
-                )
-                alternatives_started = True
-            controls.append(summary_table_row(summary))
-        daily_summary.controls = controls
-
-    # --- Merged ranking + details list ---
-
-    def render_forecast_list() -> None:
-        ranked = model.ranked_locations()
-        selected = model.selected_location()
-        ranked_keys = {card.location_key for card in ranked}
-
-        tiles = []
-        if selected is not None and selected.location_key not in ranked_keys:
-            tiles.append(
-                location_tile(
-                    selected,
-                    leading=ft.Icon(ft.Icons.INFO_OUTLINE, color=TEXT_SECONDARY_COLOR),
-                    badge_text="N/A",
-                    is_selected=True,
-                )
-            )
-        for rank, card in enumerate(ranked, 1):
-            tiles.append(
-                location_tile(
-                    card,
-                    leading=rank_badge(rank, rating_color(card.rating)),
-                    badge_text=f"{card.normalized_score}",
-                    is_selected=card.location_key == model.selected_location_key,
-                )
-            )
-
-        forecast_list.controls = tiles or [
-            ft.Text(
-                "No location is available for this date.",
-                color=TEXT_SECONDARY_COLOR,
-            )
-        ]
-
-    def update_location_options() -> None:
-        options = model.location_options()
-        location_dropdown.options = [
-            ft.DropdownOption(key=key, text=name) for key, name in options
-        ]
-        location_dropdown.disabled = not options
-        location_dropdown.hint_text = "Choose a location"
-        location_dropdown.value = model.selected_location_key or None
-
-    def update_filters_summary() -> None:
-        selected = model.selected_location()
-        location_bit = selected.location_name if selected else "no location"
-        date_bit = model.selected_date.strftime("%a, %d %b") if model.selected_date else "no date"
-        profile_bit = ACTIVITY_PROFILE_LABELS.get(model.activity_profile, model.activity_profile)
-        filters_summary.value = f"{model.group_name} · {location_bit} · {date_bit} · {profile_bit}"
-
-    def render_dashboard() -> None:
-        update_location_options()
-        update_filters_summary()
-        render_daily_summary()
-        render_forecast_list()
-        page.update()
-
-    def update_date_options() -> None:
-        available_dates = model.available_dates()
-        date_dropdown.options = [
-            ft.DropdownOption(key=value.isoformat(), text=f"{value:%a, %d/%m}")
             for value in available_dates
         ]
-        date_dropdown.disabled = not available_dates
-        date_dropdown.value = model.selected_date.isoformat() if model.selected_date else None
+        self.date_dropdown.disabled = not available_dates
+        self.date_dropdown.value = (
+            self.model.selected_date.isoformat() if self.model.selected_date else None
+        )
 
-    def on_group_select(event: Any) -> None:
-        model.select_group(event.control.value)
-        update_date_options()
-        location_dropdown.options = []
-        location_dropdown.value = None
-        location_dropdown.disabled = True
-        forecast_list.controls = []
-        daily_summary.controls = []
-        status.value = f"Loading {model.group_name} forecasts…"
-        page.update()
-        page.run_task(refresh_forecast)
+    # --- Events -----------------------------------------------------------
 
-    def on_location_select(event: Any) -> None:
-        choose_location(event.control.value)
+    def _guard(self, action: Callable[[], None]) -> None:
+        """Run a handler, turning an unexpected failure into a visible message.
 
-    def on_profile_select(event: Any) -> None:
-        model.select_activity_profile(event.control.value)
-        render_dashboard()
+        An exception inside a Flet event handler is otherwise silent, which
+        would leave the screen looking as though the tap did nothing.
+        """
+        try:
+            action()
+        except Exception:
+            self.status.value = "That selection is no longer available. Refreshing…"
+            self.page.update()
+            self.page.run_task(self.refresh_forecast)
 
-    def on_date_select(event: Any) -> None:
-        model.select_date(date.fromisoformat(event.control.value))
-        render_dashboard()
+    def on_tile_toggle(self, location_key: str, expanded: bool) -> None:
+        def apply() -> None:
+            if expanded:
+                self._expanded_keys = {location_key}
+                self.model.select_location(location_key)
+            else:
+                self._expanded_keys.discard(location_key)
+            self.render_forecast_list()
+            self.page.update()
+            if expanded:
+                self.page.run_task(self._scroll_to_card, location_key)
 
-    async def refresh_forecast(event: Any = None) -> None:
-        refresh_button.disabled = True
-        group_dropdown.disabled = True
-        progress.visible = True
-        status.value = f"Loading {model.group_name} forecasts…"
-        page.update()
+        self._guard(apply)
+
+    async def _scroll_to_card(self, location_key: str) -> None:
+        """Bring a newly opened card into view inside the scrolling list."""
+        await self.list_view.scroll_to(
+            scroll_key=self.ft.ScrollKey(f"card_{location_key}"), duration=300
+        )
+
+    def on_group_select(self, event: Any) -> None:
+        def apply() -> None:
+            self.model.select_group(event.control.value)
+            self.forecast_list.controls = []
+            self._expanded_keys.clear()
+            self.page.update()
+            self.page.run_task(self.refresh_forecast)
+
+        self._guard(apply)
+
+    def on_profile_select(self, event: Any) -> None:
+        def apply() -> None:
+            self.model.select_activity_profile(event.control.value)
+            self.render_dashboard()
+
+        self._guard(apply)
+
+    def on_date_select(self, event: Any) -> None:
+        def apply() -> None:
+            self.model.select_date(date.fromisoformat(event.control.value))
+            self._expanded_keys.clear()
+            self.render_dashboard()
+
+        self._guard(apply)
+
+    def on_refresh_click(self, event: Any) -> None:
+        self.page.run_task(self.refresh_forecast)
+
+    def on_brightness_change(self, event: Any) -> None:
+        """Follow the device between light and dark mode."""
+        self.palette = Palette(dark=self._prefers_dark())
+        self.build(initial_load=False)
+        self.render_dashboard()
+
+    def on_lifecycle_change(self, event: Any) -> None:
+        """Refresh stale data when the app comes back to the foreground."""
+        if event.data == self.ft.AppLifecycleState.RESUME and self.model.is_stale():
+            self.page.run_task(self.refresh_forecast)
+
+    # --- Loading ----------------------------------------------------------
+
+    async def refresh_forecast(self, event: Any = None) -> None:
+        """Reload the selected region, ignoring results from a superseded load."""
+        self._load_generation += 1
+        generation = self._load_generation
+        self._in_flight_generation = generation
+        self._set_loading(True)
+        self.status.value = f"Loading {self.model.group_name}…"
+        self.page.update()
+
+        async def show_progress(current: int, total: int) -> None:
+            # A progress update can be delivered after its load has finished;
+            # it must never overwrite the final result with a stale count.
+            if generation == self._in_flight_generation:
+                self.status.value = (
+                    f"Loading {self.model.group_name}… {current}/{total}"
+                )
+                self.page.update()
+
+        def report_progress(current: int, total: int, location: Any) -> None:
+            # Called from a worker thread; run_task hands the update back to
+            # the page's event loop so the counter is actually painted.
+            if generation == self._in_flight_generation:
+                self.page.run_task(show_progress, current, total)
 
         try:
-            batch = await asyncio.to_thread(model.load)
-            update_date_options()
-            if batch.loaded_count:
-                status.value = f"Loaded {batch.loaded_count} locations"
-                if batch.errors:
-                    status.value += f" · {len(batch.errors)} unavailable"
-            else:
-                status.value = (
-                    "No forecasts could be loaded. Check your connection and try again."
-                )
-            render_dashboard()
+            self.model.invalidate_rankings()
+            batch = await asyncio.to_thread(self.model.load, report_progress)
         except Exception:
-            status.value = "Unable to load forecasts right now. Please try again."
-            forecast_list.controls = []
-            daily_summary.controls = []
-        finally:
-            progress.visible = False
-            refresh_button.disabled = False
-            group_dropdown.disabled = False
-            page.update()
+            if generation == self._load_generation:
+                self._in_flight_generation = 0
+                self.status.value = (
+                    "Could not load forecasts. Check your connection and try again."
+                )
+                self._set_loading(False)
+                self.page.update()
+            return
 
-    group_dropdown.on_select = on_group_select
-    location_dropdown.on_select = on_location_select
-    profile_dropdown.on_select = on_profile_select
-    date_dropdown.on_select = on_date_select
-    refresh_button.on_click = refresh_forecast
+        if generation != self._load_generation:
+            return  # A newer load is already in flight; its result wins.
 
-    # --- App bar ---
-    page.appbar = ft.AppBar(
-        title=ft.Text("Weather Helper", weight=ft.FontWeight.BOLD),
-        center_title=False,
-        bgcolor=PRIMARY_COLOR,
-        color=ft.Colors.WHITE,
-        actions=[refresh_button],
-    )
+        self._in_flight_generation = 0
+        self.status.value = _load_summary(batch, self.model.group_name)
+        self._set_loading(False)
+        self.render_dashboard()
 
-    # --- Status row (always visible loading feedback) ---
-    status_row = ft.Column(
-        spacing=4,
-        controls=[status, progress],
-    )
+    def _set_loading(self, loading: bool) -> None:
+        self.progress.visible = loading
+        self.refresh_button.disabled = loading
+        self.group_dropdown.disabled = loading
 
-    # --- Collapsible filters ---
-    filters_summary = ft.Text(
-        f"{model.group_name} · Loading…",
-        size=12,
-        color=TEXT_SECONDARY_COLOR,
-        no_wrap=True,
-    )
-    filters_tile = ft.ExpansionTile(
-        title=ft.Text("Filters", size=15, weight=ft.FontWeight.BOLD, color=TEXT_COLOR),
-        subtitle=filters_summary,
-        leading=ft.Icon(ft.Icons.TUNE, color=PRIMARY_COLOR),
-        tile_padding=ft.Padding(left=14, top=4, right=14, bottom=4),
-        collapsed_bgcolor=ft.Colors.TRANSPARENT,
-        bgcolor=ft.Colors.TRANSPARENT,
-        controls=[
-            ft.Container(
-                padding=ft.Padding(left=14, top=0, right=14, bottom=14),
-                content=ft.ResponsiveRow(
-                    columns=12,
-                    spacing=8,
-                    run_spacing=8,
-                    controls=[
-                        ft.Container(col={"xs": 12, "sm": 6}, content=group_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=location_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=date_dropdown),
-                        ft.Container(col={"xs": 12, "sm": 6}, content=profile_dropdown),
-                    ],
-                ),
-            ),
-        ],
-    )
-    filters_card = ft.Container(
-        bgcolor=SURFACE_COLOR,
-        border=ft.Border.all(1, BORDER_COLOR),
-        border_radius=14,
-        clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
-        content=filters_tile,
-    )
+    # --- Assembly ---------------------------------------------------------
 
-    daily_summary_panel = elevated_card(
-        ft.Column(
-            spacing=6,
+    def build(self, initial_load: bool = True) -> None:
+        ft = self.ft
+        self._apply_theme()
+        self.page.title = "Weather Helper"
+        self.page.padding = 0
+        self._build_header()
+
+        self.list_view = ft.ListView(
+            expand=True,
+            spacing=SPACING,
+            padding=SPACING,
             controls=[
-                ft.Row(
-                    spacing=6,
-                    controls=[
-                        ft.Icon(ft.Icons.WB_SUNNY_OUTLINED, size=18, color=PRIMARY_COLOR),
-                        ft.Text("Today's best windows", size=16, weight=ft.FontWeight.BOLD, color=TEXT_COLOR),
-                    ],
-                ),
-                ft.Text(
-                    "Oviedo and Gijón are shown first for hiking and beach plans.",
-                    size=12,
-                    color=TEXT_SECONDARY_COLOR,
-                ),
-                daily_summary,
+                self._build_status(),
+                self._build_filters(),
+                self._build_headline(),
+                self._build_pinned(),
+                self._build_ranking(),
+                self._build_legend(),
+                self._build_footer(),
             ],
         )
-    )
+        self.page.controls = []
+        self.page.add(ft.SafeArea(expand=True, content=self.list_view))
+        self.page.on_platform_brightness_change = self.on_brightness_change
+        self.page.on_app_lifecycle_state_change = self.on_lifecycle_change
 
-    ranking_header = ft.Row(
-        spacing=6,
-        controls=[
-            ft.Icon(ft.Icons.LEADERBOARD, size=18, color=PRIMARY_COLOR),
-            ft.Text("Ranked locations", size=16, weight=ft.FontWeight.BOLD, color=TEXT_COLOR),
-        ],
-    )
-    ranking_hint = ft.Text(
-        "Tap a location for its full hourly breakdown.",
-        size=12,
-        color=TEXT_SECONDARY_COLOR,
-    )
+        if initial_load:
+            self.page.run_task(self.refresh_forecast)
 
-    page.add(
-        ft.SafeArea(
-            expand=True,
-            content=ft.ListView(
-                expand=True,
-                spacing=12,
-                padding=12,
-                controls=[
-                    status_row,
-                    filters_card,
-                    daily_summary_panel,
-                    ranking_header,
-                    ranking_hint,
-                    forecast_list,
-                    ft.Markdown(
-                        f"Data from [MET Norway]({MET_NORWAY_SOURCE_URL}), "
-                        f"processed by Weather Helper · "
-                        f"[license]({MET_NORWAY_LICENSE_URL})",
-                        selectable=True,
-                    ),
-                ],
-            ),
-        )
-    )
-    page.run_task(refresh_forecast)
+
+def _device_today() -> date:
+    """Return today's date on this device.
+
+    "Today" and "Tomorrow" describe where the person reading the screen is,
+    not the application's fallback time zone, which would mislabel a day in a
+    region on the other side of the world.
+    """
+    return datetime.now().date()
+
+
+def _rating_for_rank_marker(rank: int) -> str:
+    """Return a rating whose tint suits a rank position."""
+    if rank == 1:
+        return "Excellent"
+    if rank <= 3:
+        return "Very Good"
+    return "Good"
+
+
+def _load_summary(batch: Any, group_name: str) -> str:
+    """Describe the outcome of a load, naming anything that failed."""
+    if not batch.loaded_count:
+        return f"No {group_name} forecasts could be loaded. Check your connection."
+    summary = f"{batch.loaded_count} locations loaded"
+    if batch.failure_summary:
+        summary += f" · unavailable: {batch.failure_summary}"
+    return summary
 
 
 def main() -> None:

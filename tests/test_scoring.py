@@ -5,6 +5,9 @@ import pytest
 from src.core.scoring import (
     ACTIVITY_BEACH_DAY,
     ACTIVITY_HIKING,
+    MAX_BEACH_SCORE,
+    MAX_HIKING_SCORE,
+    NORMALIZATION_CONFIG_BY_PROFILE,
     beach_day_score,
     beach_precip_probability_score,
     get_activity_profile_key,
@@ -176,3 +179,22 @@ def test_beach_rating_and_normalization_use_beach_thresholds():
     assert get_rating_info(22, ACTIVITY_BEACH_DAY) == "Excellent"
     assert normalize_score(22, ACTIVITY_BEACH_DAY) == 90
     assert normalize_score(26, ACTIVITY_BEACH_DAY) == 100
+
+
+def test_perfect_conditions_reach_one_hundred_for_every_profile():
+    """A 100 must mean the same thing whichever activity is selected."""
+    assert normalize_score(MAX_HIKING_SCORE, ACTIVITY_HIKING) == 100
+    assert normalize_score(MAX_BEACH_SCORE, ACTIVITY_BEACH_DAY) == 100
+
+
+def test_the_normalisation_ceiling_matches_what_the_ranges_can_award():
+    for profile, maximum in (
+        (ACTIVITY_HIKING, MAX_HIKING_SCORE),
+        (ACTIVITY_BEACH_DAY, MAX_BEACH_SCORE),
+    ):
+        assert NORMALIZATION_CONFIG_BY_PROFILE[profile][4] == maximum
+
+
+def test_the_top_rating_is_reachable_for_every_profile():
+    assert get_rating_info(MAX_HIKING_SCORE, ACTIVITY_HIKING) == "Excellent"
+    assert get_rating_info(MAX_BEACH_SCORE, ACTIVITY_BEACH_DAY) == "Excellent"

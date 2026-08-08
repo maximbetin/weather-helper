@@ -25,9 +25,35 @@ The data is available under MET Norway's
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
 - **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or beach plans focused on swimming and sunbathing.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
-- **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
+- **Local Time Everywhere**: Every forecast is interpreted in the time zone of the place it describes, so Tokyo's afternoon is Tokyo's afternoon.
 - **Windows and Android Interfaces**: Native-feeling Tkinter desktop and responsive Flet mobile layouts.
-- **Honest Missing-Data Display**: Missing precipitation is shown as `N/A`, not as a dry `0.0 mm` forecast.
+- **Honest Missing-Data Display**: A missing reading is shown as a dash and never forms the basis of a recommendation.
+
+## How the scores work
+
+Every score is on a 0-100 scale for the **selected activity**, where 100 is the
+best weather that activity can ask for. Two different scores appear, and each
+is labelled on screen because they answer different questions:
+
+| Score | What it measures | Where it appears |
+| --- | --- | --- |
+| **Window score** | How good the recommended hours are | Beside the recommended time window |
+| **Day score** | How good and how settled the whole usable day is | Beside each entry in the ranked list |
+
+The ranked list is ordered by the day score, which penalises weather that
+swings around, on the basis that a steady good day is a safer bet than one
+bright hour in an unsettled one. A location can therefore have an excellent
+window inside a poor day, and the screen says exactly that.
+
+Only hours that you can actually use are considered: daylight hours between
+08:00 and 20:00 local time, and for today, only those that have not passed.
+The ranking, the recommended window and the hourly breakdown inside each card
+all read from that same set of hours, so they cannot disagree.
+
+Beyond roughly two days, MET Norway publishes six-hourly rather than hourly
+data. Those entries are labelled as blocks, their rain totals are scored as a
+per-hour rate rather than as one hour's downpour, and windows are clamped to
+daylight so a block starting at 04:00 is never recommended as a 04:00 start.
 
 ## Installation and Usage
 

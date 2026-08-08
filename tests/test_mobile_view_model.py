@@ -14,8 +14,11 @@ class StubForecastService:
         self.batch = batch
         self.requested_locations = None
 
-    def load_locations(self, locations):
+    def load_locations(self, locations, on_progress=None):
         self.requested_locations = locations
+        if on_progress:
+            for index, location in enumerate(locations.values(), 1):
+                on_progress(index, len(locations), location)
         return self.batch
 
 
@@ -68,11 +71,13 @@ def test_load_exposes_dates_rankings_and_hourly_details():
     assert "Temp: 24.0°C" in ranked[0].best_window_details
     assert "Rain Risk" not in ranked[0].best_window_details
     assert hourly[0].time == "12:00"
-    assert hourly[0].temperature == "24.0°C"
-    assert hourly[0].wind == "2.0 m/s"
-    assert hourly[0].clouds == "20%"
-    assert hourly[0].precipitation == "0.0 mm"
-    assert hourly[0].humidity == "60%"
+    assert hourly[0].temperature == 24
+    assert hourly[0].wind == 2
+    assert hourly[0].clouds == 20
+    assert hourly[0].precipitation == 0
+    assert hourly[0].humidity == 60
+    assert hourly[0].in_best_window
+    assert hourly[0].is_hourly
     assert hourly[0].normalized_score == 90
     assert hourly[0].rating == "Excellent"
     assert service.requested_locations == model.locations
@@ -121,7 +126,7 @@ def test_loaded_location_without_qualifying_block_is_selectable():
     assert selected is not None
     assert not selected.is_ranked
     assert selected.normalized_score is None
-    assert "No qualifying recommended window" in selected.best_window_details
+    assert "good enough to recommend" in selected.best_window_details
     assert model.hourly_forecast("gijon")[0].time == "12:00"
 
 

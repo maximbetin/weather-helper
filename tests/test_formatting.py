@@ -1,12 +1,13 @@
 """Tests for formatting utilities."""
 
-import tkinter as tk
 from datetime import date, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.gui.formatting import (
+tk = pytest.importorskip("tkinter")
+
+from src.gui.formatting import (  # noqa: E402
     ToolTip,
     add_tooltip,
     format_date,
@@ -17,7 +18,7 @@ from src.gui.formatting import (
     format_time,
     format_wind_speed,
 )
-from src.gui.themes import get_rating_color
+from src.gui.themes import get_rating_color  # noqa: E402
 
 
 def test_format_temperature():
