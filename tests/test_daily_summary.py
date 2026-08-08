@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from src.core.locations import ASTURIAS_LOCATIONS
 from src.mobile.daily_summary import build_daily_summary, format_daily_summary
@@ -13,6 +13,7 @@ def _ranked_result(location_key, location_name, raw_score, start_hour):
         "optimal_block": {
             "start": start,
             "end": start,
+            "end_time": start + timedelta(hours=1),
         },
     }
 
