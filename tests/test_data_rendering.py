@@ -17,6 +17,9 @@ def test_populate_location_entry(mock_app):
         "optimal_block": {
             "start": datetime(2023, 1, 1, 10, 0),
             "end": datetime(2023, 1, 1, 14, 0),
+            # Blocks carry the instant they stop covering, which is how a
+            # six-hourly entry reports a window longer than one hour.
+            "end_time": datetime(2023, 1, 1, 15, 0),
             "temp": 22.5,
             "wind": 5.0,
             "precip": 0.0
