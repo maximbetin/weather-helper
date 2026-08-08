@@ -160,19 +160,23 @@ def _valid_minimum_duration_block(
     return block
 
 
-def _create_hourly_weather(entry: dict[str, Any]) -> HourlyWeather:
+def _create_hourly_weather(
+    entry: dict[str, Any], timezone_name: Optional[str] = None
+) -> HourlyWeather:
     """Create an HourlyWeather object from a forecast timeseries entry."""
-    weather_values = _extract_hourly_weather_values(entry)
+    weather_values = _extract_hourly_weather_values(entry, timezone_name)
     return _build_hourly_weather(weather_values)
 
 
-def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
+def _extract_hourly_weather_values(
+    entry: dict[str, Any], timezone_name: Optional[str] = None
+) -> dict[str, Any]:
     """Extract raw weather values from a timeseries entry."""
     instant_details = entry["data"]["instant"]["details"]
     precipitation_amount, precipitation_probability = _get_precipitation_values(entry)
-    
+
     return {
-        "time": _parse_local_forecast_time(entry["time"]),
+        "time": _parse_local_forecast_time(entry["time"], timezone_name),
         "temp": instant_details.get("air_temperature"),
         "wind": instant_details.get("wind_speed"),
         "cloud_coverage": instant_details.get("cloud_area_fraction"),
@@ -185,10 +189,12 @@ def _extract_hourly_weather_values(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _parse_local_forecast_time(timestamp: str) -> datetime:
-    """Parse an API timestamp into the application timezone."""
+def _parse_local_forecast_time(
+    timestamp: str, timezone_name: Optional[str] = None
+) -> datetime:
+    """Parse an API timestamp into a location's local time."""
     time_utc = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    return time_utc.astimezone(get_timezone())
+    return time_utc.astimezone(get_timezone(timezone_name))
 
 
 def _get_precipitation_values(
@@ -233,15 +239,16 @@ def _build_hourly_weather(values: dict[str, Any]) -> HourlyWeather:
 
 
 def _process_timeseries(
-    forecast_timeseries: list[dict[str, Any]]
+    forecast_timeseries: list[dict[str, Any]],
+    timezone_name: Optional[str] = None,
 ) -> dict[date, list[HourlyWeather]]:
-    """Group a raw forecast timeseries by date."""
+    """Group a raw forecast timeseries by the location's local date."""
     daily_forecasts: dict[date, list[HourlyWeather]] = defaultdict(list)
-    today = get_current_date()
+    today = get_current_date(timezone_name)
     end_date = today + timedelta(days=FORECAST_DAYS)
 
     for entry in forecast_timeseries:
-        _append_forecast_entry(entry, daily_forecasts, today, end_date)
+        _append_forecast_entry(entry, daily_forecasts, today, end_date, timezone_name)
 
     return dict(daily_forecasts)
 
@@ -251,26 +258,42 @@ def _append_forecast_entry(
     daily_forecasts: dict[date, list[HourlyWeather]],
     today: date,
     end_date: date,
+    timezone_name: Optional[str] = None,
 ) -> None:
     """Append a timeseries entry to the corresponding daily forecast list."""
-    forecast_time = _parse_local_forecast_time(entry["time"])
+    forecast_time = _parse_local_forecast_time(entry["time"], timezone_name)
     forecast_date = forecast_time.date()
 
     if today <= forecast_date <= end_date:
-        daily_forecasts[forecast_date].append(_create_hourly_weather(entry))
+        daily_forecasts[forecast_date].append(
+            _create_hourly_weather(entry, timezone_name)
+        )
 
 
-def process_forecast(forecast_data: dict, location_name: str) -> Optional[dict]:
-    """Process weather forecast data into daily summaries and hourly blocks."""
+def process_forecast(
+    forecast_data: dict,
+    location_name: str,
+    timezone_name: Optional[str] = None,
+) -> Optional[dict]:
+    """Process weather forecast data into daily summaries and hourly blocks.
+
+    All times are converted to the location's own time zone, so the daylight
+    window and "already passed" checks describe the place being forecast rather
+    than wherever the app happens to be configured.
+    """
     weather_data = forecast_data.get("weather", forecast_data)
-    
+
     forecast_timeseries = _get_forecast_timeseries(weather_data)
     if forecast_timeseries is None:
         return None
-        
-    daily_forecasts = _process_timeseries(forecast_timeseries)
+
+    daily_forecasts = _process_timeseries(forecast_timeseries, timezone_name)
     day_scores_reports = _build_daily_reports(daily_forecasts, location_name)
-    return {"daily_forecasts": daily_forecasts, "day_scores": day_scores_reports}
+    return {
+        "daily_forecasts": daily_forecasts,
+        "day_scores": day_scores_reports,
+        "timezone": timezone_name,
+    }
 
 
 def _get_forecast_timeseries(forecast_data: dict) -> Optional[list[dict[str, Any]]]:
@@ -547,15 +570,21 @@ def get_top_locations_for_date(
 ) -> list[dict]:
     """Return the top N locations for a given date."""
     results = []
-    now_local = datetime.now(timezone.utc).astimezone(get_timezone())
     for loc_key, processed in all_location_processed.items():
         location_result = _rank_location_for_date(
-            loc_key, processed, d, now_local, activity_profile
+            loc_key, processed, d, _location_now(processed), activity_profile
         )
         if location_result:
             results.append(location_result)
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:top_n]
+
+
+def _location_now(processed: dict) -> datetime:
+    """Return the current time in the time zone of a processed forecast."""
+    return datetime.now(timezone.utc).astimezone(
+        get_timezone(processed.get("timezone"))
+    )
 
 
 def _rank_location_for_date(

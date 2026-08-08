@@ -10,7 +10,9 @@ from src.core.weather_api import fetch_weather_data
 
 ProcessedForecast = dict[str, Any]
 FetchForecast = Callable[[Location], Optional[dict[str, Any]]]
-ProcessForecast = Callable[[dict[str, Any], str], Optional[ProcessedForecast]]
+ProcessForecast = Callable[
+    [dict[str, Any], str, Optional[str]], Optional[ProcessedForecast]
+]
 ProgressCallback = Callable[[int, int, Location], None]
 
 logger = logging.getLogger(__name__)
@@ -66,7 +68,9 @@ class ForecastService:
                     error=DOWNLOAD_ERROR,
                 )
 
-            processed = self._process_forecast(raw_forecast, location.name)
+            processed = self._process_forecast(
+                raw_forecast, location.name, location.timezone
+            )
             if processed is None:
                 return LocationForecastResult(
                     location=location,

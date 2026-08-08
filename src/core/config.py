@@ -2,11 +2,14 @@
 Configuration constants and type definitions for the Weather Helper application.
 """
 
+import logging
 from datetime import date, datetime
 from functools import lru_cache
-from typing import Union
+from typing import Optional, Union
 
 import pytz
+
+logger = logging.getLogger(__name__)
 
 # Type definitions
 NumericType = Union[int, float]
@@ -20,7 +23,7 @@ API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/complete"
 API_URL_COMPACT = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 
 
-# Time zone
+# Fallback time zone for locations that do not declare their own.
 TIMEZONE = "Europe/Madrid"
 
 # Weather display settings
@@ -31,19 +34,32 @@ DAYLIGHT_START_HOUR = 8
 
 # Utility functions
 @lru_cache(maxsize=None)
-def get_timezone():
-    """Get the application timezone object."""
-    return pytz.timezone(TIMEZONE)
+def get_timezone(timezone_name: Optional[str] = None):
+    """Get a timezone object, falling back to the application default.
+
+    Every forecast is interpreted in the time zone of the place it describes,
+    so callers pass the location's own zone. An unknown zone name falls back to
+    the application default rather than failing a whole forecast load.
+    """
+    if not timezone_name:
+        return pytz.timezone(TIMEZONE)
+    try:
+        return pytz.timezone(timezone_name)
+    except pytz.UnknownTimeZoneError:
+        logger.warning(
+            "Unknown time zone %r; falling back to %s", timezone_name, TIMEZONE
+        )
+        return pytz.timezone(TIMEZONE)
 
 
-def get_current_datetime() -> datetime:
-    """Get the current datetime in the application timezone."""
-    return datetime.now(get_timezone())
+def get_current_datetime(timezone_name: Optional[str] = None) -> datetime:
+    """Get the current datetime in a location's time zone."""
+    return datetime.now(get_timezone(timezone_name))
 
 
-def get_current_date() -> date:
-    """Get the current date in the application timezone."""
-    return get_current_datetime().date()
+def get_current_date(timezone_name: Optional[str] = None) -> date:
+    """Get the current date in a location's time zone."""
+    return get_current_datetime(timezone_name).date()
 
 
 def safe_average(values: list[NumericType]) -> float | None:

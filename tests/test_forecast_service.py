@@ -12,7 +12,7 @@ def test_load_location_fetches_and_processes_forecast():
     processed = {"daily_forecasts": {}, "day_scores": {}}
     service = ForecastService(
         fetch_forecast=lambda requested: raw,
-        process=lambda payload, name: processed,
+        process=lambda payload, name, timezone_name=None: processed,
     )
 
     result = service.load_location(location)
@@ -31,7 +31,7 @@ def test_load_locations_keeps_partial_success_and_reports_progress():
     progress = []
     service = ForecastService(
         fetch_forecast=lambda location: {} if location.key == "good" else None,
-        process=lambda payload, name: {"name": name},
+        process=lambda payload, name, timezone_name=None: {"name": name},
     )
 
     batch = service.load_locations(
