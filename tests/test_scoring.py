@@ -88,15 +88,15 @@ def test_cloud_score(clouds, expected_score):
 @pytest.mark.parametrize(
     "precip, expected_score",
     [
-        (0, 5),  # No precipitation - best
+        (0, 5),  # Dry
         (0.05, 4),  # Trace amounts - barely noticeable
-        (0.3, 2),  # Very light - minimal impact
-        (0.7, 0),  # Light drizzle - manageable
+        (0.3, 3),  # Orbayu - you would still go
+        (0.7, 1),  # Light drizzle - a jacket handles it
         (1.5, -2),  # Light rain - needs preparation
-        (3.5, -4),  # Moderate rain - significant impact
-        (7.5, -6),  # Heavy rain - major impact
-        (15, -8),  # Very heavy rain - severe impact
-        (25, -12),  # Extreme precipitation - dangerous
+        (3.5, -5),  # Moderate rain - you will get wet
+        (7.5, -9),  # Heavy rain - major impact
+        (15, -12),  # Very heavy rain - severe impact
+        (25, -15),  # Extreme precipitation - dangerous
         (None, 0),  # No value
     ],
 )
@@ -135,12 +135,14 @@ def test_beach_day_score_penalizes_rain_risk_and_symbols():
         relative_humidity=60,
         precipitation_probability=70,
         symbol_code="rainshowers_day",
-    ) == 15  # one risk deduction (-10), not probability (-10) plus symbol (-9)
+    ) == 19  # one risk deduction, and the symbol no longer re-prices intensity
 
 
 def test_precipitation_probability_is_profile_aware():
-    assert precip_probability_score(45) == -3
-    assert beach_precip_probability_score(45) == -7
+    # A 45% chance is an ordinary day for a walk here, and a real risk to a
+    # beach plan, so the same number costs the two profiles differently.
+    assert precip_probability_score(45) == -1
+    assert beach_precip_probability_score(45) == -4
 
 
 def test_symbol_risk_is_profile_aware():
@@ -177,8 +179,9 @@ def test_activity_score_applies_risk_to_hiking(create_hour):
         symbol_code="rain",
     )
 
-    # 60% chance and a rain symbol describe one risk, so one deduction applies.
-    assert get_activity_score(hour, ACTIVITY_HIKING) == 7
+    # 60% chance and a rain symbol describe one risk, so one deduction applies,
+    # and on this coast that deduction is a nudge rather than a verdict.
+    assert get_activity_score(hour, ACTIVITY_HIKING) == 10
 
 
 def test_beach_rating_and_normalization_use_beach_thresholds():

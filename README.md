@@ -57,9 +57,17 @@ Weather elements are weighted by how much they actually affect the chosen
 activity:
 
 - **Rain is counted once.** The measured rainfall, the chance of rain and the
-  weather symbol describe a single shower between them, so the amount is taken
-  as the evidence and only the more severe of the other two is added. The
-  total is floored, because past a point an hour is already unusable.
+  weather symbol describe a single shower between them, so the rainfall is
+  taken as the evidence and the other two contribute only the more severe of
+  the pair. A symbol that is not about rain — fog, for instance — is a
+  separate hazard and still counts on its own.
+- **Rain is normal here, and scored that way.** This is written for the
+  Atlantic coast, where a decent chance of rain is the baseline rather than a
+  warning. A 45% chance on a dry hour barely registers, and orbayu does not
+  call off a walk. What is measured to actually fall still counts fully, and
+  sustained rain still reads as Poor.
+- **The two activities disagree about rain, deliberately.** The same drizzly
+  hour can be a perfectly good walk and a written-off beach day.
 - **Humidity barely matters on a beach day.** Anything a coastal summer
   normally produces is treated as normal rather than as a penalty.
 - **Cloud does not break up a good spell.** One dull hour inside a long sunny

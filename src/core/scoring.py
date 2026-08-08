@@ -124,16 +124,20 @@ CLOUD_RANGES: List[RangeType] = [
     (None, -3),     # Overcast - gloomy
 ]
 
+# Rainfall is the measured evidence and now carries the weight that used to be
+# split with the symbol, so the wet end is steeper than it was. The light end
+# is deliberately forgiving: orbayu does not call off a walk, and a scale that
+# treats it as though it does is no use on this coast.
 PRECIP_AMOUNT_RANGES: List[RangeType] = [
-    ((0, 0), 5),         # No precipitation - best
+    ((0, 0), 5),         # Dry
     ((0, 0.1), 4),       # Trace amounts - barely noticeable
-    ((0.1, 0.5), 2),     # Very light - minimal impact
-    ((0.5, 1.0), 0),     # Light drizzle - manageable
-    ((1.0, 2.5), -2),    # Light rain - needs preparation
-    ((2.5, 5.0), -4),    # Moderate rain - significant impact
-    ((5.0, 10.0), -6),   # Heavy rain - major impact
-    ((10.0, 20.0), -8),  # Very heavy rain - severe impact
-    (None, -12),         # Extreme precipitation - dangerous
+    ((0.1, 0.4), 3),     # Orbayu: you would still go
+    ((0.4, 1.0), 1),     # Light drizzle - a jacket handles it
+    ((1.0, 2.0), -2),    # Light rain - needs preparation
+    ((2.0, 4.0), -5),    # Moderate rain - you will get wet
+    ((4.0, 8.0), -9),    # Heavy rain - major impact
+    ((8.0, 15.0), -12),  # Very heavy rain - severe impact
+    (None, -15),         # Extreme precipitation - dangerous
 ]
 
 HUMIDITY_RANGES: List[RangeType] = [
@@ -205,32 +209,40 @@ BEACH_HUMIDITY_RANGES: List[RangeType] = [
     (None, 0),       # Extremes: no credit, no penalty
 ]
 
+# On the Atlantic coast a decent chance of rain is the baseline condition, not
+# a warning. Charging a third of the scale for a 75% chance meant an ordinary
+# Asturian day could never score well, which makes the app useless exactly
+# where it is used. The chance of rain now shades a judgement rather than
+# dominating it; the rain that actually falls is measured separately.
 PRECIP_PROBABILITY_RANGES: List[RangeType] = [
-    ((0, 15), 0),     # Low enough not to change plans
-    ((15, 35), -1),   # Some risk
-    ((35, 55), -3),   # Meaningful risk
-    ((55, 75), -5),   # Likely enough to plan around
-    (None, -7),       # High rain risk
+    ((0, 40), 0),     # A normal day here: nothing to plan around
+    ((40, 60), -1),   # Worth taking a jacket
+    ((60, 80), -2),   # Likely enough to shape the timing
+    (None, -4),       # Expect to get wet at some point
 ]
 
 BEACH_PRECIP_PROBABILITY_RANGES: List[RangeType] = [
-    ((0, 10), 0),     # Low enough not to change plans
-    ((10, 25), -2),   # Small but relevant for beach plans
-    ((25, 40), -4),   # Showers become a real beach risk
-    ((40, 60), -7),   # Too uncertain for a strong recommendation
-    (None, -10),      # High risk of a wet beach window
+    ((0, 20), 0),     # Low enough not to change beach plans
+    ((20, 40), -2),   # Small but relevant when you want sun
+    ((40, 60), -4),   # Showers become a real beach risk
+    ((60, 80), -6),   # Too uncertain for a strong recommendation
+    (None, -8),       # High risk of a wet beach window
 ]
 
 
 
+# What the symbol adds beyond the numbers. Rainfall is already measured in
+# millimetres, so a rain symbol mostly repeats what the amount says and only
+# needs to nudge. Thunder, snow, sleet and fog are different in kind -- they
+# are hazards the rainfall figure cannot express -- so those keep their weight.
 SYMBOL_RISK_TERMS = (
     ("thunder", -12, -16, -20),
     ("snow", -8, -14, -14),
     ("sleet", -8, -14, -14),
-    ("heavyrain", -7, -12, -8),
-    ("rain", -5, -9, -4),
-    ("showers", -4, -8, -2),
     ("fog", -3, -5, -6),
+    ("heavyrain", -3, -6, -8),
+    ("rain", -2, -4, -4),
+    ("showers", -2, -4, -2),
 )
 
 # Which of those symbols are describing the same event as the precipitation

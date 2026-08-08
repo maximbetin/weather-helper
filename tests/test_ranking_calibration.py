@@ -147,24 +147,46 @@ def test_a_wet_beach_day_offers_no_window_at_all():
     assert find_optimal_weather_block(wet, activity_profile=ACTIVITY_BEACH_DAY) is None
 
 
-def test_a_marginal_hiking_window_is_surfaced_but_rated_poor():
-    """Walking in drizzle is a choice; the rating has to make it an informed one.
-
-    Counting rain once rather than three times means marginal conditions now
-    produce a window where they previously produced nothing. That is useful
-    when every option is wet and you still have to pick one, but only as long
-    as the rating is honest about what is on offer.
-    """
+def test_orbayu_does_not_call_off_a_walk():
+    """Fine drizzle is ordinary weather here, not a reason to stay in."""
     from src.core.evaluation import find_optimal_weather_block
     from src.core.scoring import ACTIVITY_HIKING, get_rating_info
 
-    drizzly = [
-        _hour(h, 22, 50, precip=3.0, probability=80, symbol="rain")
+    orbayu = [
+        _hour(h, 18, 85, precip=0.15, probability=60, symbol="lightrain")
         for h in range(10, 18)
     ]
 
-    block = find_optimal_weather_block(drizzly, activity_profile=ACTIVITY_HIKING)
+    block = find_optimal_weather_block(orbayu, activity_profile=ACTIVITY_HIKING)
 
     assert block is not None
-    assert get_rating_info(block["avg_score"], ACTIVITY_HIKING) == "Poor"
-    assert normalize_score(block["avg_score"], ACTIVITY_HIKING) < 50
+    assert get_rating_info(block["avg_score"], ACTIVITY_HIKING) != "Poor"
+
+
+def test_real_rain_still_reads_as_a_bad_walk():
+    """Tolerating drizzle must not make a soaking look acceptable."""
+    from src.core.evaluation import find_optimal_weather_block
+    from src.core.scoring import ACTIVITY_HIKING, get_rating_info
+
+    soaking = [
+        _hour(h, 17, 100, precip=6.0, probability=95, symbol="heavyrain")
+        for h in range(10, 18)
+    ]
+
+    block = find_optimal_weather_block(soaking, activity_profile=ACTIVITY_HIKING)
+
+    assert block is None or get_rating_info(
+        block["avg_score"], ACTIVITY_HIKING
+    ) == "Poor"
+
+
+def test_a_likely_shower_is_not_treated_as_a_certainty():
+    """A 45% chance on a dry hour is a normal Atlantic day, not a washout."""
+    from src.core.scoring import ACTIVITY_HIKING, get_activity_score, get_rating_info
+
+    dry_but_showery = _hour(
+        12, 19, 70, precip=0.0, probability=45, symbol="lightrainshowers_day"
+    )
+    score = get_activity_score(dry_but_showery, ACTIVITY_HIKING)
+
+    assert get_rating_info(score, ACTIVITY_HIKING) in ("Good", "Very Good")
