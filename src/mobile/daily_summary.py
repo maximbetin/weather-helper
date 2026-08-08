@@ -1,7 +1,8 @@
 """Daily activity summaries shared by the mobile screen and notifications."""
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
+from types import MappingProxyType
 from typing import Mapping, Optional, Sequence
 
 from src.core.evaluation import get_top_locations_for_date
@@ -38,27 +39,46 @@ class DailySummaryRow:
         return f"{self.normalized_score}/100"
 
 
+def resolve_priority_keys(
+    locations: Mapping[str, Location],
+    forecasts: Mapping[str, dict] = MappingProxyType({}),
+    priority_location_keys: Sequence[str] = PRIORITY_LOCATION_KEYS,
+) -> list[str]:
+    """Return the priority locations that exist in the current region.
+
+    Regions outside Asturias contain neither Oviedo nor Gijon, so nothing is
+    pinned there and the screen must not claim otherwise.
+    """
+    return [
+        key
+        for key in priority_location_keys
+        if key in locations and (not forecasts or key in forecasts)
+    ]
+
+
 def build_daily_summary(
     forecasts: Mapping[str, dict],
     forecast_date: date,
     locations: Mapping[str, Location],
     *,
+    activity_profiles: Sequence[str] = SUMMARY_ACTIVITY_PROFILES,
     priority_location_keys: Sequence[str] = PRIORITY_LOCATION_KEYS,
     alternative_limit: int = DEFAULT_ALTERNATIVE_LIMIT,
 ) -> list[DailySummaryRow]:
     """Build priority rows first, followed by the strongest alternatives.
 
-    Oviedo and Gijon remain visible even when their conditions do not qualify
-    for the normal location ranking. Alternatives are limited per activity so
-    the result remains useful in a notification.
+    Pinned locations stay visible even when their conditions do not qualify for
+    the normal ranking, which is the point of the panel: it answers "how is it
+    at home, and where is better today" in one look. Alternatives are limited
+    per activity so the result stays readable.
     """
     primary_rows: list[DailySummaryRow] = []
     alternative_rows: list[DailySummaryRow] = []
-    priority_keys = {
-        key for key in priority_location_keys if key in locations and key in forecasts
-    }
+    priority_keys = set(
+        resolve_priority_keys(locations, forecasts, priority_location_keys)
+    )
 
-    for activity_profile in SUMMARY_ACTIVITY_PROFILES:
+    for activity_profile in activity_profiles:
         ranked = get_top_locations_for_date(
             dict(forecasts),
             forecast_date,

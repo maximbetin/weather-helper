@@ -33,6 +33,7 @@ from src.mobile.daily_summary import (
     DailySummaryRow,
     build_daily_summary,
     format_daily_summary,
+    resolve_priority_keys,
 )
 
 DEFAULT_LOCATION_GROUP = "Asturias"
@@ -276,14 +277,26 @@ class MobileWeatherViewModel:
         self.selected_location_key = available[0] if available else ""
 
     def daily_summary_rows(self) -> list[DailySummaryRow]:
-        """Return both activities with priority cities before alternatives."""
+        """Return the pinned locations and best alternatives for the activity.
+
+        The summary follows the selected activity, so it can never recommend a
+        beach window while the rest of the screen is ranked for hiking.
+        """
         if self.selected_date is None:
             return []
         return build_daily_summary(
             self.forecasts,
             self.selected_date,
             self.locations,
+            activity_profiles=(self.activity_profile,),
         )
+
+    def priority_location_names(self) -> list[str]:
+        """Return the names of the locations pinned in the current region."""
+        return [
+            self.locations[key].name
+            for key in resolve_priority_keys(self.locations, self.forecasts)
+        ]
 
     def daily_summary_text(self) -> str:
         """Return the aligned summary text used by a notification or preview."""

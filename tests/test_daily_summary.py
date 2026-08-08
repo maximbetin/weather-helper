@@ -1,7 +1,11 @@
 from datetime import date, datetime, timedelta
 
-from src.core.locations import ASTURIAS_LOCATIONS
-from src.mobile.daily_summary import build_daily_summary, format_daily_summary
+from src.core.locations import ASTURIAS_LOCATIONS, WORLDWIDE_LOCATIONS
+from src.mobile.daily_summary import (
+    build_daily_summary,
+    format_daily_summary,
+    resolve_priority_keys,
+)
 
 
 def _ranked_result(location_key, location_name, raw_score, start_hour):
@@ -97,3 +101,48 @@ def test_daily_summary_text_uses_aligned_columns_without_em_dash():
         rows[0].score_text
     ) + len(rows[0].score_text)
     assert "Daily outdoor windows for Thu, 06 Aug" in text
+
+
+def test_summary_can_be_limited_to_the_selected_activity(monkeypatch):
+    def fake_rank(forecasts, forecast_date, top_n, activity_profile):
+        return [_ranked_result("gijon", "Gijon", 18, 12)]
+
+    monkeypatch.setattr(
+        "src.mobile.daily_summary.get_top_locations_for_date", fake_rank
+    )
+
+    rows = build_daily_summary(
+        {"gijon": {}},
+        date(2026, 8, 6),
+        ASTURIAS_LOCATIONS,
+        activity_profiles=("beach_day",),
+    )
+
+    assert {row.activity_profile for row in rows} == {"beach_day"}
+
+
+def test_regions_without_the_pinned_cities_pin_nothing():
+    assert resolve_priority_keys(WORLDWIDE_LOCATIONS) == []
+    assert resolve_priority_keys(ASTURIAS_LOCATIONS) == ["oviedo", "gijon"]
+
+
+def test_a_region_without_pinned_cities_still_lists_alternatives(monkeypatch):
+    def fake_rank(forecasts, forecast_date, top_n, activity_profile):
+        return [
+            _ranked_result("tokyo", "Tokyo", 20, 12),
+            _ranked_result("paris", "Paris", 15, 13),
+        ]
+
+    monkeypatch.setattr(
+        "src.mobile.daily_summary.get_top_locations_for_date", fake_rank
+    )
+
+    rows = build_daily_summary(
+        {"tokyo": {}, "paris": {}},
+        date(2026, 8, 6),
+        WORLDWIDE_LOCATIONS,
+        activity_profiles=("hiking",),
+    )
+
+    assert [row.location_name for row in rows] == ["Tokyo", "Paris"]
+    assert not any(row.is_priority for row in rows)
