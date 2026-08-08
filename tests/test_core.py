@@ -389,8 +389,14 @@ def test_drastic_changes_reduce_day_score_more_than_consistent_weather(create_ho
 
     assert results["consistent"]["day_avg_score"] == 10
     assert results["volatile"]["day_avg_score"] == 10
-    assert results["consistent"]["volatility_penalty"] == 0
-    assert results["volatile"]["volatility_penalty"] > 0
+    # Both days average the same. The steady one still wins, but now because a
+    # day that swings around offers only a short usable window, and a short
+    # window is not much of a day out -- not because of a separate penalty
+    # levied on hours nobody was going to go out in.
+    assert (
+        results["volatile"]["optimal_block"]["duration_hours"]
+        < results["consistent"]["optimal_block"]["duration_hours"]
+    )
     assert results["consistent"]["score"] > results["volatile"]["score"]
 
 

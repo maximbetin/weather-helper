@@ -647,9 +647,9 @@ def get_top_locations_for_date(
         )
         if location_result:
             results.append(location_result)
-    # Locations are ranked on the day as a whole, including a penalty for
-    # volatile weather: a steady good day is a safer bet than one bright hour
-    # in an unsettled one. The window's own score is reported separately.
+    # Locations are ranked by how good a day out they offer: the quality of
+    # the recommended window, scaled by how long it lasts. Ties fall back to
+    # the window's raw conditions.
     results.sort(key=lambda x: (x["score"], x["window_score"]), reverse=True)
     return results[:top_n]
 
@@ -729,9 +729,9 @@ def _build_location_result(
 ) -> dict[str, Any]:
     """Build the ranking result for one location on one date.
 
-    Two different scores matter and they are kept distinct: the day score,
-    which ranks locations and accounts for how settled the weather is, and the
-    window score, which describes the specific hours being recommended. The
+    Two different scores matter and they are kept distinct: the day-out score,
+    which ranks locations by how much usable good weather they offer, and the
+    window score, which describes conditions during the recommended hours. The
     interface labels both, because a single unlabelled number printed beside a
     time reads as a claim about that time.
     """
@@ -771,19 +771,29 @@ def _calculate_day_activity_score(
     sorted_hours = sorted(hours, key=lambda hour: hour.time)
     scores = [get_activity_score(hour, activity_profile) for hour in sorted_hours]
     average = sum(scores) / len(scores)
-    volatility_penalty = _day_score_volatility_penalty(sorted_hours, scores)
 
     if optimal_block is None:
+        usable_hours_list = sorted_hours
         usable = average
         usable_hours = _daylight_hours_in(sorted_hours)
     else:
+        usable_hours_list = optimal_block["block"]
         usable = optimal_block["avg_score"]
         usable_hours = optimal_block["duration_hours"]
+
+    # Volatility is measured over the recommended window, not the whole day.
+    # A morning of storms followed by a flawless afternoon is a wildly volatile
+    # day, but there is nothing unreliable about the afternoon -- and charging
+    # the afternoon for the morning is what buried good windows in the first
+    # place. What matters is whether the hours being recommended hold steady.
+    volatility_penalty = _day_score_volatility_penalty(
+        usable_hours_list,
+        [get_activity_score(hour, activity_profile) for hour in usable_hours_list],
+    )
 
     return {
         "score": _sustained_quality(usable, usable_hours) - volatility_penalty,
         "average": average,
-        "window_hours": usable_hours,
         "volatility_penalty": volatility_penalty,
     }
 

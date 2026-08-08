@@ -233,6 +233,18 @@ SYMBOL_RISK_TERMS = (
     ("fog", -3, -5, -6),
 )
 
+# Which of those symbols are describing the same event as the precipitation
+# probability. Anything absent from this list is a separate hazard and is
+# counted in its own right rather than standing in for the rain risk.
+PRECIPITATION_SYMBOL_TERMS = (
+    "thunder",
+    "snow",
+    "sleet",
+    "heavyrain",
+    "rain",
+    "showers",
+)
+
 RATING_RANGES: List[RangeType] = [
     ((18.0, float("inf")), "Excellent"),  # >= 18
     ((13.0, 18.0), "Very Good"),          # 13 <= x < 18
@@ -258,17 +270,6 @@ def _best_possible(*range_lists: List[RangeType]) -> int:
     """Return the highest score these ranges can award in total."""
     return sum(max(score for _, score in ranges) for ranges in range_lists)
 
-
-# How far rain alone may drag an hour down. Past this point an hour is already
-# unusable, and letting the deduction run further only distorts comparisons
-# between one wet location and another.
-MAX_WET_PENALTY = -14
-MAX_WET_PENALTY_BY_PROFILE = {
-    ACTIVITY_HIKING: -14,
-    # A beach plan is ruined by rain sooner than a walk is, so it may fall
-    # further -- but still as one deduction rather than three.
-    ACTIVITY_BEACH_DAY: -18,
-}
 
 # The best weather a profile can possibly describe. Deriving this rather than
 # hardcoding it keeps 100 meaning "as good as this activity gets" for every
@@ -381,32 +382,32 @@ def rain_risk_score(
     symbol_code: Optional[str],
     profile_key: str = DEFAULT_ACTIVITY_PROFILE,
 ) -> int:
-    """Return one risk deduction for rain, not one per signal.
+    """Return one risk deduction per hazard, rather than one per signal.
 
-    The chance of rain and the weather symbol are two descriptions of the same
-    forecast, so the more severe of the two stands for both. Adding them
-    together, on top of the measured rainfall, meant a single shower was
-    deducted three times over.
+    The chance of rain and a rain symbol are two descriptions of the same
+    forecast, so the more severe of the two stands for both; adding them on top
+    of the measured rainfall deducted a single shower three times over.
+
+    A symbol that is not about rain describes a different hazard, though. Fog
+    is not the rain the probability refers to, so it still counts on its own.
     """
     if profile_key == ACTIVITY_BEACH_DAY:
         probability = beach_precip_probability_score(precipitation_probability)
     else:
         probability = precip_probability_score(precipitation_probability)
-    return min(probability, symbol_risk_score(symbol_code, profile_key))
+
+    symbol = symbol_risk_score(symbol_code, profile_key)
+    if _describes_precipitation(symbol_code):
+        return min(probability, symbol)
+    return probability + symbol
 
 
-def combine_wet_weather(
-    amount_score: NumericType, risk_score: NumericType, profile_key: str
-) -> NumericType:
-    """Combine measured rainfall with rain risk, floored.
-
-    The amount is the evidence and the risk is the uncertainty around it, so
-    they are genuinely different things and both count. The floor exists
-    because past a point an hour is already unusable, and letting the
-    deduction keep running only distorts comparisons between wet locations.
-    """
-    floor = MAX_WET_PENALTY_BY_PROFILE.get(profile_key, MAX_WET_PENALTY)
-    return max(amount_score + risk_score, floor)
+def _describes_precipitation(symbol_code: Optional[str]) -> bool:
+    """Return True when a weather symbol is describing rain, snow or sleet."""
+    if not symbol_code:
+        return False
+    normalized = symbol_code.lower()
+    return any(term in normalized for term in PRECIPITATION_SYMBOL_TERMS)
 
 
 def beach_day_score(
@@ -424,32 +425,12 @@ def beach_day_score(
         + beach_wind_score(wind_speed)
         + beach_cloud_score(cloud_coverage)
         + beach_humidity_score(relative_humidity)
-        + combine_wet_weather(
-            beach_precip_amount_score(precipitation_amount),
-            rain_risk_score(
-                precipitation_probability, symbol_code, ACTIVITY_BEACH_DAY
-            ),
-            ACTIVITY_BEACH_DAY,
+        + beach_precip_amount_score(precipitation_amount)
+        + rain_risk_score(
+            precipitation_probability, symbol_code, ACTIVITY_BEACH_DAY
         )
     )
 
-
-def activity_risk_score(
-    precipitation_probability: Optional[NumericType],
-    symbol_code: Optional[str],
-    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
-) -> int:
-    """Return forecast risk adjustments for the selected profile."""
-    if profile_key == ACTIVITY_BEACH_DAY:
-        return (
-            beach_precip_probability_score(precipitation_probability)
-            + symbol_risk_score(symbol_code, profile_key)
-        )
-
-    return (
-        precip_probability_score(precipitation_probability)
-        + symbol_risk_score(symbol_code, profile_key)
-    )
 
 
 def get_activity_profile_label(profile_key: str) -> str:
@@ -494,16 +475,14 @@ def get_activity_score(
             getattr(hour, "symbol_code", None),
         )
 
-    # The stored total already carries the rainfall score. Lift it out, combine
-    # it with the rain risk under one floor, and put it back, so rain reaches
-    # the total exactly once no matter how many signals describe it.
-    amount = getattr(hour, "precip_amount_score", 0)
-    risk = rain_risk_score(
+    # The stored total already carries the measured rainfall, so only the risk
+    # is added here -- and rain_risk_score counts each hazard once, however
+    # many signals happen to describe it.
+    return hour.total_score + rain_risk_score(
         getattr(hour, "precipitation_probability", None),
         getattr(hour, "symbol_code", None),
         profile_key,
     )
-    return hour.total_score - amount + combine_wet_weather(amount, risk, profile_key)
 
 
 def get_rating_info(

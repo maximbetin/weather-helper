@@ -25,14 +25,15 @@ MADRID = pytz.timezone("Europe/Madrid")
 DAY = datetime(2026, 8, 20)
 
 
-def _hour(hour_of_day, temp, cloud, precip=0.0):
+def _hour(hour_of_day, temp, cloud, precip=0.0, probability=0, symbol=None):
     return HourlyWeather(
         time=MADRID.localize(DAY).replace(hour=hour_of_day),
         temp=temp,
         wind=3,
         cloud_coverage=cloud,
         precipitation_amount=precip,
-        precipitation_probability=0,
+        precipitation_probability=probability,
+        symbol_code=symbol,
         relative_humidity=60,
         temp_score=temp_score(temp),
         wind_score=wind_score(3),
@@ -132,3 +133,38 @@ def test_a_bad_window_is_not_flattered_by_being_long():
 
     assert _sustained_quality(-8, 1) == -8
     assert _sustained_quality(-8, 8) == -8
+
+
+def test_a_wet_beach_day_offers_no_window_at_all():
+    """Rain rules out a beach plan, so the screen should say so plainly."""
+    from src.core.evaluation import find_optimal_weather_block
+
+    wet = [
+        _hour(h, 22, 50, precip=3.0, probability=80, symbol="rain")
+        for h in range(10, 18)
+    ]
+
+    assert find_optimal_weather_block(wet, activity_profile=ACTIVITY_BEACH_DAY) is None
+
+
+def test_a_marginal_hiking_window_is_surfaced_but_rated_poor():
+    """Walking in drizzle is a choice; the rating has to make it an informed one.
+
+    Counting rain once rather than three times means marginal conditions now
+    produce a window where they previously produced nothing. That is useful
+    when every option is wet and you still have to pick one, but only as long
+    as the rating is honest about what is on offer.
+    """
+    from src.core.evaluation import find_optimal_weather_block
+    from src.core.scoring import ACTIVITY_HIKING, get_rating_info
+
+    drizzly = [
+        _hour(h, 22, 50, precip=3.0, probability=80, symbol="rain")
+        for h in range(10, 18)
+    ]
+
+    block = find_optimal_weather_block(drizzly, activity_profile=ACTIVITY_HIKING)
+
+    assert block is not None
+    assert get_rating_info(block["avg_score"], ACTIVITY_HIKING) == "Poor"
+    assert normalize_score(block["avg_score"], ACTIVITY_HIKING) < 50

@@ -9,10 +9,8 @@ from src.core.scoring import (
     BEACH_HUMIDITY_RANGES,
     MAX_BEACH_SCORE,
     MAX_HIKING_SCORE,
-    MAX_WET_PENALTY_BY_PROFILE,
     NORMALIZATION_CONFIG_BY_PROFILE,
     beach_precip_amount_score,
-    combine_wet_weather,
     rain_risk_score,
     beach_day_score,
     beach_precip_probability_score,
@@ -244,19 +242,6 @@ def test_light_drizzle_does_not_score_like_a_storm():
     assert normalize_score(drizzle, ACTIVITY_BEACH_DAY) >= 50
 
 
-def test_a_dry_hour_is_never_dragged_down_by_the_rain_floor():
-    """The floor must only ever cap a penalty, never invent one."""
-    for probability in (0, 10, 50, 100):
-        assert combine_wet_weather(5, rain_risk_score(probability, None,
-                                   ACTIVITY_BEACH_DAY), ACTIVITY_BEACH_DAY) <= 5
-
-
-def test_rain_cannot_deduct_past_the_floor():
-    worst = combine_wet_weather(-99, -99, ACTIVITY_BEACH_DAY)
-
-    assert worst == MAX_WET_PENALTY_BY_PROFILE[ACTIVITY_BEACH_DAY]
-
-
 # --- Humidity is a nudge on a beach day ------------------------------------
 
 def test_normal_coastal_humidity_is_not_a_beach_penalty():
@@ -278,3 +263,44 @@ def test_humidity_matters_less_than_sunshine_on_a_beach_day():
     )
 
     assert humidity_swing * 3 <= cloud_swing
+
+
+def test_heavier_rain_always_scores_worse_than_lighter_rain():
+    """When every option is wet, the ranking must still say which is least bad."""
+    scores = [
+        beach_day_score(26, 3, 20, mm, 60, probability, symbol)
+        for mm, probability, symbol in (
+            (0.2, 30, "lightrainshowers_day"),
+            (0.7, 50, "rain"),
+            (3.0, 80, "heavyrain"),
+            (20.0, 95, "heavyrainandthunder"),
+        )
+    ]
+
+    assert scores == sorted(scores, reverse=True)
+    assert len(set(scores)) == len(scores)
+
+
+def test_a_wet_hour_is_still_too_poor_to_recommend():
+    """Softening the rain penalty must not make a rainy day recommendable."""
+    soaked = beach_day_score(22, 3, 50, 3.0, 70, 80, "rain")
+
+    assert normalize_score(soaked, ACTIVITY_BEACH_DAY) < 25
+    assert get_rating_info(soaked, ACTIVITY_BEACH_DAY) == "Poor"
+
+
+def test_fog_is_a_separate_hazard_from_the_chance_of_rain():
+    """Fog is not the rain the probability is describing, so it still counts."""
+    rain_only = rain_risk_score(80, None, ACTIVITY_HIKING)
+    with_fog = rain_risk_score(80, "fog", ACTIVITY_HIKING)
+
+    assert with_fog < rain_only
+
+
+def test_a_rain_symbol_does_not_stack_with_the_chance_of_rain():
+    probability_only = rain_risk_score(50, None, ACTIVITY_BEACH_DAY)
+    with_rain_symbol = rain_risk_score(50, "rain", ACTIVITY_BEACH_DAY)
+
+    assert with_rain_symbol == min(
+        probability_only, symbol_risk_score("rain", ACTIVITY_BEACH_DAY)
+    )
