@@ -633,14 +633,19 @@ def _rank_location_for_date(
     activity_profile: str,
 ) -> Optional[dict[str, Any]]:
     """Return a ranked location result for a date, if data is usable."""
-    report = processed.get("day_scores", {}).get(forecast_date)
-    if not report:
+    if not processed.get("day_scores", {}).get(forecast_date):
         return None
-    filtered_hours = _location_recommendation_hours(processed, forecast_date, now_local)
+    filtered_hours = get_recommendation_hours(processed, forecast_date, now_local)
+    if not filtered_hours:
+        return None
     optimal_block = _find_optimal_consistent_block(filtered_hours, activity_profile)
     if not optimal_block:
         return None
-    day_score = _calculate_day_activity_score(report.daylight_hours, activity_profile)
+
+    # Score the day on the same hours the window was drawn from, so a location
+    # is never ranked highly on a morning that has already passed.
+    report = _daily_report(forecast_date, filtered_hours, _location_name(processed))
+    day_score = _calculate_day_activity_score(filtered_hours, activity_profile)
     return _build_location_result(
         loc_key,
         report,
@@ -650,15 +655,30 @@ def _rank_location_for_date(
     )
 
 
-def _location_recommendation_hours(
-    processed: dict, forecast_date: date, now_local: datetime
+def _location_name(processed: dict) -> str:
+    """Return the location name recorded on a processed forecast."""
+    for report in processed.get("day_scores", {}).values():
+        return report.location_name
+    return ""
+
+
+def get_recommendation_hours(
+    processed: dict,
+    forecast_date: date,
+    now_local: Optional[datetime] = None,
 ) -> list[HourlyWeather]:
-    """Return forecast hours considered for a location recommendation."""
+    """Return the forecast entries a recommendation for a date is based on.
+
+    This is the single definition of "hours that count": daylight entries, and
+    for today only those with usable time left. The ranking, the recommended
+    window and the hourly breakdown shown to the user all read from here, so
+    they can never disagree about which hours were considered.
+    """
     daily_forecasts = processed.get("daily_forecasts", {})
     return _filter_hours_for_recommendations(
-        daily_forecasts.get(forecast_date, []),
+        sorted(daily_forecasts.get(forecast_date, []), key=lambda hour: hour.time),
         forecast_date,
-        now_local,
+        now_local if now_local is not None else _location_now(processed),
     )
 
 
