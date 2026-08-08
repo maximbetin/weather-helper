@@ -28,8 +28,9 @@ from src.core.scoring import (
     wind_score,
 )
 
-ADJACENT_FORECAST_MINUTES_MIN = 50
-ADJACENT_FORECAST_MINUTES_MAX = 70
+HOURLY_COVERAGE_HOURS = 1
+SIX_HOURLY_COVERAGE_HOURS = 6
+ADJACENT_TOLERANCE_MINUTES = 10
 CURRENT_HOUR_RELEVANCE_MINUTE = 30
 DEFAULT_MAX_SCORE_VARIANCE = 7.0
 OPTIMAL_MAX_SCORE_VARIANCE = 8.0
@@ -85,19 +86,16 @@ def _are_adjacent_forecast_hours(
     previous_hour: HourlyWeather,
     next_hour: HourlyWeather,
 ) -> bool:
-    """Return True when two forecast entries represent adjacent hourly data."""
-    delta = next_hour.time - previous_hour.time
-    return _adjacent_min_delta() <= delta <= _adjacent_max_delta()
+    """Return True when one forecast entry continues directly into the next.
 
-
-def _adjacent_min_delta() -> timedelta:
-    """Return the shortest allowed gap between adjacent forecast rows."""
-    return timedelta(minutes=ADJACENT_FORECAST_MINUTES_MIN)
-
-
-def _adjacent_max_delta() -> timedelta:
-    """Return the longest allowed gap between adjacent forecast rows."""
-    return timedelta(minutes=ADJACENT_FORECAST_MINUTES_MAX)
+    Entries are adjacent when the next one starts where the previous one stops,
+    which keeps hourly and six-hourly data on the same footing and refuses to
+    bridge a gap between two different resolutions.
+    """
+    if previous_hour.coverage_hours != next_hour.coverage_hours:
+        return False
+    gap = abs(next_hour.time - previous_hour.end_time)
+    return gap <= timedelta(minutes=ADJACENT_TOLERANCE_MINUTES)
 
 
 def _get_period_data(
@@ -109,17 +107,28 @@ def _get_period_data(
 
 
 def _is_daylight_hour(hour: HourlyWeather) -> bool:
-    """Return True when an hour is inside the configured daytime window."""
-    return DAYLIGHT_START_HOUR <= hour.hour <= DAYLIGHT_END_HOUR
+    """Return True when an entry overlaps the configured daytime window.
+
+    Six-hourly entries are kept when any part of them falls inside the window,
+    so a 06:00-12:00 entry still counts towards a morning recommendation.
+    """
+    starts_before_window_ends = hour.hour <= DAYLIGHT_END_HOUR
+    ends_after_window_starts = (
+        hour.hour + hour.coverage_hours > DAYLIGHT_START_HOUR
+    )
+    return starts_before_window_ends and ends_after_window_starts
 
 
 def _is_future_or_current_hour(hour: HourlyWeather, now_local: datetime) -> bool:
-    """Return True when an hour is still useful for today's recommendations."""
-    return (
-        hour.time > now_local
-        or hour.time.hour == now_local.hour
-        and now_local.minute < CURRENT_HOUR_RELEVANCE_MINUTE
-    )
+    """Return True when an entry still has usable time left in it.
+
+    An entry counts while it is running, but only if enough of it remains to be
+    worth recommending, so a window is never suggested as it is ending.
+    """
+    if hour.time > now_local:
+        return True
+    remaining = hour.end_time - now_local
+    return remaining >= timedelta(minutes=CURRENT_HOUR_RELEVANCE_MINUTE)
 
 
 def _filter_hours_for_recommendations(
@@ -176,6 +185,7 @@ def _extract_hourly_weather_values(
     precipitation_amount, precipitation_probability = _get_precipitation_values(entry)
 
     return {
+        "coverage_hours": _get_coverage_hours(entry),
         "time": _parse_local_forecast_time(entry["time"], timezone_name),
         "temp": instant_details.get("air_temperature"),
         "wind": instant_details.get("wind_speed"),
@@ -195,6 +205,22 @@ def _parse_local_forecast_time(
     """Parse an API timestamp into a location's local time."""
     time_utc = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
     return time_utc.astimezone(get_timezone(timezone_name))
+
+
+def _get_coverage_hours(entry: dict[str, Any]) -> int:
+    """Return how many hours a timeseries entry describes.
+
+    MET Norway publishes hourly entries for roughly the first two days and
+    six-hourly entries after that. Treating a six-hour entry as a single hour
+    would misreport both rain totals and the length of a recommended window.
+    """
+    next_1h_summary, next_1h_details = _get_period_data(entry, "next_1_hours")
+    if next_1h_summary or next_1h_details:
+        return HOURLY_COVERAGE_HOURS
+    next_6h_summary, next_6h_details = _get_period_data(entry, "next_6_hours")
+    if next_6h_summary or next_6h_details:
+        return SIX_HOURLY_COVERAGE_HOURS
+    return HOURLY_COVERAGE_HOURS
 
 
 def _get_precipitation_values(
@@ -233,9 +259,17 @@ def _build_hourly_weather(values: dict[str, Any]) -> HourlyWeather:
         temp_score=temp_score(values["temp"]),
         wind_score=wind_score(values["wind"]),
         cloud_score=cloud_score(values["cloud_coverage"]),
-        precip_amount_score=precip_amount_score(values["precipitation_amount"]),
+        precip_amount_score=precip_amount_score(_precipitation_rate(values)),
         humidity_score=humidity_score(values["relative_humidity"]),
     )
+
+
+def _precipitation_rate(values: dict[str, Any]) -> Optional[NumericType]:
+    """Return precipitation in mm per hour for an extracted entry."""
+    amount = values["precipitation_amount"]
+    if amount is None:
+        return None
+    return amount / max(1, values.get("coverage_hours", HOURLY_COVERAGE_HOURS))
 
 
 def _process_timeseries(
@@ -460,8 +494,11 @@ def _base_block_info(
         "block": block,
         "start": block[0].time,
         "end": block[-1].time,
+        "end_time": block[-1].end_time,
         "avg_score": avg_score,
         "duration": len(block),
+        "duration_hours": sum(hour.coverage_hours for hour in block),
+        "coverage_hours": block[0].coverage_hours,
         "consistency": 1 / (1 + std_dev),
         "variance": std_dev,
     }
@@ -548,10 +585,11 @@ def _duration_bonus(positive_hour_count: int) -> float:
 def _positive_hour_count(
     block_info: dict[str, Any], activity_profile: str
 ) -> int:
-    """Return the number of individually positive hours in a block."""
+    """Return how many hours inside a block score positively."""
     return sum(
-        get_activity_score(hour, activity_profile) > 0
+        hour.coverage_hours
         for hour in block_info["block"]
+        if get_activity_score(hour, activity_profile) > 0
     )
 
 

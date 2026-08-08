@@ -229,7 +229,7 @@ class MobileWeatherViewModel:
     def _ranked_location_view(self, rank: int, item: dict) -> RankedLocationView:
         raw_score = float(item["raw_score"])
         block = item["optimal_block"]
-        end_time = block["end"] + timedelta(hours=1)
+        end_time = block["end_time"]
         best_window = f"{block['start']:%H:%M} - {end_time:%H:%M}"
         return RankedLocationView(
             rank=rank,

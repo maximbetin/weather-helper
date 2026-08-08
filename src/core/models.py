@@ -4,7 +4,7 @@ Defines HourlyWeather and DailyReport classes used throughout the application.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from src.core.config import NumericType, safe_average
@@ -29,6 +29,7 @@ class HourlyWeather:
     relative_humidity: Optional[NumericType] = None
     water_temp: Optional[NumericType] = None
     wave_height: Optional[NumericType] = None
+    coverage_hours: int = 1
     temp_score: NumericType = 0
     wind_score: NumericType = 0
     cloud_score: NumericType = 0
@@ -43,6 +44,28 @@ class HourlyWeather:
         """Calculate derived fields after initialization."""
         self.hour = self.time.hour
         self.total_score = self._calculate_total_score()
+
+    @property
+    def end_time(self) -> datetime:
+        """Return the first instant no longer described by this entry."""
+        return self.time + timedelta(hours=self.coverage_hours)
+
+    @property
+    def is_hourly(self) -> bool:
+        """Return True when this entry describes a single hour."""
+        return self.coverage_hours == 1
+
+    @property
+    def precipitation_rate(self) -> Optional[NumericType]:
+        """Return precipitation in mm per hour.
+
+        Beyond roughly two days the forecast only reports six-hour totals.
+        Scoring those totals as if they fell in one hour would exaggerate rain
+        on later days, so scores are always based on the hourly rate.
+        """
+        if self.precipitation_amount is None:
+            return None
+        return self.precipitation_amount / self.coverage_hours
 
     def _calculate_total_score(self) -> NumericType:
         """Calculate the total score from individual component scores."""
@@ -119,14 +142,14 @@ def _valid_temperatures(hours: list[HourlyWeather]) -> list[NumericType]:
 
 
 def _count_likely_rain_hours(hours: list[HourlyWeather]) -> int:
-    """Count hours with precipitation above the rain threshold."""
-    return sum(1 for hour in hours if _has_significant_rain(hour))
+    """Count the hours covered by entries above the rain threshold."""
+    return sum(hour.coverage_hours for hour in hours if _has_significant_rain(hour))
 
 
 def _has_significant_rain(hour: HourlyWeather) -> bool:
     """Return True when an hour is likely rainy."""
-    amount = hour.precipitation_amount
-    return isinstance(amount, (int, float)) and amount > SIGNIFICANT_RAIN_MM
+    rate = hour.precipitation_rate
+    return isinstance(rate, (int, float)) and rate > SIGNIFICANT_RAIN_MM
 
 
 def _describe_temperature(avg_temp: Optional[NumericType]) -> str:

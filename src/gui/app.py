@@ -1031,7 +1031,7 @@ class WeatherHelperApp:
     def _format_block_details(self, best_block: dict[str, Any]) -> str:
         """Return details text for a recommended block."""
         start_str = format_time(best_block["start"])
-        end_str = format_time(best_block["end"] + timedelta(hours=1))
+        end_str = format_time(best_block["end_time"])
         detail_lines = [
             f"Best time: {start_str} - {end_str}",
             f"Temp: {format_temperature(best_block.get('temp'))}",

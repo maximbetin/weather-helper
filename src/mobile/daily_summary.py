@@ -168,7 +168,7 @@ def _row_from_result(
         )
 
     block = result["optimal_block"]
-    end_time = block["end"] + timedelta(hours=1)
+    end_time = block["end_time"]
     raw_score = float(result["raw_score"])
     return DailySummaryRow(
         activity_profile=activity_profile,

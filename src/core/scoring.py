@@ -392,6 +392,18 @@ def get_activity_profile_key(label: str) -> str:
     return DEFAULT_ACTIVITY_PROFILE
 
 
+def _hourly_precipitation_rate(hour: Any) -> Optional[NumericType]:
+    """Return an entry's precipitation as mm per hour.
+
+    Later forecast days only carry six-hour totals; scoring those directly
+    would treat a normal wet afternoon as a downpour.
+    """
+    rate = getattr(hour, "precipitation_rate", None)
+    if rate is not None:
+        return rate
+    return getattr(hour, "precipitation_amount", None)
+
+
 def get_activity_score(
     hour: Any, profile_key: str = DEFAULT_ACTIVITY_PROFILE
 ) -> NumericType:
@@ -401,7 +413,7 @@ def get_activity_score(
             hour.temp,
             hour.wind,
             hour.cloud_coverage,
-            hour.precipitation_amount,
+            _hourly_precipitation_rate(hour),
             hour.relative_humidity,
             getattr(hour, "precipitation_probability", None),
             getattr(hour, "symbol_code", None),
