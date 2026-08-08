@@ -88,20 +88,24 @@ ACTIVITY_PROFILE_LABELS = {
 
 # --- Scoring Ranges ---
 
+# Walking warms you up, so the ideal is cooler than for sitting outdoors, and
+# the range that suits it is most of an Asturian year. Heat is the harder
+# problem on foot: 30C uphill is worse than 12C, which the old ordering, built
+# around a sunny-Mediterranean ideal of 20-24C, had backwards.
 TEMP_RANGES: List[RangeType] = [
-    ((20, 24), 7),   # Ideal temperature range
-    ((17, 20), 6),   # Cool but very pleasant
-    ((24, 27), 6),   # Warm but very pleasant
-    ((15, 17), 4),   # Cool but comfortable
-    ((27, 30), 4),   # Warm but comfortable
-    ((10, 15), 2),   # Cool but acceptable
-    ((30, 33), 1),   # Hot but manageable
-    ((5, 10), -1),   # Cold
-    ((33, 36), -3),  # Very hot
-    ((0, 5), -6),    # Very cold
-    ((36, 40), -9),  # Extremely hot
-    ((-5, 0), -9),   # Extremely cold
-    (None, -15),     # Beyond extreme temperatures
+    ((13, 21), 7),   # Ideal on foot
+    ((21, 24), 6),   # Warm but very pleasant
+    ((10, 13), 5),   # Cool, and fine once moving
+    ((24, 27), 4),   # Warm enough to slow you down
+    ((7, 10), 3),    # Brisk
+    ((27, 30), 1),   # Hot for climbing
+    ((3, 7), 1),     # Cold but walkable
+    ((30, 33), -3),  # Uncomfortably hot on foot
+    ((0, 3), -3),    # Near freezing
+    ((33, 36), -7),  # Heat becomes the hazard
+    ((-5, 0), -7),   # Freezing
+    ((36, 40), -11),  # Dangerous heat
+    (None, -15),     # Beyond extremes
 ]
 
 WIND_RANGES: List[RangeType] = [
@@ -115,40 +119,40 @@ WIND_RANGES: List[RangeType] = [
     (None, -8),     # Gale and above - dangerous
 ]
 
+# Cloud hardly decides whether a walk is worth taking, and a grey sky is the
+# default here. Overcast costs a little for the lost views, full sun costs a
+# little for the exposure, and everything between is simply walking weather.
 CLOUD_RANGES: List[RangeType] = [
-    ((10, 30), 4),  # Few to scattered clouds - ideal
-    ((0, 10), 3),   # Clear skies - very good but can be hot
-    ((30, 60), 2),  # Partly cloudy - good conditions
-    ((60, 80), 0),  # Mostly cloudy - neutral
-    ((80, 95), -1), # Very cloudy - slightly gloomy
-    (None, -3),     # Overcast - gloomy
+    ((10, 70), 2),   # Anything from bright to mostly grey
+    ((0, 10), 1),    # Clear: pleasant, but no shade
+    ((70, 95), 1),   # Grey, which is most days
+    (None, 0),       # Overcast: the views go, the walk does not
 ]
 
+# Rainfall is the measured evidence and now carries the weight that used to be
+# split with the symbol, so the wet end is steeper than it was. The light end
+# is deliberately forgiving: orbayu does not call off a walk, and a scale that
+# treats it as though it does is no use on this coast.
 PRECIP_AMOUNT_RANGES: List[RangeType] = [
-    ((0, 0), 5),         # No precipitation - best
+    ((0, 0), 5),         # Dry
     ((0, 0.1), 4),       # Trace amounts - barely noticeable
-    ((0.1, 0.5), 2),     # Very light - minimal impact
-    ((0.5, 1.0), 0),     # Light drizzle - manageable
-    ((1.0, 2.5), -2),    # Light rain - needs preparation
-    ((2.5, 5.0), -4),    # Moderate rain - significant impact
-    ((5.0, 10.0), -6),   # Heavy rain - major impact
-    ((10.0, 20.0), -8),  # Very heavy rain - severe impact
-    (None, -12),         # Extreme precipitation - dangerous
+    ((0.1, 0.4), 3),     # Orbayu: you would still go
+    ((0.4, 1.0), 1),     # Light drizzle - a jacket handles it
+    ((1.0, 2.0), -2),    # Light rain - needs preparation
+    ((2.0, 4.0), -5),    # Moderate rain - you will get wet
+    ((4.0, 8.0), -9),    # Heavy rain - major impact
+    ((8.0, 15.0), -12),  # Very heavy rain - severe impact
+    (None, -15),         # Extreme precipitation - dangerous
 ]
 
+# Damp air is only really unpleasant when it is also warm, and at the
+# temperatures this coast actually offers it is just what the air is like. It
+# nudges rather than decides, on the same reasoning as the beach profile.
 HUMIDITY_RANGES: List[RangeType] = [
-    ((40, 60), 3),   # Ideal humidity range - very comfortable
-    ((30, 40), 2),   # Low humidity - good but can feel dry
-    ((60, 70), 1),   # Moderate humidity - acceptable
-    ((20, 30), 0),   # Very low humidity - neutral
-    ((70, 80), 0),   # High humidity - neutral
-    ((80, 85), -1),  # Very high humidity - noticeable discomfort
-    ((15, 20), -1),  # Very low humidity - can cause dryness
-    ((85, 90), -2),  # Extremely high humidity - significant discomfort
-    ((10, 15), -2),  # Extremely low humidity - can cause irritation
-    ((90, 95), -3),  # Near saturation - very uncomfortable
-    ((5, 10), -3),   # Near zero - very uncomfortable
-    (None, -4),      # Beyond extreme humidity levels
+    ((30, 90), 1),   # Ordinary, including an Atlantic 85%
+    ((90, 96), 0),   # Saturated: the air feels heavy
+    ((20, 30), 0),   # Dry
+    (None, -1),      # Extremes either way
 ]
 
 BEACH_TEMP_RANGES: List[RangeType] = [
@@ -192,64 +196,94 @@ BEACH_PRECIP_AMOUNT_RANGES: List[RangeType] = [
     (None, -10),
 ]
 
+# Humidity barely changes whether a beach day is worth having: you are beside
+# the water, usually in it. It used to swing 7 points -- almost two thirds of
+# what sunshine is worth -- which quietly penalised every Atlantic beach town
+# for the humidity that comes with being on the coast. It now nudges rather
+# than decides, and ordinary coastal humidity is treated as normal.
 BEACH_HUMIDITY_RANGES: List[RangeType] = [
-    ((45, 70), 3),  # Comfortable coastal humidity
-    ((35, 45), 2),  # A little dry but pleasant
-    ((70, 80), 0),  # Noticeably humid
-    ((25, 35), 0),  # Dry but manageable
-    ((80, 90), -2),  # Sticky and uncomfortable
-    ((0, 25), -3),  # Very dry
-    (None, -4),     # Oppressive humidity
+    ((35, 85), 2),   # Anything a coastal summer normally offers
+    ((85, 92), 1),   # Sticky, but not what stops a beach day
+    ((25, 35), 1),   # Dry but fine
+    ((92, 100), 0),  # Oppressive
+    (None, 0),       # Extremes: no credit, no penalty
 ]
 
+# On the Atlantic coast a decent chance of rain is the baseline condition, not
+# a warning. Charging a third of the scale for a 75% chance meant an ordinary
+# Asturian day could never score well, which makes the app useless exactly
+# where it is used. The chance of rain now shades a judgement rather than
+# dominating it; the rain that actually falls is measured separately.
 PRECIP_PROBABILITY_RANGES: List[RangeType] = [
-    ((0, 15), 0),     # Low enough not to change plans
-    ((15, 35), -1),   # Some risk
-    ((35, 55), -3),   # Meaningful risk
-    ((55, 75), -5),   # Likely enough to plan around
-    (None, -7),       # High rain risk
+    ((0, 40), 0),     # A normal day here: nothing to plan around
+    ((40, 60), -1),   # Worth taking a jacket
+    ((60, 80), -2),   # Likely enough to shape the timing
+    (None, -4),       # Expect to get wet at some point
 ]
 
 BEACH_PRECIP_PROBABILITY_RANGES: List[RangeType] = [
-    ((0, 10), 0),     # Low enough not to change plans
-    ((10, 25), -2),   # Small but relevant for beach plans
-    ((25, 40), -4),   # Showers become a real beach risk
-    ((40, 60), -7),   # Too uncertain for a strong recommendation
-    (None, -10),      # High risk of a wet beach window
+    ((0, 20), 0),     # Low enough not to change beach plans
+    ((20, 40), -2),   # Small but relevant when you want sun
+    ((40, 60), -4),   # Showers become a real beach risk
+    ((60, 80), -6),   # Too uncertain for a strong recommendation
+    (None, -8),       # High risk of a wet beach window
 ]
 
 
 
+# What the symbol adds beyond the numbers. Rainfall is already measured in
+# millimetres, so a rain symbol mostly repeats what the amount says and only
+# needs to nudge. Thunder, snow, sleet and fog are different in kind -- they
+# are hazards the rainfall figure cannot express -- so those keep their weight.
 SYMBOL_RISK_TERMS = (
     ("thunder", -12, -16, -20),
     ("snow", -8, -14, -14),
     ("sleet", -8, -14, -14),
-    ("heavyrain", -7, -12, -8),
-    ("rain", -5, -9, -4),
-    ("showers", -4, -8, -2),
     ("fog", -3, -5, -6),
+    ("heavyrain", -3, -6, -8),
+    ("rain", -2, -4, -4),
+    ("showers", -2, -4, -2),
 )
 
-RATING_RANGES: List[RangeType] = [
-    ((18.0, float("inf")), "Excellent"),  # >= 18
-    ((13.0, 18.0), "Very Good"),          # 13 <= x < 18
-    ((7.0, 13.0), "Good"),                # 7 <= x < 13
-    ((2.0, 7.0), "Fair"),                 # 2 <= x < 7
-    (None, "Poor"),                       # < 2
-]
+# Which of those symbols are describing the same event as the precipitation
+# probability. Anything absent from this list is a separate hazard and is
+# counted in its own right rather than standing in for the rain risk.
+PRECIPITATION_SYMBOL_TERMS = (
+    "thunder",
+    "snow",
+    "sleet",
+    "heavyrain",
+    "rain",
+    "showers",
+)
 
-BEACH_RATING_RANGES: List[RangeType] = [
-    ((22.0, float("inf")), "Excellent"),  # Excellent beach conditions
-    ((17.0, 22.0), "Very Good"),
-    ((11.0, 17.0), "Good"),
-    ((5.0, 11.0), "Fair"),
-    (None, "Poor"),
-]
-
-RATING_RANGES_BY_PROFILE = {
-    ACTIVITY_HIKING: RATING_RANGES,
-    ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
+# Where each rating begins, as a share of the best score the profile can award.
+# Expressing them this way rather than as fixed numbers is what stops the two
+# drifting apart: retuning a weather element changes the maximum, and absolute
+# thresholds silently become unreachable when it does. Hiking is the more
+# forgiving of the two, because a walk survives weather a beach day does not.
+RATING_FRACTIONS_BY_PROFILE = {
+    ACTIVITY_HIKING: (0.86, 0.62, 0.33, 0.10),
+    ACTIVITY_BEACH_DAY: (0.88, 0.68, 0.44, 0.20),
 }
+
+
+def _rating_thresholds(profile_key: str, maximum: int) -> tuple:
+    """Return the excellent/very good/good/fair cut-offs for a profile."""
+    fractions = RATING_FRACTIONS_BY_PROFILE[profile_key]
+    return tuple(round(fraction * maximum) for fraction in fractions)
+
+
+def _rating_ranges(thresholds: tuple) -> List[RangeType]:
+    """Build descending rating bands from four ascending cut-offs."""
+    excellent, very_good, good, fair = thresholds
+    return [
+        ((float(excellent), float("inf")), "Excellent"),
+        ((float(very_good), float(excellent)), "Very Good"),
+        ((float(good), float(very_good)), "Good"),
+        ((float(fair), float(good)), "Fair"),
+        (None, "Poor"),
+    ]
 
 def _best_possible(*range_lists: List[RangeType]) -> int:
     """Return the highest score these ranges can award in total."""
@@ -259,13 +293,13 @@ def _best_possible(*range_lists: List[RangeType]) -> int:
 # The best weather a profile can possibly describe. Deriving this rather than
 # hardcoding it keeps 100 meaning "as good as this activity gets" for every
 # profile; a stale constant previously capped perfect hiking weather at 96.
+# Rain contributes through one combined term, whose best case is a dry hour.
 MAX_HIKING_SCORE = _best_possible(
     TEMP_RANGES,
     WIND_RANGES,
     CLOUD_RANGES,
     PRECIP_AMOUNT_RANGES,
     HUMIDITY_RANGES,
-    PRECIP_PROBABILITY_RANGES,
 )
 MAX_BEACH_SCORE = _best_possible(
     BEACH_TEMP_RANGES,
@@ -273,13 +307,25 @@ MAX_BEACH_SCORE = _best_possible(
     BEACH_CLOUD_RANGES,
     BEACH_PRECIP_AMOUNT_RANGES,
     BEACH_HUMIDITY_RANGES,
-    BEACH_PRECIP_PROBABILITY_RANGES,
 )
 
+HIKING_THRESHOLDS = _rating_thresholds(ACTIVITY_HIKING, MAX_HIKING_SCORE)
+BEACH_THRESHOLDS = _rating_thresholds(ACTIVITY_BEACH_DAY, MAX_BEACH_SCORE)
+
+RATING_RANGES: List[RangeType] = _rating_ranges(HIKING_THRESHOLDS)
+BEACH_RATING_RANGES: List[RangeType] = _rating_ranges(BEACH_THRESHOLDS)
+
+RATING_RANGES_BY_PROFILE = {
+    ACTIVITY_HIKING: RATING_RANGES,
+    ACTIVITY_BEACH_DAY: BEACH_RATING_RANGES,
+}
+
+# The word and the number come from the same cut-offs, so a rating and its
+# 0-100 score can never tell different stories.
 # excellent, very_good, good, fair, max_expected, poor_slope
 NORMALIZATION_CONFIG_BY_PROFILE = {
-    ACTIVITY_HIKING: (18, 13, 7, 2, MAX_HIKING_SCORE, 6),
-    ACTIVITY_BEACH_DAY: (22, 17, 11, 5, MAX_BEACH_SCORE, 5),
+    ACTIVITY_HIKING: (*HIKING_THRESHOLDS, MAX_HIKING_SCORE, 6),
+    ACTIVITY_BEACH_DAY: (*BEACH_THRESHOLDS, MAX_BEACH_SCORE, 5),
 }
 
 
@@ -363,6 +409,39 @@ def symbol_risk_score(
     return 0
 
 
+def rain_risk_score(
+    precipitation_probability: Optional[NumericType],
+    symbol_code: Optional[str],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> int:
+    """Return one risk deduction per hazard, rather than one per signal.
+
+    The chance of rain and a rain symbol are two descriptions of the same
+    forecast, so the more severe of the two stands for both; adding them on top
+    of the measured rainfall deducted a single shower three times over.
+
+    A symbol that is not about rain describes a different hazard, though. Fog
+    is not the rain the probability refers to, so it still counts on its own.
+    """
+    if profile_key == ACTIVITY_BEACH_DAY:
+        probability = beach_precip_probability_score(precipitation_probability)
+    else:
+        probability = precip_probability_score(precipitation_probability)
+
+    symbol = symbol_risk_score(symbol_code, profile_key)
+    if _describes_precipitation(symbol_code):
+        return min(probability, symbol)
+    return probability + symbol
+
+
+def _describes_precipitation(symbol_code: Optional[str]) -> bool:
+    """Return True when a weather symbol is describing rain, snow or sleet."""
+    if not symbol_code:
+        return False
+    normalized = symbol_code.lower()
+    return any(term in normalized for term in PRECIPITATION_SYMBOL_TERMS)
+
+
 def beach_day_score(
     temp: Optional[NumericType],
     wind_speed: Optional[NumericType],
@@ -377,29 +456,13 @@ def beach_day_score(
         beach_temp_score(temp)
         + beach_wind_score(wind_speed)
         + beach_cloud_score(cloud_coverage)
-        + beach_precip_amount_score(precipitation_amount)
         + beach_humidity_score(relative_humidity)
-        + beach_precip_probability_score(precipitation_probability)
-        + symbol_risk_score(symbol_code, ACTIVITY_BEACH_DAY)
-    )
-
-
-def activity_risk_score(
-    precipitation_probability: Optional[NumericType],
-    symbol_code: Optional[str],
-    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
-) -> int:
-    """Return forecast risk adjustments for the selected profile."""
-    if profile_key == ACTIVITY_BEACH_DAY:
-        return (
-            beach_precip_probability_score(precipitation_probability)
-            + symbol_risk_score(symbol_code, profile_key)
+        + beach_precip_amount_score(precipitation_amount)
+        + rain_risk_score(
+            precipitation_probability, symbol_code, ACTIVITY_BEACH_DAY
         )
-
-    return (
-        precip_probability_score(precipitation_probability)
-        + symbol_risk_score(symbol_code, profile_key)
     )
+
 
 
 def get_activity_profile_label(profile_key: str) -> str:
@@ -444,7 +507,10 @@ def get_activity_score(
             getattr(hour, "symbol_code", None),
         )
 
-    return hour.total_score + activity_risk_score(
+    # The stored total already carries the measured rainfall, so only the risk
+    # is added here -- and rain_risk_score counts each hazard once, however
+    # many signals happen to describe it.
+    return hour.total_score + rain_risk_score(
         getattr(hour, "precipitation_probability", None),
         getattr(hour, "symbol_code", None),
         profile_key,

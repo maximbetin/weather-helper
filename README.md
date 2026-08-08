@@ -32,18 +32,54 @@ The data is available under MET Norway's
 ## How the scores work
 
 Every score is on a 0-100 scale for the **selected activity**, where 100 is the
-best weather that activity can ask for. Two different scores appear, and each
-is labelled on screen because they answer different questions:
+best weather that activity can ask for. The rating words and the numbers are
+both derived from that maximum, so retuning a weather element can never leave
+a rating stranded out of reach.
+
+Two different scores appear, and each is labelled on screen because they
+answer different questions:
 
 | Score | What it measures | Where it appears |
 | --- | --- | --- |
-| **Window score** | How good the recommended hours are | Beside the recommended time window |
-| **Day score** | How good and how settled the whole usable day is | Beside each entry in the ranked list |
+| **Window score** | How good the conditions are during the recommended hours | Beside the recommended time window |
+| **Day-out score** | How good a day out this is: the window's quality, scaled by how long it lasts | Beside each entry in the ranked list |
 
-The ranked list is ordered by the day score, which penalises weather that
-swings around, on the basis that a steady good day is a safer bet than one
-bright hour in an unsettled one. A location can therefore have an excellent
-window inside a poor day, and the screen says exactly that.
+The ranked list is ordered by the day-out score, because the question it
+answers is "is it worth going here today". Brilliant weather you can only
+catch for an hour is a worse day out than very good weather that lasts all
+afternoon, so a window keeps a quarter of its quality at one hour and all of
+it by six. An unsettled forecast still takes a small penalty.
+
+A location can therefore have a perfect window inside an otherwise grey day,
+and rank highly for it — you were not going out in the grey part anyway. The
+two numbers are labelled separately on screen so neither is mistaken for the
+other.
+
+### What counts against an hour
+
+Weather elements are weighted by how much they actually affect the chosen
+activity:
+
+- **Rain is counted once.** The measured rainfall, the chance of rain and the
+  weather symbol describe a single shower between them, so the rainfall is
+  taken as the evidence and the other two contribute only the more severe of
+  the pair. A symbol that is not about rain — fog, for instance — is a
+  separate hazard and still counts on its own.
+- **Rain is normal here, and scored that way.** This is written for the
+  Atlantic coast, where a decent chance of rain is the baseline rather than a
+  warning. A 45% chance on a dry hour barely registers, and orbayu does not
+  call off a walk. What is measured to actually fall still counts fully, and
+  sustained rain still reads as Poor.
+- **The two activities disagree, deliberately.** The same grey, drizzly hour
+  can be a perfectly good walk and a written-off beach day.
+- **Walking is scored for this coast.** Cloud barely counts against a walk —
+  a dry overcast 17 °C day is good walking weather here, and the profile says
+  so. You generate your own heat on foot, so the ideal band is cool and wide
+  and heat costs more than chill.
+- **Humidity barely matters to either activity.** Anything an Atlantic
+  summer normally produces is treated as normal rather than as a penalty.
+- **Cloud does not break up a good spell.** One dull hour inside a long sunny
+  window no longer truncates the recommendation; actual rain still does.
 
 Only hours that you can actually use are considered: daylight hours between
 08:00 and 20:00 local time, and for today, only those that have not passed.
