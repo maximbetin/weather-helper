@@ -37,13 +37,33 @@ is labelled on screen because they answer different questions:
 
 | Score | What it measures | Where it appears |
 | --- | --- | --- |
-| **Window score** | How good the recommended hours are | Beside the recommended time window |
-| **Day score** | How good and how settled the whole usable day is | Beside each entry in the ranked list |
+| **Window score** | How good the conditions are during the recommended hours | Beside the recommended time window |
+| **Day-out score** | How good a day out this is: the window's quality, scaled by how long it lasts | Beside each entry in the ranked list |
 
-The ranked list is ordered by the day score, which penalises weather that
-swings around, on the basis that a steady good day is a safer bet than one
-bright hour in an unsettled one. A location can therefore have an excellent
-window inside a poor day, and the screen says exactly that.
+The ranked list is ordered by the day-out score, because the question it
+answers is "is it worth going here today". Brilliant weather you can only
+catch for an hour is a worse day out than very good weather that lasts all
+afternoon, so a window keeps a quarter of its quality at one hour and all of
+it by six. An unsettled forecast still takes a small penalty.
+
+A location can therefore have a perfect window inside an otherwise grey day,
+and rank highly for it — you were not going out in the grey part anyway. The
+two numbers are labelled separately on screen so neither is mistaken for the
+other.
+
+### What counts against an hour
+
+Weather elements are weighted by how much they actually affect the chosen
+activity:
+
+- **Rain is counted once.** The measured rainfall, the chance of rain and the
+  weather symbol describe a single shower between them, so the amount is taken
+  as the evidence and only the more severe of the other two is added. The
+  total is floored, because past a point an hour is already unusable.
+- **Humidity barely matters on a beach day.** Anything a coastal summer
+  normally produces is treated as normal rather than as a penalty.
+- **Cloud does not break up a good spell.** One dull hour inside a long sunny
+  window no longer truncates the recommendation; actual rain still does.
 
 Only hours that you can actually use are considered: daylight hours between
 08:00 and 20:00 local time, and for today, only those that have not passed.
