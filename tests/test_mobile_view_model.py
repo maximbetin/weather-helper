@@ -66,7 +66,13 @@ def test_load_exposes_dates_rankings_and_hourly_details():
     assert model.selected_location_key == "gijon"
     assert model.location_options() == [("gijon", "Gijón"), ("oviedo", "Oviedo")]
     assert [item.location_name for item in ranked] == ["Gijón", "Oviedo"]
-    assert ranked[0].raw_score == 18
+    # The conditions in the window are excellent, but the window is a single
+    # hour, so as a day out it is discounted heavily. The two numbers describe
+    # different things and the screen labels them separately.
+    assert ranked[0].window_score == 90
+    assert ranked[0].window_rating == "Excellent"
+    assert ranked[0].window_hours == 1
+    assert ranked[0].raw_score < 18
     assert ranked[0].best_window == "12:00 - 13:00"
     assert "Temp: 24.0°C" in ranked[0].best_window_details
     assert "Rain Risk" not in ranked[0].best_window_details

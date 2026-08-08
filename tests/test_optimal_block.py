@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from src.core.evaluation import find_optimal_weather_block
+from src.core.models import HourlyWeather
 from src.core.scoring import ACTIVITY_BEACH_DAY, ACTIVITY_HIKING
 
 
@@ -158,3 +159,54 @@ def test_find_optimal_block_does_not_bridge_forecast_gaps(create_hour):
     result = find_optimal_weather_block(hours, min_duration=2, activity_profile='hiking')
 
     assert result is None
+
+
+def _beach_hour(hour_of_day, temp, cloud, precip=0.0, probability=0, symbol=None):
+    """An hour whose scores follow from its weather, for calibration tests."""
+    from src.core.scoring import (
+        cloud_score, humidity_score, precip_amount_score, temp_score, wind_score,
+    )
+    return HourlyWeather(
+        time=datetime(2026, 8, 20, hour_of_day),
+        temp=temp, wind=3, cloud_coverage=cloud, precipitation_amount=precip,
+        precipitation_probability=probability, symbol_code=symbol,
+        relative_humidity=60,
+        temp_score=temp_score(temp), wind_score=wind_score(3),
+        cloud_score=cloud_score(cloud), precip_amount_score=precip_amount_score(precip),
+        humidity_score=humidity_score(60),
+    )
+
+
+def test_one_cloudy_hour_does_not_cut_a_long_sunny_window_short():
+    """The length of the good spell is most of the point of the recommendation."""
+    hours = [_beach_hour(h, 27, 10 if h != 14 else 80) for h in range(11, 19)]
+
+    block = find_optimal_weather_block(hours, activity_profile=ACTIVITY_BEACH_DAY)
+
+    assert block["start"].hour == 11
+    assert block["duration_hours"] == 8
+
+
+def test_an_hour_of_actual_rain_still_splits_a_window():
+    """Cloud is an inconvenience; rain is a reason to be somewhere else."""
+    hours = [
+        _beach_hour(h, 27, 10) if h != 14
+        else _beach_hour(14, 22, 100, 8.0, 90, "heavyrainandthunder")
+        for h in range(11, 19)
+    ]
+
+    block = find_optimal_weather_block(hours, activity_profile=ACTIVITY_BEACH_DAY)
+
+    assert block["duration_hours"] < 8
+    assert not (block["start"].hour <= 14 < block["end_time"].hour)
+
+
+def test_a_longer_good_window_beats_a_shorter_flawless_one():
+    six_good = [_beach_hour(h, 26, 25) for h in range(12, 18)]
+    two_perfect = [_beach_hour(h, 27, 5) for h in range(12, 14)]
+
+    long_block = find_optimal_weather_block(six_good, activity_profile=ACTIVITY_BEACH_DAY)
+    short_block = find_optimal_weather_block(two_perfect, activity_profile=ACTIVITY_BEACH_DAY)
+
+    assert short_block["avg_score"] > long_block["avg_score"]  # better conditions
+    assert long_block["combined_score"] > short_block["combined_score"]  # better plan

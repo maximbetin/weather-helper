@@ -192,14 +192,17 @@ BEACH_PRECIP_AMOUNT_RANGES: List[RangeType] = [
     (None, -10),
 ]
 
+# Humidity barely changes whether a beach day is worth having: you are beside
+# the water, usually in it. It used to swing 7 points -- almost two thirds of
+# what sunshine is worth -- which quietly penalised every Atlantic beach town
+# for the humidity that comes with being on the coast. It now nudges rather
+# than decides, and ordinary coastal humidity is treated as normal.
 BEACH_HUMIDITY_RANGES: List[RangeType] = [
-    ((45, 70), 3),  # Comfortable coastal humidity
-    ((35, 45), 2),  # A little dry but pleasant
-    ((70, 80), 0),  # Noticeably humid
-    ((25, 35), 0),  # Dry but manageable
-    ((80, 90), -2),  # Sticky and uncomfortable
-    ((0, 25), -3),  # Very dry
-    (None, -4),     # Oppressive humidity
+    ((35, 85), 2),   # Anything a coastal summer normally offers
+    ((85, 92), 1),   # Sticky, but not what stops a beach day
+    ((25, 35), 1),   # Dry but fine
+    ((92, 100), 0),  # Oppressive
+    (None, 0),       # Extremes: no credit, no penalty
 ]
 
 PRECIP_PROBABILITY_RANGES: List[RangeType] = [
@@ -256,16 +259,27 @@ def _best_possible(*range_lists: List[RangeType]) -> int:
     return sum(max(score for _, score in ranges) for ranges in range_lists)
 
 
+# How far rain alone may drag an hour down. Past this point an hour is already
+# unusable, and letting the deduction run further only distorts comparisons
+# between one wet location and another.
+MAX_WET_PENALTY = -14
+MAX_WET_PENALTY_BY_PROFILE = {
+    ACTIVITY_HIKING: -14,
+    # A beach plan is ruined by rain sooner than a walk is, so it may fall
+    # further -- but still as one deduction rather than three.
+    ACTIVITY_BEACH_DAY: -18,
+}
+
 # The best weather a profile can possibly describe. Deriving this rather than
 # hardcoding it keeps 100 meaning "as good as this activity gets" for every
 # profile; a stale constant previously capped perfect hiking weather at 96.
+# Rain contributes through one combined term, whose best case is a dry hour.
 MAX_HIKING_SCORE = _best_possible(
     TEMP_RANGES,
     WIND_RANGES,
     CLOUD_RANGES,
     PRECIP_AMOUNT_RANGES,
     HUMIDITY_RANGES,
-    PRECIP_PROBABILITY_RANGES,
 )
 MAX_BEACH_SCORE = _best_possible(
     BEACH_TEMP_RANGES,
@@ -273,7 +287,6 @@ MAX_BEACH_SCORE = _best_possible(
     BEACH_CLOUD_RANGES,
     BEACH_PRECIP_AMOUNT_RANGES,
     BEACH_HUMIDITY_RANGES,
-    BEACH_PRECIP_PROBABILITY_RANGES,
 )
 
 # excellent, very_good, good, fair, max_expected, poor_slope
@@ -363,6 +376,39 @@ def symbol_risk_score(
     return 0
 
 
+def rain_risk_score(
+    precipitation_probability: Optional[NumericType],
+    symbol_code: Optional[str],
+    profile_key: str = DEFAULT_ACTIVITY_PROFILE,
+) -> int:
+    """Return one risk deduction for rain, not one per signal.
+
+    The chance of rain and the weather symbol are two descriptions of the same
+    forecast, so the more severe of the two stands for both. Adding them
+    together, on top of the measured rainfall, meant a single shower was
+    deducted three times over.
+    """
+    if profile_key == ACTIVITY_BEACH_DAY:
+        probability = beach_precip_probability_score(precipitation_probability)
+    else:
+        probability = precip_probability_score(precipitation_probability)
+    return min(probability, symbol_risk_score(symbol_code, profile_key))
+
+
+def combine_wet_weather(
+    amount_score: NumericType, risk_score: NumericType, profile_key: str
+) -> NumericType:
+    """Combine measured rainfall with rain risk, floored.
+
+    The amount is the evidence and the risk is the uncertainty around it, so
+    they are genuinely different things and both count. The floor exists
+    because past a point an hour is already unusable, and letting the
+    deduction keep running only distorts comparisons between wet locations.
+    """
+    floor = MAX_WET_PENALTY_BY_PROFILE.get(profile_key, MAX_WET_PENALTY)
+    return max(amount_score + risk_score, floor)
+
+
 def beach_day_score(
     temp: Optional[NumericType],
     wind_speed: Optional[NumericType],
@@ -377,10 +423,14 @@ def beach_day_score(
         beach_temp_score(temp)
         + beach_wind_score(wind_speed)
         + beach_cloud_score(cloud_coverage)
-        + beach_precip_amount_score(precipitation_amount)
         + beach_humidity_score(relative_humidity)
-        + beach_precip_probability_score(precipitation_probability)
-        + symbol_risk_score(symbol_code, ACTIVITY_BEACH_DAY)
+        + combine_wet_weather(
+            beach_precip_amount_score(precipitation_amount),
+            rain_risk_score(
+                precipitation_probability, symbol_code, ACTIVITY_BEACH_DAY
+            ),
+            ACTIVITY_BEACH_DAY,
+        )
     )
 
 
@@ -444,11 +494,16 @@ def get_activity_score(
             getattr(hour, "symbol_code", None),
         )
 
-    return hour.total_score + activity_risk_score(
+    # The stored total already carries the rainfall score. Lift it out, combine
+    # it with the rain risk under one floor, and put it back, so rain reaches
+    # the total exactly once no matter how many signals describe it.
+    amount = getattr(hour, "precip_amount_score", 0)
+    risk = rain_risk_score(
         getattr(hour, "precipitation_probability", None),
         getattr(hour, "symbol_code", None),
         profile_key,
     )
+    return hour.total_score - amount + combine_wet_weather(amount, risk, profile_key)
 
 
 def get_rating_info(

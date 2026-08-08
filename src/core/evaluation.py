@@ -37,13 +37,27 @@ OPTIMAL_MAX_SCORE_VARIANCE = 8.0
 SINGLE_HOUR_MIN_AVG_SCORE = -1
 MULTI_HOUR_MIN_AVG_SCORE = 0
 VARIANCE_THRESHOLD_PER_EXTRA_HOUR = 0.8
-MAX_DURATION_BONUS = 5.0
-DURATION_BONUS_SATURATION_RATE = 0.35
-CONSISTENCY_BONUS_WEIGHT = 2.0
-WEAK_HOUR_PENALTY_WEIGHT = 0.2
+# How the choice between candidate windows is weighted. These used to favour a
+# short flawless window over a long good one by roughly three to one: four
+# extra hours of sunshine were worth +1.3 while a single cloudy hour inside the
+# block cost 3.9. That is backwards for planning a day out, where the length of
+# the good spell is most of the point and one dull hour in the middle of it is
+# not a reason to go home. Duration now leads, and uniformity only breaks ties.
+MAX_DURATION_BONUS = 12.0
+DURATION_BONUS_SATURATION_RATE = 0.25
+CONSISTENCY_BONUS_WEIGHT = 0.75
+WEAK_HOUR_PENALTY_WEIGHT = 0.05
 DAY_SCORE_CHANGE_TOLERANCE = 4.0
 DAY_SCORE_VOLATILITY_WEIGHT = 0.35
 MAX_DAY_VOLATILITY_PENALTY = 10.0
+
+# How much of its quality a recommended window keeps, by length. A single good
+# hour is worth having but is not a day out, so it retains a quarter of its
+# score; by six hours a window is as much of the day as most plans need and
+# keeps all of it. This is what stops one bright hour outranking a long
+# afternoon, while still letting a genuinely brilliant short window compete.
+MIN_DURATION_FACTOR = 0.25
+FULL_DURATION_CREDIT_HOURS = 6
 
 
 def _calculate_weather_averages(
@@ -667,7 +681,9 @@ def _rank_location_for_date(
     # Score the day on the same hours the window was drawn from, so a location
     # is never ranked highly on a morning that has already passed.
     report = _daily_report(forecast_date, filtered_hours, _location_name(processed))
-    day_score = _calculate_day_activity_score(filtered_hours, activity_profile)
+    day_score = _calculate_day_activity_score(
+        filtered_hours, activity_profile, optimal_block
+    )
     return _build_location_result(
         loc_key,
         report,
@@ -734,18 +750,63 @@ def _build_location_result(
 
 
 def _calculate_day_activity_score(
-    hours: list[HourlyWeather], activity_profile: str
+    hours: list[HourlyWeather],
+    activity_profile: str,
+    optimal_block: Optional[dict[str, Any]] = None,
 ) -> dict[str, float]:
-    """Score the usable day as a whole and penalize abrupt weather changes."""
+    """Score how good a day out this location offers.
+
+    This is what orders the ranked list, so it has to answer the question the
+    list is asked: is it worth going here today. It used to be the mean across
+    every usable hour, which measured something else entirely -- a grey morning
+    counted against a location even though nobody was going out in it, so a
+    flat, mediocre day could outrank a day with a superb afternoon.
+
+    The basis is now the window actually being recommended, scaled by how long
+    it lasts: brilliant weather you can only catch for an hour is a worse day
+    out than very good weather that lasts all afternoon. The whole-day mean is
+    kept for display, and an unsettled day still takes a small penalty, since
+    a forecast that swings around is a forecast to trust less.
+    """
     sorted_hours = sorted(hours, key=lambda hour: hour.time)
     scores = [get_activity_score(hour, activity_profile) for hour in sorted_hours]
     average = sum(scores) / len(scores)
     volatility_penalty = _day_score_volatility_penalty(sorted_hours, scores)
+
+    if optimal_block is None:
+        usable = average
+        usable_hours = _daylight_hours_in(sorted_hours)
+    else:
+        usable = optimal_block["avg_score"]
+        usable_hours = optimal_block["duration_hours"]
+
     return {
-        "score": average - volatility_penalty,
+        "score": _sustained_quality(usable, usable_hours) - volatility_penalty,
         "average": average,
+        "window_hours": usable_hours,
         "volatility_penalty": volatility_penalty,
     }
+
+
+def _sustained_quality(window_score: float, window_hours: int) -> float:
+    """Discount a window's quality by how little of the day it covers.
+
+    Scaling rather than adding a bonus keeps the result on the same scale as an
+    hourly score, so it still normalises to 0-100 and still means something
+    when compared against a rating threshold.
+    """
+    if window_score <= 0:
+        return window_score
+    return window_score * _duration_factor(window_hours)
+
+
+def _duration_factor(window_hours: int) -> float:
+    """Return the share of its quality a window of this length keeps."""
+    if window_hours >= FULL_DURATION_CREDIT_HOURS:
+        return 1.0
+    usable = max(1, window_hours)
+    growth = (usable - 1) / (FULL_DURATION_CREDIT_HOURS - 1)
+    return MIN_DURATION_FACTOR + (1.0 - MIN_DURATION_FACTOR) * growth
 
 
 def _day_score_volatility_penalty(

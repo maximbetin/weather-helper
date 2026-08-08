@@ -353,7 +353,7 @@ class _Screen:
                 bgcolor=self.palette.rating_background(best.rating),
                 border_radius=8,
                 content=self._text(
-                    f"Rest of the day: {best.rating.lower()} "
+                    f"As a day out: {best.rating.lower()} "
                     f"({best.normalized_score}/100) · {best.weather_description}",
                     size=LABEL_SIZE,
                     color=colour,
@@ -502,7 +502,8 @@ class _Screen:
                     ],
                 ),
                 self._secondary(
-                    "Ordered by how settled the whole day looks. "
+                    "Ordered by how good a day out each one offers: how good "
+                    "the best window is, and how long it lasts. "
                     "Tap a location to see the hours behind its score."
                 ),
                 self.forecast_list,
@@ -543,16 +544,18 @@ class _Screen:
                 card.location_name, size=SUBTITLE_SIZE, weight=ft.FontWeight.BOLD
             ),
             subtitle=self._secondary(
-                f"{card.best_window} · window {card.window_score}/100"
+                f"{card.best_window} · {card.window_length_label} at "
+                f"{card.window_score}/100"
                 if card.is_ranked
                 else "No window to recommend",
                 size=BODY_SIZE,
             ),
             leading=self._rank_marker(rank, colour),
-            # The list is ordered by how the day as a whole looks, so that is
-            # the score shown here; the window's own score is on the row above.
+            # The list is ordered by how good a day out this is, so that is the
+            # score shown here; the window's own conditions are on the row
+            # above, where the time and the length give it context.
             trailing=self._score_badge(
-                card.normalized_score, card.rating, caption="the day"
+                card.normalized_score, card.rating, caption="day out"
             ),
             expanded=is_expanded,
             maintain_state=False,

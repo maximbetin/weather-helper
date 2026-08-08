@@ -5,9 +5,15 @@ import pytest
 from src.core.scoring import (
     ACTIVITY_BEACH_DAY,
     ACTIVITY_HIKING,
+    BEACH_CLOUD_RANGES,
+    BEACH_HUMIDITY_RANGES,
     MAX_BEACH_SCORE,
     MAX_HIKING_SCORE,
+    MAX_WET_PENALTY_BY_PROFILE,
     NORMALIZATION_CONFIG_BY_PROFILE,
+    beach_precip_amount_score,
+    combine_wet_weather,
+    rain_risk_score,
     beach_day_score,
     beach_precip_probability_score,
     get_activity_profile_key,
@@ -101,13 +107,15 @@ def test_precip_amount_score(precip, expected_score):
 
 
 def test_beach_day_score_rewards_calm_sunny_warm_weather():
+    # The best a beach hour can be. Humidity contributes only a nudge, so the
+    # ceiling is the sum of temperature, wind, sun and a dry forecast.
     assert beach_day_score(
         temp=27,
         wind_speed=2,
         cloud_coverage=5,
         precipitation_amount=0,
         relative_humidity=60,
-    ) == 26
+    ) == MAX_BEACH_SCORE
 
 
 def test_beach_day_score_penalizes_windy_overcast_weather():
@@ -117,7 +125,7 @@ def test_beach_day_score_penalizes_windy_overcast_weather():
         cloud_coverage=100,
         precipitation_amount=0,
         relative_humidity=60,
-    ) == -1
+    ) == -2
 
 
 def test_beach_day_score_penalizes_rain_risk_and_symbols():
@@ -129,7 +137,7 @@ def test_beach_day_score_penalizes_rain_risk_and_symbols():
         relative_humidity=60,
         precipitation_probability=70,
         symbol_code="rainshowers_day",
-    ) == 7
+    ) == 15  # one risk deduction (-10), not probability (-10) plus symbol (-9)
 
 
 def test_precipitation_probability_is_profile_aware():
@@ -160,7 +168,7 @@ def test_activity_score_uses_selected_profile(create_hour):
     )
 
     assert get_activity_score(hour, ACTIVITY_HIKING) == 12
-    assert get_activity_score(hour, ACTIVITY_BEACH_DAY) == 26
+    assert get_activity_score(hour, ACTIVITY_BEACH_DAY) == MAX_BEACH_SCORE
 
 
 def test_activity_score_applies_risk_to_hiking(create_hour):
@@ -171,7 +179,8 @@ def test_activity_score_applies_risk_to_hiking(create_hour):
         symbol_code="rain",
     )
 
-    assert get_activity_score(hour, ACTIVITY_HIKING) == 2
+    # 60% chance and a rain symbol describe one risk, so one deduction applies.
+    assert get_activity_score(hour, ACTIVITY_HIKING) == 7
 
 
 def test_beach_rating_and_normalization_use_beach_thresholds():
@@ -198,3 +207,74 @@ def test_the_normalisation_ceiling_matches_what_the_ranges_can_award():
 def test_the_top_rating_is_reachable_for_every_profile():
     assert get_rating_info(MAX_HIKING_SCORE, ACTIVITY_HIKING) == "Excellent"
     assert get_rating_info(MAX_BEACH_SCORE, ACTIVITY_BEACH_DAY) == "Excellent"
+
+
+# --- Rain is one event, not three ------------------------------------------
+
+def test_rain_is_not_deducted_once_per_signal():
+    """Amount, probability and symbol describe one shower between them."""
+    dry = beach_day_score(26, 3, 20, 0.0, 60, 0, None)
+    wet = beach_day_score(26, 3, 20, 0.7, 60, 50, "rain")
+
+    amount_alone = beach_precip_amount_score(0.0) - beach_precip_amount_score(0.7)
+    probability_alone = -beach_precip_probability_score(50)
+    symbol_alone = -symbol_risk_score("rain", ACTIVITY_BEACH_DAY)
+
+    # The old model summed all three; the drop must now be far short of that.
+    assert dry - wet < amount_alone + probability_alone + symbol_alone
+
+
+def test_the_worse_of_the_two_risk_signals_stands_for_both():
+    probability_only = rain_risk_score(50, None, ACTIVITY_BEACH_DAY)
+    symbol_only = rain_risk_score(None, "rain", ACTIVITY_BEACH_DAY)
+    both = rain_risk_score(50, "rain", ACTIVITY_BEACH_DAY)
+
+    assert both == min(probability_only, symbol_only)
+    assert both > probability_only + symbol_only  # never the sum
+
+
+def test_light_drizzle_does_not_score_like_a_storm():
+    drizzle = beach_day_score(26, 3, 20, 0.2, 60, 30, "lightrainshowers_day")
+    storm = beach_day_score(26, 3, 20, 8.0, 60, 90, "heavyrainandthunder")
+
+    assert normalize_score(drizzle, ACTIVITY_BEACH_DAY) > normalize_score(
+        storm, ACTIVITY_BEACH_DAY
+    )
+    # Drizzle is a worse hour, not a write-off.
+    assert normalize_score(drizzle, ACTIVITY_BEACH_DAY) >= 50
+
+
+def test_a_dry_hour_is_never_dragged_down_by_the_rain_floor():
+    """The floor must only ever cap a penalty, never invent one."""
+    for probability in (0, 10, 50, 100):
+        assert combine_wet_weather(5, rain_risk_score(probability, None,
+                                   ACTIVITY_BEACH_DAY), ACTIVITY_BEACH_DAY) <= 5
+
+
+def test_rain_cannot_deduct_past_the_floor():
+    worst = combine_wet_weather(-99, -99, ACTIVITY_BEACH_DAY)
+
+    assert worst == MAX_WET_PENALTY_BY_PROFILE[ACTIVITY_BEACH_DAY]
+
+
+# --- Humidity is a nudge on a beach day ------------------------------------
+
+def test_normal_coastal_humidity_is_not_a_beach_penalty():
+    """An Atlantic beach town should not be marked down for being coastal."""
+    scores = {
+        humidity: beach_day_score(27, 3, 10, 0.0, humidity, 0)
+        for humidity in (45, 60, 70, 75, 80, 85)
+    }
+
+    assert len(set(scores.values())) == 1
+
+
+def test_humidity_matters_less_than_sunshine_on_a_beach_day():
+    humidity_swing = max(v for _, v in BEACH_HUMIDITY_RANGES) - min(
+        v for _, v in BEACH_HUMIDITY_RANGES
+    )
+    cloud_swing = max(v for _, v in BEACH_CLOUD_RANGES) - min(
+        v for _, v in BEACH_CLOUD_RANGES
+    )
+
+    assert humidity_swing * 3 <= cloud_swing
