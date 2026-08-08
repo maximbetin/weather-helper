@@ -19,12 +19,16 @@ BASE_COLORS = {
     "poor": "#b91c1c",
 }
 
+RATING_COLOR_KEYS = {
+    "Excellent": "excellent",
+    "Very Good": "very_good",
+    "Good": "good",
+    "Fair": "fair",
+    "Poor": "poor",
+}
+
 RATING_COLORS = {
-    "Excellent": BASE_COLORS["excellent"],
-    "Very Good": BASE_COLORS["very_good"],
-    "Good": BASE_COLORS["good"],
-    "Fair": BASE_COLORS["fair"],
-    "Poor": BASE_COLORS["poor"],
+    rating: BASE_COLORS[key] for rating, key in RATING_COLOR_KEYS.items()
 }
 
 RATING_BACKGROUNDS = {
@@ -35,15 +39,73 @@ RATING_BACKGROUNDS = {
     "Poor": "#fef2f2",
 }
 
+# Dark-mode equivalents. Rating hues stay recognisable but are lightened so
+# they keep their contrast against a dark surface.
+DARK_COLORS = {
+    "primary": "#93b4ff",
+    "background": "#0f172a",
+    "surface": "#1e293b",
+    "border": "#334155",
+    "text": "#e2e8f0",
+    "text_secondary": "#94a3b8",
+    "excellent": "#4ade80",
+    "very_good": "#a3e635",
+    "good": "#facc15",
+    "fair": "#fb923c",
+    "poor": "#f87171",
+}
 
-def get_rating_color(rating: str) -> str:
+DARK_RATING_BACKGROUNDS = {
+    "Excellent": "#16321f",
+    "Very Good": "#26310f",
+    "Good": "#332b0b",
+    "Fair": "#3a2410",
+    "Poor": "#3b1616",
+}
+
+RATING_ORDER = ("Excellent", "Very Good", "Good", "Fair", "Poor")
+
+
+def get_palette(dark: bool = False) -> dict:
+    """Return the colour palette for the requested brightness."""
+    return DARK_COLORS if dark else BASE_COLORS
+
+
+def get_rating_color(rating: str, dark: bool = False) -> str:
     """Return the shared foreground color for a descriptive rating."""
-    return RATING_COLORS.get(rating, BASE_COLORS["text"])
+    palette = get_palette(dark)
+    key = RATING_COLOR_KEYS.get(rating)
+    if key is None:
+        return palette["text"]
+    return palette[key]
 
 
-def get_rating_background(rating: str) -> str:
+def get_rating_background(rating: str, dark: bool = False) -> str:
     """Return the subtle background color for a descriptive rating."""
-    return RATING_BACKGROUNDS.get(rating, BASE_COLORS["surface"])
+    backgrounds = DARK_RATING_BACKGROUNDS if dark else RATING_BACKGROUNDS
+    return backgrounds.get(rating, get_palette(dark)["surface"])
+
+
+MISSING_VALUE = "—"
+
+
+def format_optional(value: Optional[NumericType], formatter) -> str:
+    """Format a value, or return the shared missing-data marker.
+
+    Missing readings are shown as a dash rather than a plausible-looking
+    number, so a gap in the source data can never be mistaken for weather.
+    """
+    return MISSING_VALUE if value is None else formatter(value)
+
+
+def format_relative_date(value: date, today: date) -> str:
+    """Label a date relative to today when that is what a person would say."""
+    delta = (value - today).days
+    if delta == 0:
+        return "Today"
+    if delta == 1:
+        return "Tomorrow"
+    return value.strftime("%a, %d %b")
 
 
 def format_time(value: datetime) -> str:

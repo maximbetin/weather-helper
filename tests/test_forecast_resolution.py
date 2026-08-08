@@ -4,8 +4,10 @@ from datetime import datetime, timedelta
 
 import pytz
 
+from src.core.config import DAYLIGHT_END_HOUR, DAYLIGHT_START_HOUR
 from src.core.evaluation import (
     _are_adjacent_forecast_hours,
+    daylight_bounds,
     find_optimal_weather_block,
     process_forecast,
 )
@@ -123,3 +125,36 @@ def test_a_block_reports_the_hours_it_actually_covers():
     assert block["duration"] == 1
     assert block["duration_hours"] == 6
     assert block["end_time"] == block["end"] + timedelta(hours=6)
+
+
+def test_a_window_is_never_reported_as_starting_before_dawn():
+    """A six-hour entry can start at 04:00; a recommendation cannot."""
+    pre_dawn = _hour(4, coverage_hours=6, precipitation_amount=0.0)
+
+    block = find_optimal_weather_block(
+        [pre_dawn], activity_profile=ACTIVITY_BEACH_DAY
+    )
+
+    assert block is not None
+    assert block["start"].hour == DAYLIGHT_START_HOUR
+    # Only the daylight part of the entry counts as time you can use.
+    assert block["duration_hours"] == 2
+
+
+def test_a_window_is_never_reported_as_running_past_dusk():
+    late = _hour(18, coverage_hours=6, precipitation_amount=0.0)
+
+    block = find_optimal_weather_block([late], activity_profile=ACTIVITY_BEACH_DAY)
+
+    assert block is not None
+    assert block["end_time"].hour == DAYLIGHT_END_HOUR + 1
+    assert block["duration_hours"] == 3
+
+
+def test_daylight_bounds_leave_an_ordinary_hour_alone():
+    midday = _hour(12)
+
+    start, end = daylight_bounds(midday)
+
+    assert start == midday.time
+    assert end == midday.end_time

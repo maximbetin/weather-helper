@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 import tkinter.messagebox as messagebox
 import webbrowser
-from datetime import date, timedelta
+from datetime import date
 from tkinter import ttk
 from typing import Any, Dict
 

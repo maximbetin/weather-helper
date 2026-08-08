@@ -119,6 +119,24 @@ def _is_daylight_hour(hour: HourlyWeather) -> bool:
     return starts_before_window_ends and ends_after_window_starts
 
 
+def daylight_bounds(hour: HourlyWeather) -> tuple[datetime, datetime]:
+    """Return the part of an entry that falls inside the daylight window.
+
+    A six-hour entry starting at 04:00 counts towards the morning, but telling
+    someone their best window begins at 04:00 would be nonsense. Only the
+    daylight part of an entry is ever presented as time to go out.
+    """
+    day_start = hour.time.replace(
+        hour=DAYLIGHT_START_HOUR, minute=0, second=0, microsecond=0
+    )
+    day_end = hour.time.replace(
+        hour=DAYLIGHT_END_HOUR, minute=0, second=0, microsecond=0
+    ) + timedelta(hours=1)
+    start = max(hour.time, day_start)
+    end = min(hour.end_time, day_end)
+    return start, max(start, end)
+
+
 def _is_future_or_current_hour(hour: HourlyWeather, now_local: datetime) -> bool:
     """Return True when an entry still has usable time left in it.
 
@@ -490,18 +508,29 @@ def _base_block_info(
     block: list[HourlyWeather], avg_score: float, std_dev: float
 ) -> dict[str, Any]:
     """Return timing, score, and consistency fields for a block."""
+    window_start, _ = daylight_bounds(block[0])
+    _, window_end = daylight_bounds(block[-1])
     return {
         "block": block,
-        "start": block[0].time,
+        "start": window_start,
         "end": block[-1].time,
-        "end_time": block[-1].end_time,
+        "end_time": window_end,
         "avg_score": avg_score,
         "duration": len(block),
-        "duration_hours": sum(hour.coverage_hours for hour in block),
+        "duration_hours": _daylight_hours_in(block),
         "coverage_hours": block[0].coverage_hours,
         "consistency": 1 / (1 + std_dev),
         "variance": std_dev,
     }
+
+
+def _daylight_hours_in(block: list[HourlyWeather]) -> int:
+    """Return how many usable daylight hours a block really offers."""
+    total = timedelta()
+    for hour in block:
+        start, end = daylight_bounds(hour)
+        total += end - start
+    return int(round(total.total_seconds() / 3600))
 
 
 def _weather_block_info(block: list[HourlyWeather]) -> dict[str, Optional[float]]:

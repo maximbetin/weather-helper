@@ -1,7 +1,7 @@
 """Pure presentation state for the Flet Weather Helper screen."""
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from src.application.forecast_service import (
@@ -16,6 +16,7 @@ from src.application.presentation import (
     format_wind_speed,
 )
 from src.core.evaluation import (
+    daylight_bounds,
     get_available_dates,
     get_recommendation_hours,
     get_time_blocks_for_date,
@@ -37,6 +38,10 @@ from src.mobile.daily_summary import (
 )
 
 DEFAULT_LOCATION_GROUP = "Asturias"
+
+# Forecasts older than this are flagged, so a screen opened the next morning
+# never presents yesterday's plan as if it were current.
+STALE_AFTER = timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -251,6 +256,12 @@ class MobileWeatherViewModel:
         window = self._best_window_bounds(location_key)
         return [self._hourly_forecast_view(hour, window) for hour in hours]
 
+    def selected_hourly_forecast(self) -> list[HourlyForecastView]:
+        """Return the breakdown for the currently selected location."""
+        if not self.selected_location_key:
+            return []
+        return self.hourly_forecast(self.selected_location_key)
+
     def _best_window_bounds(
         self, location_key: str
     ) -> Optional[tuple[datetime, datetime]]:
@@ -289,6 +300,33 @@ class MobileWeatherViewModel:
             self.selected_date,
             self.locations,
             activity_profiles=(self.activity_profile,),
+        )
+
+    def top_recommendation(self) -> Optional[RankedLocationView]:
+        """Return the single best place to be, which is the app's whole point."""
+        ranked = self.ranked_locations(1)
+        return ranked[0] if ranked else None
+
+    def is_stale(self, max_age: timedelta = STALE_AFTER) -> bool:
+        """Return True when the loaded data is too old to trust for today."""
+        if self.loaded_at is None:
+            return True
+        if datetime.now().date() != self.loaded_at.date():
+            return True
+        return datetime.now() - self.loaded_at > max_age
+
+    def freshness_label(self) -> str:
+        """Return a short description of how current the data is."""
+        if self.loaded_at is None:
+            return "Not loaded yet"
+        if self.is_stale():
+            return f"Updated {self.loaded_at:%H:%M} · may be out of date"
+        return f"Updated {self.loaded_at:%H:%M}"
+
+    def activity_label(self) -> str:
+        """Return the display label for the selected activity."""
+        return ACTIVITY_PROFILE_LABELS.get(
+            self.activity_profile, self.activity_profile
         )
 
     def priority_location_names(self) -> list[str]:
@@ -358,9 +396,11 @@ class MobileWeatherViewModel:
         self, hour, window: Optional[tuple[datetime, datetime]]
     ) -> HourlyForecastView:
         raw_score = get_activity_score(hour, self.activity_profile)
+        visible_start, visible_end = daylight_bounds(hour)
         return HourlyForecastView(
-            time=format_window(hour.time, hour.end_time) if not hour.is_hourly
-            else f"{hour.time:%H:%M}",
+            time=f"{hour.time:%H:%M}"
+            if hour.is_hourly
+            else format_window(visible_start, visible_end),
             temperature=hour.temp,
             wind=hour.wind,
             clouds=hour.cloud_coverage,
@@ -368,7 +408,10 @@ class MobileWeatherViewModel:
             humidity=hour.relative_humidity,
             normalized_score=normalize_score(raw_score, self.activity_profile),
             rating=get_rating_info(raw_score, self.activity_profile),
-            coverage_hours=hour.coverage_hours,
+            coverage_hours=int(
+                round((visible_end - visible_start).total_seconds() / 3600)
+            )
+            or 1,
             in_best_window=_is_inside_window(hour, window),
         )
 
@@ -379,11 +422,16 @@ def format_window(start: datetime, end: datetime) -> str:
 
 
 def _is_inside_window(hour, window: Optional[tuple[datetime, datetime]]) -> bool:
-    """Return True when an entry falls inside the recommended window."""
+    """Return True when an entry overlaps the recommended window.
+
+    The comparison uses the daylight part of the entry, so the first entry of a
+    window that began before dawn is still marked as part of it.
+    """
     if window is None:
         return False
-    start, end = window
-    return start <= hour.time < end
+    window_start, window_end = window
+    entry_start, entry_end = daylight_bounds(hour)
+    return entry_start < window_end and entry_end > window_start
 
 
 def _format_best_window_details(block: dict) -> str:
