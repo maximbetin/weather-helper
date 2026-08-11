@@ -1,0 +1,94 @@
+name: Android
+
+on:
+  push:
+    branches: [main, capacitor-android-port]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test application and packaging checks
+        run: npm test
+      - name: Build web assets
+        run: npm run build
+      - name: Synchronise Capacitor Android project
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: Locate and inspect debug APK
+        run: |
+          node scripts/locate-apk.mjs --variant debug --output artifacts/weather-helper.apk
+          node scripts/verify-apk.mjs artifacts/weather-helper.apk
+
+      # Every push to main republishes the rolling "latest" release so
+      # there's always one stable link to the newest APK.
+      - name: Publish rolling latest release
+        if: github.ref_name == 'main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build
+          body: Auto-updated on every push to main. Commit ${{ github.sha }}.
+          make_latest: true
+          files: artifacts/weather-helper.apk
+
+      # Non-main branches (e.g. an in-progress port) get their own rolling
+      # release tag instead of touching "latest", so it doesn't get mixed
+      # up with the main build but is still easy to grab and reinstall.
+      - name: Publish rolling branch release
+        if: github.ref_type == 'branch' && github.ref_name != 'main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-${{ github.ref_name }}
+          name: Latest (${{ github.ref_name }})
+          body: Auto-updated on every push to ${{ github.ref_name }}. Commit ${{ github.sha }}.
+          make_latest: false
+          files: artifacts/weather-helper.apk
+
+      # Also keep a permanent, non-overwritten release per push, so older
+      # builds stay downloadable instead of being replaced by "latest".
+      - name: Publish permanent build release
+        if: github.ref_type == 'branch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          body: Automatic build from ${{ github.ref_name }}. Commit ${{ github.sha }}.
+          make_latest: false
+          files: artifacts/weather-helper.apk
+
+      # A `vX.Y.Z` tag also publishes a permanently versioned release.
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: artifacts/weather-helper.apk

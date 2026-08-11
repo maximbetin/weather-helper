@@ -1,37 +1,31 @@
-# Python environments and local configuration
-.env
-.venv/
-.venv-*/
-venv/
-env/
-ENV/
-
-# Python caches, coverage, and packaging metadata
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-
-# PyInstaller build artifacts
-build/
+node_modules/
 dist/
-*.spec
+artifacts/
+*.log
+.env
+.env.*
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/app/*.keystore
+android/app/*.jks
+*.keystore
+*.jks
+*.p12
+keystore.properties
+android/app/google-services.json
+.tooling/
 
-# IDE specific files
-.cursor/
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS specific files
+# Local OS/editor metadata
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
 
-# Android signing keys must never be committed
-*.jks
-*.keystore
+# Test and coverage output
+coverage/
+test-results/

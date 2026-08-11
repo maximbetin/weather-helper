@@ -1,23 +1,26 @@
 # Weather Helper
 
-[![Test and Build Releases](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/maximbetin/weather-helper/actions/workflows/release.yml)
+Weather Helper compares hourly forecasts and identifies useful outdoor weather windows, then nags you with a daily notification naming today's best activity, location, and time block. It ships as a single Android app built with Capacitor.
 
-## Overview
+## Architecture
 
-Weather Helper compares hourly forecasts and identifies useful outdoor weather
-windows. It has a Tkinter Windows interface and a responsive Flet interface for
-Android, both backed by the same weather, evaluation, and activity-scoring code.
+```text
+Vanilla HTML/CSS/JavaScript (js/, css/, index.html)
+          ↓
+       dist/ web assets
+          ↓
+Capacitor Android WebView wrapper (CapacitorHttp enabled)
+          ↓
+Native Android Gradle project (android/)
+          ↓
+artifacts/weather-helper.apk
+```
 
-Prebuilt Windows ZIP and Android APK files are available from the repository's
-[GitHub Releases](https://github.com/maximbetin/weather-helper/releases) page.
+Capacitor is used only as the native Android container and bridge. The interface and scoring logic remain plain HTML, CSS, and modern vanilla JavaScript (`js/core/`), shared between the foreground UI (`js/app.js`) and the headless daily background task (`js/background-task.js`). `CapacitorHttp` is enabled so `fetch()` is routed through the native HTTP layer, which lets a custom `User-Agent` header reach MET Norway (required by their API terms) from both the app and the background task.
 
 ### Weather data and attribution
 
-Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/weatherapi/locationforecast/2.0/).
-Weather Helper processes the source data into hourly displays, activity scores,
-rankings, and recommended windows; MET Norway does not endorse those changes.
-The data is available under MET Norway's
-[licensing and data policy](https://api.met.no/doc/License), including CC BY 4.0.
+Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/weatherapi/locationforecast/2.0/). Weather Helper processes the source data into hourly displays, activity scores, rankings, and recommended windows; MET Norway does not endorse those changes. The data is available under MET Norway's [licensing and data policy](https://api.met.no/doc/License), including CC BY 4.0.
 
 ## Features
 
@@ -25,151 +28,116 @@ The data is available under MET Norway's
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
 - **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or beach plans focused on swimming and sunbathing.
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
-- **Visual Scoring Analysis**: Color-coded side panel displaying the top locations sorted by weather quality.
-- **Windows and Android Interfaces**: Native-feeling Tkinter desktop and responsive Flet mobile layouts.
+- **Daily Nag Notification**: A background task refreshes a daily notification with today's real recommendation (activity, location, time window), scheduled at a time you choose in Settings.
 - **Honest Missing-Data Display**: Missing precipitation is shown as `N/A`, not as a dry `0.0 mm` forecast.
 
-## Installation and Usage
+## Prerequisites
 
-1. **Clone the repository**:
+- Node.js 24 and npm 11 or newer
+- Java 21 for Android builds
+- Android SDK/API and build tools for local Gradle builds
+- Optional: `adb` for installation and an Android emulator or phone
 
-```bash
-git clone https://github.com/maximbetin/weather-helper.git
-cd weather-helper
-```
+The Android project uses the committed Gradle wrapper. Do not install a separate global Gradle version.
 
-2. **Create and activate a virtual environment**:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate  # PowerShell: .\.venv\Scripts\Activate.ps1
-```
-
-Using a virtual environment is required for development. Installing into a
-shared/global Python can conflict with unrelated tools that pin different
-versions of `requests` or Flet's `httpx` dependency.
-
-3. **Install development and application dependencies**:
+## Clean setup and web tests
 
 ```bash
-python -m pip install -e ".[dev]"
+npm ci
+npm test
+npm run build
 ```
 
-4. **Run the application**:
+`npm run build` copies the local HTML/CSS/JavaScript, manifest, and icons into `dist/`, then `scripts/verify-web-build.mjs` checks that required files are present and that no `<script>`/`<link>`/`<img>` tag in `index.html` loads a remote or localhost runtime resource.
+
+## Build the Android APK locally
 
 ```bash
-python weather_helper.py
+npm run android:sync
 ```
 
-### Android and Flet development
-
-For a clean mobile environment on Windows, run from the repository root:
+then, on Windows PowerShell:
 
 ```powershell
-py -3.13 -m venv .venv-mobile
-.\.venv-mobile\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -e ".[mobile,dev]"
-flet run weather_helper_mobile.py
+cd android
+.\gradlew.bat assembleDebug
+cd ..
+node scripts\locate-apk.mjs --variant debug --output artifacts\weather-helper.apk
 ```
 
-The complete beginner-oriented setup, APK build, signing, installation,
-versioning, CI release, and troubleshooting instructions are in
-[Android Development and APK Builds](docs/android-development.md).
-
-## Testing
-
-The project uses pytest for testing. To run the tests:
+or on macOS/Linux:
 
 ```bash
-python -m pip install -e ".[dev]"
-python -m pytest
+cd android
+./gradlew assembleDebug
+cd ..
+node scripts/locate-apk.mjs --variant debug --output artifacts/weather-helper.apk
 ```
 
-The test suite includes:
-- Unit tests for core business logic (scoring, models)
-- GUI logic tests
-- Integration tests for data processing
-
-## Building Executables
-
-The application can be built into standalone executables using PyInstaller:
+Or run the complete cross-platform helper:
 
 ```bash
-python -m pip install -e ".[windows-build]"
-pyinstaller --onefile --windowed weather_helper.py
+npm run android:debug
 ```
 
-The executable will be created in the `dist` directory.
+The final installable file is `artifacts/weather-helper.apk` (rename via `--output`). Inspect it once Android SDK tools are available:
 
-## Building an Android APK
-
-With the mobile environment active:
-
-```powershell
-$env:PYTHONUTF8 = "1"
-$env:PYTHONIOENCODING = "utf-8"
-flet build apk --yes --no-rich-output
+```bash
+node scripts/verify-apk.mjs artifacts/weather-helper.apk
 ```
 
-The APK is created under `build\apk`. See the
-[Android development guide](docs/android-development.md) before distributing
-builds, because Android version numbers and signing keys determine whether an
-APK can update an existing installation.
+This checks that the APK is non-empty and contains `assets/public/index.html`. If `apkanalyzer` is installed, it also verifies application ID `com.maximbk.weatherhelper`.
 
-## Automated GitHub Releases
+## Install with ADB
 
-Relevant pushes to `main` run the tests, build both platforms, and create a
-GitHub Release containing:
+```bash
+adb install -r artifacts/weather-helper.apk
+```
 
-- `weather-helper-windows-<version>.zip`
-- `weather-helper-android-<version>.apk`
-- `SHA256SUMS`
+The `-r` flag replaces an existing installation while preserving its data when signatures match.
 
-The Android build works without repository secrets using a temporary debug key.
-Configure the four signing secrets described in the Android guide so APKs from
-different workflow runs can update one another.
+## GitHub Actions
 
-CI tests shared/core/mobile behavior on Ubuntu and the complete suite, including
-Tkinter checks, on Windows. Before release it inspects the Windows ZIP, performs
-a bounded packaged-app startup check, and verifies the APK package ID, version,
-and signature. Release versions are reused when the workflow reruns for a commit
-that already has a release tag, so a rerun does not consume another version.
+`.github/workflows/android.yml` builds a debug APK on every push to `main`, every push to `capacitor-android-port`, and on `v*` tags. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleDebug`, then publishes the APK as GitHub Releases: a rolling `latest` on `main`, a rolling `latest-<branch>` on any other branch (so an in-progress port stays installable without touching `latest`), a permanent `build-<run number>` on every branch push, and (for `v*` tags) a permanently versioned release.
 
-The current Windows executable is unsigned and may show an unknown-publisher
-warning. Android is debug-signed unless the documented signing secrets are
-configured. The project does not create a self-signed certificate or pretend
-either artifact has trusted release signing.
+Gradle reads the authoritative version from `version.json` (`versionName`, `versionCode`); increase both deliberately before a release, since Android's `versionCode` must always increase.
+
+## Native behavior and permissions
+
+The Android manifest declares `android.permission.INTERNET` (for forecast fetches) and `android.permission.POST_NOTIFICATIONS` (Android 13+, requested at runtime by the app). `@capacitor/background-runner`'s own manifest fragment pulls in location permissions for its optional geolocation API; the app's manifest explicitly strips them (`tools:node="remove"`) since Weather Helper never does geolocation.
+
+On some OEMs (Xiaomi, Samsung, Huawei), the daily background refresh needs the app excluded from battery optimization to survive Doze; the Settings screen explains this on first enabling notifications.
 
 ## Project Structure
 
 ```bash
 weather-helper/
-├── src/
-│   ├── application/    # UI-independent forecast orchestration
-│   ├── core/           # Core business logic and data models
-│   ├── gui/            # Tkinter GUI components and theming
-│   └── mobile/         # Flet mobile UI and presentation state
-├── docs/               # Development and build guides
-├── tests/              # Test suite
-├── pyproject.toml      # Project metadata and dependencies
-└── README.md           # This file
+├── index.html          # App shell
+├── css/styles.css       # Styling
+├── native-bridge.js     # Capacitor plugin wrapper (App, LocalNotifications, Preferences)
+├── js/
+│   ├── core/            # Weather API, models, evaluation, scoring, locations, timezone, daily summary
+│   ├── app.js            # UI orchestrator
+│   ├── notifications.js  # Settings screen + notification scheduling
+│   └── background-task.js # @capacitor/background-runner worker entry
+├── android/              # Capacitor-generated Gradle project
+├── scripts/               # Build, sync, and packaging helpers
+├── tests/                 # node --test suite
+├── capacitor.config.ts
+└── version.json
 ```
 
 ### Core Components
 
-- **`src/core/config.py`**: Configuration constants and utility functions
-- **`src/core/models.py`**: Data models (HourlyWeather, DailyReport)
-- **`src/core/scoring.py`**: Centralized weather scoring logic and range definitions
-- **`src/core/evaluation.py`**: Weather evaluation and analysis logic
-- **`src/core/weather_api.py`**: API integration for weather data
-- **`src/core/locations.py`**: Location definitions and management
-- **`src/application/forecast_service.py`**: Shared forecast loading orchestration
-- **`src/gui/app.py`**: Main application window and logic
-- **`src/mobile/app.py`**: Flet mobile screen
-- **`src/mobile/view_model.py`**: UI-independent mobile presentation state
-- **`src/gui/themes.py`**: UI theming and visual styling
-- **`src/gui/formatting.py`**: Data formatting for display
+- **`js/core/scoring.js`**: Centralized weather scoring logic and range definitions
+- **`js/core/evaluation.js`**: Weather evaluation and analysis logic
+- **`js/core/weather_api.js`**: MET Norway API integration (complete → compact fallback)
+- **`js/core/locations.js`**: Location definitions and management
+- **`js/core/timezone.js`**: Europe/Madrid local-time helpers
+- **`js/core/daily_summary.js`**: Builds the daily nag notification's recommendation text
+- **`js/app.js`**: Main UI screen and logic
+- **`js/notifications.js`**: Settings screen and daily notification scheduling
+- **`js/background-task.js`**: Headless daily fetch + score + notify
 
 ## Weather Scoring System
 
@@ -182,7 +150,7 @@ The Weather Helper uses a comprehensive scoring system to evaluate weather condi
 Evaluates temperature comfort for outdoor activities:
 
 | Temperature (°C) | Score | Description         |
-| ---------------- | ----- | ------------------- |
+| ---------------- | ----- | -------------------- |
 | 20-24°C          | +7    | Ideal temperature   |
 | 17-20°C, 24-27°C | +6    | Very pleasant       |
 | 15-17°C, 27-30°C | +4    | Comfortable         |
@@ -199,7 +167,7 @@ Evaluates temperature comfort for outdoor activities:
 Assesses wind comfort for outdoor activities:
 
 | Wind Speed (m/s) | Score | Description             |
-| ---------------- | ----- | ----------------------- |
+| ----------------- | ----- | ------------------------ |
 | 1-3 m/s          | +2    | Light breeze (ideal)    |
 | 0-1 m/s          | +1    | Calm (good)             |
 | 3-5 m/s          | 0     | Gentle breeze (neutral) |
@@ -214,7 +182,7 @@ Assesses wind comfort for outdoor activities:
 Evaluates sky conditions for outdoor activities:
 
 | Cloud Coverage | Score | Description                     |
-| -------------- | ----- | ------------------------------- |
+| --------------- | ----- | -------------------------------- |
 | 10-30%         | +4    | Few to scattered clouds (ideal) |
 | 0-10%          | +3    | Clear skies                     |
 | 30-60%         | +2    | Partly cloudy                   |
@@ -227,15 +195,15 @@ Evaluates sky conditions for outdoor activities:
 Assesses precipitation impact on outdoor activities:
 
 | Precipitation (mm) | Score | Description           |
-| ------------------ | ----- | --------------------- |
+| -------------------- | ----- | ---------------------- |
 | 0 mm               | +5    | No precipitation      |
 | 0-0.1 mm           | +4    | Trace amounts         |
 | 0.1-0.5 mm         | +2    | Very light            |
 | 0.5-1.0 mm         | 0     | Light drizzle         |
 | 1.0-2.5 mm         | -2    | Light rain            |
 | 2.5-5.0 mm         | -4    | Moderate rain         |
-| 5.0-10.0 mm        | -6    | Heavy rain            |
-| 10.0-20.0 mm       | -8    | Very heavy rain       |
+| 5.0-10.0 mm        | -6    | Heavy rain             |
+| 10.0-20.0 mm       | -8    | Very heavy rain        |
 | >20.0 mm           | -12   | Extreme precipitation |
 
 #### 5. Humidity Score (-4 to +3 points)
@@ -243,7 +211,7 @@ Assesses precipitation impact on outdoor activities:
 Evaluates relative humidity comfort:
 
 | Relative Humidity | Score | Description                    |
-| ----------------- | ----- | ------------------------------ |
+| ------------------- | ----- | -------------------------------- |
 | 40-60%            | +3    | Ideal humidity range           |
 | 30-40%            | +2    | Low humidity (good)            |
 | 60-70%            | +1    | Moderate humidity (acceptable) |
@@ -268,7 +236,7 @@ Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
 The app can rank locations and hourly blocks using different activity profiles:
 
 | Profile   | Intended use                         | Scoring emphasis |
-| --------- | ------------------------------------ | ---------------- |
+| --------- | ------------------------------------- | ----------------- |
 | Hiking    | General outdoors, walking, day trips | Balanced comfort across temperature, wind, cloud, rain, and humidity |
 | Beach     | Swimming and sunbathing              | Warm air, low wind, dry weather, and clear to partly cloudy skies |
 
@@ -300,14 +268,6 @@ The application identifies the best continuous time periods for the selected act
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.
 
-All successfully loaded locations that contain hourly data for the selected date
-remain selectable, even when conditions do not meet the minimum for a ranked
-recommendation. In that case the app shows an unranked summary and keeps the
-hourly details available for the user's own judgment.
+All successfully loaded locations that contain hourly data for the selected date remain selectable, even when conditions do not meet the minimum for a ranked recommendation. In that case the app shows an unranked summary and keeps the hourly details available for the user's own judgment.
 
-The recommended time remains the best continuous block, but location ranking
-uses the selected activity's average across the whole usable day. Small
-hour-to-hour changes are tolerated, while abrupt changes add an increasingly
-strong volatility penalty. This keeps the Top 10 score grounded in the broader
-day even when one short period has excellent conditions. For today, the score
-uses the remaining useful daylight; future dates use the full daylight period.
+The recommended time remains the best continuous block, but location ranking uses the selected activity's average across the whole usable day. Small hour-to-hour changes are tolerated, while abrupt changes add an increasingly strong volatility penalty. This keeps the Top 10 score grounded in the broader day even when one short period has excellent conditions. For today, the score uses the remaining useful daylight; future dates use the full daylight period.

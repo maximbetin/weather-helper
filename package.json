@@ -1,0 +1,27 @@
+{
+  "name": "weather-helper",
+  "version": "1.2.8",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-web.mjs",
+    "test": "node --test",
+    "verify:web": "node scripts/verify-web-build.mjs",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:debug": "npm run android:sync && node scripts/build-android.mjs debug",
+    "android:release": "npm run android:sync && node scripts/build-android.mjs release"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.0",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/background-runner": "3.0.0",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/local-notifications": "8.2.1",
+    "@capacitor/preferences": "8.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "8.5.0",
+    "typescript": "5.8.3"
+  }
+}

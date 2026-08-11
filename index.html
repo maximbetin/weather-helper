@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1e3a8a" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <title>Weather Helper</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Weather Helper</h1>
+      <button class="icon-button" id="settings-button" aria-label="Notification settings">&#9881;</button>
+    </header>
+    <main>
+      <section class="panel" id="settings-panel" hidden>
+        <div class="filters-row">
+          <h2>Daily reminder</h2>
+          <button class="icon-button" id="settings-close-button" aria-label="Close settings">&#10005;</button>
+        </div>
+        <p class="subtitle">Get a nudge with today's best outdoor window.</p>
+        <div class="field-grid">
+          <div class="field">
+            <label for="notify-enabled">Enable daily reminder</label>
+            <input type="checkbox" id="notify-enabled" />
+          </div>
+          <div class="field">
+            <label for="notify-time">Reminder time</label>
+            <input type="time" id="notify-time" value="08:00" />
+          </div>
+        </div>
+        <p class="status-text" id="notify-status"></p>
+        <button class="button-primary" id="notify-save-button">Save</button>
+      </section>
+
+      <section class="panel" id="daily-summary-panel">
+        <h2>Today's best windows</h2>
+        <p class="subtitle">Oviedo and Gijón are shown first for hiking and beach plans.</p>
+        <div class="summary-list" id="daily-summary-list"></div>
+      </section>
+
+      <section class="panel" id="filters-panel">
+        <div class="filters-row">
+          <h2>Filters</h2>
+          <button class="icon-button" id="refresh-button" aria-label="Refresh forecast">&#8635;</button>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="group-select">Region</label>
+            <select id="group-select"></select>
+          </div>
+          <div class="field">
+            <label for="location-select">Location</label>
+            <select id="location-select"></select>
+          </div>
+          <div class="field">
+            <label for="profile-select">Activity</label>
+            <select id="profile-select"></select>
+          </div>
+          <div class="field">
+            <label for="date-select">Date</label>
+            <select id="date-select"></select>
+          </div>
+        </div>
+        <progress id="load-progress" hidden></progress>
+        <p class="status-text" id="status-text"></p>
+      </section>
+
+      <nav class="tab-bar" role="tablist">
+        <button class="tab-button active" id="tab-ranking" data-tab="ranking" role="tab" aria-selected="true">Top 10</button>
+        <button class="tab-button" id="tab-filters" data-tab="filters" role="tab" aria-selected="false">All results</button>
+      </nav>
+
+      <section class="tab-panel panel" id="panel-ranking">
+        <div class="ranking-list" id="ranking-list"></div>
+      </section>
+
+      <section class="tab-panel panel" id="panel-filters" hidden>
+        <div class="summary-list" id="all-results-list"></div>
+      </section>
+
+      <section class="details-panel" id="details-panel" hidden>
+        <div id="selected-summary"></div>
+        <div class="hourly-list" id="hourly-list"></div>
+      </section>
+    </main>
+
+    <p class="attribution">
+      Data from <a href="https://api.met.no/weatherapi/locationforecast/2.0/" target="_blank" rel="noopener">MET Norway</a>,
+      used under this <a href="https://api.met.no/doc/License" target="_blank" rel="noopener">license</a>.
+    </p>
+
+    <script type="module" src="js/app.js?v=1"></script>
+  </body>
+</html>
