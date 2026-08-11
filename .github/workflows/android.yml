@@ -115,8 +115,10 @@ jobs:
 
       # Also keep a permanent, non-overwritten release per push, so older
       # builds stay downloadable instead of being replaced by "latest".
+      # Main is excluded: its versioned release above already serves this
+      # purpose (unique per version.json bump, never overwritten).
       - name: Publish permanent build release
-        if: github.ref_type == 'branch'
+        if: github.ref_type == 'branch' && github.ref_name != 'main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
