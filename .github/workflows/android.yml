@@ -69,6 +69,11 @@ jobs:
           node scripts/locate-apk.mjs --variant release --output artifacts/weather-helper.apk
           node scripts/verify-apk.mjs artifacts/weather-helper.apk
 
+      - name: Read app version
+        id: app-version
+        shell: bash
+        run: echo "version=$(node -p "require('./version.json').versionName")" >> "$GITHUB_OUTPUT"
+
       - name: Verify APK signature
         if: env.ANDROID_KEYSTORE_BASE64 != ''
         shell: bash
@@ -80,15 +85,18 @@ jobs:
           fi
           "$apksigner" verify --verbose --print-certs artifacts/weather-helper.apk
 
-      # Every push to main republishes the rolling "latest" release so
-      # there's always one stable link to the newest APK.
-      - name: Publish rolling latest release
+      # Every push to main (re)publishes the release for the current
+      # version.json version, named and tagged like the pre-Capacitor
+      # releases (e.g. "Weather Helper v1.2.8") instead of a generic
+      # "latest" label. Re-pushing to main without bumping version.json
+      # updates that same release rather than creating a new one.
+      - name: Publish versioned release
         if: github.ref_name == 'main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest build
-          body: Auto-updated on every push to main. Commit ${{ github.sha }}.
+          tag_name: v${{ steps.app-version.outputs.version }}
+          name: Weather Helper v${{ steps.app-version.outputs.version }}
+          generate_release_notes: true
           make_latest: true
           files: artifacts/weather-helper.apk
 

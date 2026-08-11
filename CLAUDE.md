@@ -72,7 +72,14 @@ matching test in `tests/`.
 
 ## CI
 
-`.github/workflows/android.yml` runs `npm ci && npm test`, builds web +
-Android debug APK, and publishes a GitHub Release APK on pushes to `main`,
-`capacitor-android-port`, and `v*` tags. Mirror this locally before pushing
-release-affecting changes: `npm test` then `npm run android:debug`.
+`.github/workflows/android.yml` triggers only on push to `main` and on `v*`
+tags (plus manual `workflow_dispatch`) — **not** on other branches. It runs
+`npm ci && npm test`, builds the web assets, `gradlew assembleRelease`, and
+publishes the signed APK as a GitHub Release tagged/named from
+`version.json`'s `versionName` (e.g. `Weather Helper v1.2.8`, with
+auto-generated notes). Pushing to `main` again without bumping
+`version.json` updates that same release rather than creating a new one —
+bump `versionName`/`versionCode` first if you want a distinct release.
+Pushing to any other branch (including this one) does not trigger CI or
+publish anything. Mirror the release build locally before pushing
+release-affecting changes: `npm test` then `npm run android:release`.

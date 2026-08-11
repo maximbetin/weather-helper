@@ -98,7 +98,7 @@ The `-r` flag replaces an existing installation while preserving its data when s
 
 ## GitHub Actions
 
-`.github/workflows/android.yml` builds a debug APK on every push to `main`, every push to `capacitor-android-port`, and on `v*` tags. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleDebug`, then publishes the APK as GitHub Releases: a rolling `latest` on `main`, a rolling `latest-<branch>` on any other branch (so an in-progress port stays installable without touching `latest`), a permanent `build-<run number>` on every branch push, and (for `v*` tags) a permanently versioned release.
+`.github/workflows/android.yml` runs on every push to `main` and on `v*` tags. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleRelease`, then publishes the signed APK as a GitHub Release: on `main`, tagged and named from the current `version.json` version (e.g. `Weather Helper v1.2.8`, with auto-generated notes), re-publishing that same release if pushed again without a version bump; on a `v*` tag, a release for that tag.
 
 Gradle reads the authoritative version from `version.json` (`versionName`, `versionCode`); increase both deliberately before a release, since Android's `versionCode` must always increase.
 
