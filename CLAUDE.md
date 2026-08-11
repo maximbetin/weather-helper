@@ -73,13 +73,25 @@ matching test in `tests/`.
 ## CI
 
 `.github/workflows/android.yml` triggers only on push to `main` and on `v*`
-tags (plus manual `workflow_dispatch`) — **not** on other branches. It runs
-`npm ci && npm test`, builds the web assets, `gradlew assembleRelease`, and
-publishes the signed APK as a GitHub Release tagged/named from
-`version.json`'s `versionName` (e.g. `Weather Helper v1.2.8`, with
-auto-generated notes). Pushing to `main` again without bumping
-`version.json` updates that same release rather than creating a new one —
-bump `versionName`/`versionCode` first if you want a distinct release.
-Pushing to any other branch (including this one) does not trigger CI or
-publish anything. Mirror the release build locally before pushing
-release-affecting changes: `npm test` then `npm run android:release`.
+tags (plus manual `workflow_dispatch`) — not on other branches (this was
+narrowed from `[main, capacitor-android-port]` at some point during the
+Capacitor port; earlier commits still trigger on that branch if you're
+looking at old workflow runs). It runs `npm ci && npm test`, builds the web
+assets, `gradlew assembleRelease`, and publishes the signed APK as a GitHub
+Release tagged/named from `version.json`'s `versionName` (e.g.
+`Weather Helper v1.2.8`, with auto-generated notes). Pushing to `main` again
+without bumping `version.json` updates that same release rather than
+creating a new one — bump `versionName`/`versionCode` first if you want a
+distinct release. Pushing to any other branch (including this one) does not
+trigger CI or publish anything. Mirror the release build locally before
+pushing release-affecting changes: `npm test` then `npm run android:release`.
+
+**Gotcha:** the pre-Capacitor Python app also used tag/release names like
+`vX.Y.Z`, so a `version.json` value that collides with an old release (e.g.
+`1.2.8`, published 2026-07-13 by the old `release.yml`) makes
+`softprops/action-gh-release` try to *update* that release instead of
+creating a new one — which 403s ("Resource not accessible by integration")
+even with `contents: write`, because the default `GITHUB_TOKEN` can't modify
+a release it didn't create. Always bump to a version that's new for *this*
+app's release history, not just numerically higher than `version.json`'s
+last value.
