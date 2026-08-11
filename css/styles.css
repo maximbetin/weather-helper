@@ -131,10 +131,30 @@ select {
   appearance: none;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 10px 36px 10px 12px;
   font-size: 14px;
-  background: var(--surface);
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2364748b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+select:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+
+select:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+select:disabled {
+  opacity: 0.6;
 }
 
 .filters-row {
@@ -148,6 +168,20 @@ select {
 button {
   font: inherit;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+button:active {
+  transform: scale(0.97);
 }
 
 .icon-button {
@@ -161,6 +195,11 @@ button {
   justify-content: center;
   font-size: 18px;
   color: var(--primary);
+}
+
+.icon-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
 }
 
 .icon-button:disabled {
@@ -178,9 +217,31 @@ button {
   font-weight: 600;
 }
 
+.button-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 88%, black);
+}
+
 .button-primary:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.button-secondary {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.button-secondary:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
 }
 
 #notify-time {
@@ -190,12 +251,26 @@ button {
   font-size: 14px;
   background: var(--surface);
   color: var(--text);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+#notify-time:hover {
+  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
+}
+
+#notify-time:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
 }
 
 #notify-enabled {
   width: 20px;
   height: 20px;
   align-self: flex-start;
+  accent-color: var(--primary);
 }
 
 progress {
@@ -207,32 +282,6 @@ progress {
   margin: 8px 0 0;
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-.tab-bar {
-  display: flex;
-  gap: 8px;
-}
-
-.tab-button {
-  flex: 1;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.tab-button.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.tab-panel[hidden] {
-  display: none;
 }
 
 .ranking-list,
@@ -252,6 +301,17 @@ progress {
   background: var(--surface);
   width: 100%;
   text-align: left;
+}
+
+.rank-card:hover:not(.selected) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+}
+
+.rank-card.selected {
+  border-color: var(--primary);
+  border-width: 2px;
+  padding: 9px 11px;
+  background: color-mix(in srgb, var(--primary) 6%, var(--surface));
 }
 
 .rank-badge {
@@ -333,6 +393,7 @@ progress {
   border-radius: 12px;
   border: 1px solid var(--border);
   padding: 16px;
+  scroll-margin-top: 12px;
 }
 
 .details-panel .score-big {

@@ -35,8 +35,8 @@
       </section>
 
       <section class="panel" id="daily-summary-panel">
-        <h2>Today's best windows</h2>
-        <p class="subtitle">Oviedo and Gijón are shown first for hiking and beach plans.</p>
+        <h2>Daily digest</h2>
+        <p class="subtitle">Oviedo and Gijón, hiking and beach, at a glance — independent of the filters below.</p>
         <div class="summary-list" id="daily-summary-list"></div>
       </section>
 
@@ -51,10 +51,6 @@
             <select id="group-select"></select>
           </div>
           <div class="field">
-            <label for="location-select">Location</label>
-            <select id="location-select"></select>
-          </div>
-          <div class="field">
             <label for="profile-select">Activity</label>
             <select id="profile-select"></select>
           </div>
@@ -67,17 +63,11 @@
         <p class="status-text" id="status-text"></p>
       </section>
 
-      <nav class="tab-bar" role="tablist">
-        <button class="tab-button active" id="tab-ranking" data-tab="ranking" role="tab" aria-selected="true">Top 10</button>
-        <button class="tab-button" id="tab-filters" data-tab="filters" role="tab" aria-selected="false">All results</button>
-      </nav>
-
-      <section class="tab-panel panel" id="panel-ranking">
+      <section class="panel" id="ranking-panel">
+        <h2>Ranked locations</h2>
+        <p class="subtitle">Based on the filters above. Tap one for hourly detail.</p>
         <div class="ranking-list" id="ranking-list"></div>
-      </section>
-
-      <section class="tab-panel panel" id="panel-filters" hidden>
-        <div class="summary-list" id="all-results-list"></div>
+        <button class="button-secondary" id="show-all-button" type="button" hidden></button>
       </section>
 
       <section class="details-panel" id="details-panel" hidden>

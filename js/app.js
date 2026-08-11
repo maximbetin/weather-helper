@@ -27,7 +27,6 @@ function create(tag, props = {}, children = []) {
 const vm = new ForecastViewModel();
 
 const groupSelect = $("group-select");
-const locationSelect = $("location-select");
 const profileSelect = $("profile-select");
 const dateSelect = $("date-select");
 const refreshButton = $("refresh-button");
@@ -35,7 +34,7 @@ const loadProgress = $("load-progress");
 const statusText = $("status-text");
 const dailySummaryList = $("daily-summary-list");
 const rankingList = $("ranking-list");
-const allResultsList = $("all-results-list");
+const showAllButton = $("show-all-button");
 const detailsPanel = $("details-panel");
 const selectedSummary = $("selected-summary");
 const hourlyList = $("hourly-list");
@@ -62,13 +61,6 @@ function updateDateOptions() {
   dateSelect.replaceChildren(...dates.map((d) => create("option", { value: d, textContent: formatDate(d) })));
   dateSelect.disabled = dates.length === 0;
   if (vm.selectedDate) dateSelect.value = vm.selectedDate;
-}
-
-function updateLocationOptions() {
-  const options = vm.locationOptions();
-  locationSelect.replaceChildren(...options.map(([key, name]) => create("option", { value: key, textContent: name })));
-  locationSelect.disabled = options.length === 0;
-  if (vm.selectedLocationKey) locationSelect.value = vm.selectedLocationKey;
 }
 
 function scoreCell(text) {
@@ -107,16 +99,18 @@ function renderDailySummary() {
   dailySummaryList.replaceChildren(...nodes);
 }
 
-function rankCard(item, { showRank }) {
+function rankCard(item) {
+  const isSelected = item.locationKey === vm.selectedLocationKey;
   return create(
     "button",
     {
-      className: "rank-card",
+      className: isSelected ? "rank-card selected" : "rank-card",
       type: "button",
+      "aria-pressed": String(isSelected),
       onclick: () => selectLocation(item.locationKey),
     },
     [
-      showRank ? create("span", { className: "rank-badge", textContent: String(item.rank) }) : null,
+      create("span", { className: "rank-badge", textContent: String(item.rank) }),
       create("div", { className: "rank-main" }, [
         create("div", { className: "rank-name", textContent: item.locationName }),
         create("div", { className: "rank-window", textContent: item.bestWindow || "No consistent window today" }),
@@ -129,20 +123,21 @@ function rankCard(item, { showRank }) {
   );
 }
 
+let showAllResults = false;
+const RANKING_PREVIEW_COUNT = 10;
+
 function renderRanking() {
-  const top10 = vm.rankedLocations(10);
-  if (top10.length === 0) {
+  const total = Object.keys(vm.forecasts).length || 1;
+  const items = vm.rankedLocations(showAllResults ? total : RANKING_PREVIEW_COUNT);
+
+  if (items.length === 0) {
     rankingList.replaceChildren(create("p", { className: "empty-state", textContent: "No ranked locations for this date." }));
   } else {
-    rankingList.replaceChildren(...top10.map((item) => rankCard(item, { showRank: true })));
+    rankingList.replaceChildren(...items.map((item) => rankCard(item)));
   }
 
-  const all = vm.rankedLocations(Object.keys(vm.forecasts).length || 1);
-  if (all.length === 0) {
-    allResultsList.replaceChildren(create("p", { className: "empty-state", textContent: "No locations available for this date." }));
-  } else {
-    allResultsList.replaceChildren(...all.map((item) => rankCard(item, { showRank: false })));
-  }
+  showAllButton.hidden = total <= RANKING_PREVIEW_COUNT;
+  showAllButton.textContent = showAllResults ? "Show top 10 only" : `Show all ${total} locations`;
 }
 
 function hourlyRow(hour) {
@@ -193,8 +188,9 @@ function renderDashboard() {
 
 function selectLocation(locationKey) {
   vm.selectLocation(locationKey);
-  locationSelect.value = locationKey;
   renderDetails();
+  renderRanking();
+  detailsPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function setStatus(text) {
@@ -217,20 +213,10 @@ async function refreshForecast() {
     refreshButton.disabled = false;
     groupSelect.disabled = false;
     loadProgress.hidden = true;
+    showAllResults = false;
     updateDateOptions();
-    updateLocationOptions();
     renderDashboard();
   }
-}
-
-function setActiveTab(tab) {
-  const isRanking = tab === "ranking";
-  $("panel-ranking").hidden = !isRanking;
-  $("panel-filters").hidden = isRanking;
-  $("tab-ranking").classList.toggle("active", isRanking);
-  $("tab-filters").classList.toggle("active", !isRanking);
-  $("tab-ranking").setAttribute("aria-selected", String(isRanking));
-  $("tab-filters").setAttribute("aria-selected", String(!isRanking));
 }
 
 async function openSettings() {
@@ -273,25 +259,20 @@ function initialiseUi() {
 
   profileSelect.addEventListener("change", () => {
     vm.selectActivityProfile(profileSelect.value);
-    updateLocationOptions();
     renderDashboard();
   });
 
   dateSelect.addEventListener("change", () => {
     vm.selectDate(dateSelect.value);
-    updateLocationOptions();
     renderDashboard();
-  });
-
-  locationSelect.addEventListener("change", () => {
-    vm.selectLocation(locationSelect.value);
-    renderDetails();
   });
 
   refreshButton.addEventListener("click", () => refreshForecast());
 
-  $("tab-ranking").addEventListener("click", () => setActiveTab("ranking"));
-  $("tab-filters").addEventListener("click", () => setActiveTab("filters"));
+  showAllButton.addEventListener("click", () => {
+    showAllResults = !showAllResults;
+    renderRanking();
+  });
 
   settingsButton.addEventListener("click", () => openSettings());
   settingsCloseButton.addEventListener("click", () => closeSettings());
