@@ -284,8 +284,7 @@ progress {
   color: var(--text-secondary);
 }
 
-.ranking-list,
-.summary-list {
+.ranking-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -358,35 +357,6 @@ progress {
 .rank-score .rating-label {
   display: block;
   font-size: 11px;
-}
-
-.summary-row {
-  display: grid;
-  grid-template-columns: 72px 1fr 44px 1fr;
-  gap: 8px;
-  align-items: baseline;
-  font-size: 13px;
-  padding: 4px 0;
-}
-
-.summary-row.header {
-  color: var(--text-secondary);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 6px;
-}
-
-.summary-row .score-cell {
-  text-align: right;
-}
-
-.summary-divider {
-  margin: 10px 0 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .details-panel {

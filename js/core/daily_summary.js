@@ -136,6 +136,28 @@ function rowFromResult(activityProfile, locationKey, locationName, result, { isP
   });
 }
 
+export function groupDailySummaryRows(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (!groups.has(row.location_key)) {
+      groups.set(row.location_key, { location_key: row.location_key, location_name: row.location_name, is_priority: row.is_priority, rows: [] });
+    }
+    groups.get(row.location_key).rows.push(row);
+  }
+  return [...groups.values()];
+}
+
+export function formatOutlookNotificationBody(rows) {
+  const groups = groupDailySummaryRows(rows);
+  if (groups.length === 0) return "No good outdoor window found for today.";
+  return groups
+    .map((group) => {
+      const parts = group.rows.map((row) => `${row.activity_label} ${row.best_window} (${row.score_text})`).join(" · ");
+      return group.is_priority ? `${group.location_name}: ${parts}` : `Alt (${group.location_name}): ${parts}`;
+    })
+    .join("\n");
+}
+
 function formatMadridHourMinute(instant) {
   const hour = String(madridHourOf(instant)).padStart(2, "0");
   const minute = String(madridMinuteOf(instant)).padStart(2, "0");

@@ -32,7 +32,6 @@ const dateSelect = $("date-select");
 const refreshButton = $("refresh-button");
 const loadProgress = $("load-progress");
 const statusText = $("status-text");
-const dailySummaryList = $("daily-summary-list");
 const rankingList = $("ranking-list");
 const showAllButton = $("show-all-button");
 const detailsPanel = $("details-panel");
@@ -63,42 +62,6 @@ function updateDateOptions() {
   if (vm.selectedDate) dateSelect.value = vm.selectedDate;
 }
 
-function scoreCell(text) {
-  return create("span", { className: "score-cell", textContent: text });
-}
-
-function renderDailySummary() {
-  const rows = vm.dailySummaryRows();
-  if (rows.length === 0) {
-    dailySummaryList.replaceChildren(create("p", { className: "empty-state", textContent: "No recommendations available yet." }));
-    return;
-  }
-  const header = create("div", { className: "summary-row header" }, [
-    create("span", { textContent: "Activity" }),
-    create("span", { textContent: "Location" }),
-    scoreCell("Score"),
-    create("span", { textContent: "Best time" }),
-  ]);
-
-  const nodes = [header];
-  let dividerShown = false;
-  for (const row of rows) {
-    if (!row.is_priority && !dividerShown) {
-      nodes.push(create("div", { className: "summary-divider", textContent: "Alternatives" }));
-      dividerShown = true;
-    }
-    nodes.push(
-      create("div", { className: "summary-row" }, [
-        create("span", { textContent: row.activity_label }),
-        create("span", { textContent: row.location_name }),
-        scoreCell(row.score_text),
-        create("span", { textContent: row.best_window }),
-      ]),
-    );
-  }
-  dailySummaryList.replaceChildren(...nodes);
-}
-
 function rankCard(item) {
   const isSelected = item.locationKey === vm.selectedLocationKey;
   return create(
@@ -124,7 +87,7 @@ function rankCard(item) {
 }
 
 let showAllResults = false;
-const RANKING_PREVIEW_COUNT = 10;
+const RANKING_PREVIEW_COUNT = 5;
 
 function renderRanking() {
   const total = Object.keys(vm.forecasts).length || 1;
@@ -137,7 +100,7 @@ function renderRanking() {
   }
 
   showAllButton.hidden = total <= RANKING_PREVIEW_COUNT;
-  showAllButton.textContent = showAllResults ? "Show top 10 only" : `Show all ${total} locations`;
+  showAllButton.textContent = showAllResults ? `Show top ${RANKING_PREVIEW_COUNT} only` : `Show all ${total} locations`;
 }
 
 function hourlyRow(hour) {
@@ -181,7 +144,6 @@ function renderDetails() {
 }
 
 function renderDashboard() {
-  renderDailySummary();
   renderRanking();
   renderDetails();
 }
