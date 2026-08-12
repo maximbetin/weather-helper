@@ -6,7 +6,7 @@ const plugins = () => {
   return {
     App: capacitor.registerPlugin?.("App") || capacitor.Plugins?.App,
     Preferences: capacitor.registerPlugin?.("Preferences") || capacitor.Plugins?.Preferences,
-    BackgroundRunner: capacitor.registerPlugin?.("BackgroundRunner") || capacitor.Plugins?.BackgroundRunner,
+    BackgroundRunner: capacitor.registerPlugin?.("CapacitorBackgroundRunner") || capacitor.Plugins?.CapacitorBackgroundRunner,
   };
 };
 
