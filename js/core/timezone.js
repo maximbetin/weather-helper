@@ -42,13 +42,34 @@ export function nowInstant() {
   return new Date();
 }
 
-export function nextLocalOccurrence(hour, minute, from = new Date()) {
-  const next = new Date(from);
-  next.setHours(hour, minute, 0, 0);
-  if (next.getTime() <= from.getTime()) {
-    next.setDate(next.getDate() + 1);
+function madridWallClockAsUTCMillis(instant) {
+  const { year, month, day, hour, minute } = madridParts(instant);
+  return Date.UTC(year, month - 1, day, hour, minute);
+}
+
+// Finds the absolute instant whose Europe/Madrid wall-clock reads
+// dateKey@hour:minute, regardless of the executing environment's own
+// timezone (the background task's JS engine may not agree with the
+// device's Android timezone, so this can't rely on Date's local setters).
+function madridInstantForDateKey(dateKey, hour, minute) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const want = Date.UTC(year, month - 1, day, hour, minute);
+  let guess = new Date(want);
+  for (let i = 0; i < 3; i++) {
+    const diff = want - madridWallClockAsUTCMillis(guess);
+    if (diff === 0) break;
+    guess = new Date(guess.getTime() + diff);
   }
-  return next;
+  return guess;
+}
+
+export function nextLocalOccurrence(hour, minute, from = new Date()) {
+  const todayKey = madridDateKeyOf(from);
+  const candidate = madridInstantForDateKey(todayKey, hour, minute);
+  if (candidate.getTime() <= from.getTime()) {
+    return madridInstantForDateKey(addDaysToDateKey(todayKey, 1), hour, minute);
+  }
+  return candidate;
 }
 
 export function parseForecastTimestamp(timestamp) {
