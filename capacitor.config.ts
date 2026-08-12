@@ -10,10 +10,12 @@ const config: CapacitorConfig = {
       enabled: true,
     },
     // Runs roughly once a day (measured from whenever the app is backgrounded, not a
-    // fixed wall-clock time, and subject to OS battery-optimization heuristics) to
-    // refresh notification id 1001 with real recommendation text. The LocalNotifications
-    // alarm scheduled by notifications.js is what fires at the user's chosen wall-clock
-    // time; this task's job is only to keep that notification's content fresh.
+    // fixed wall-clock time, and subject to OS battery-optimization heuristics) plus
+    // whenever notifications.js dispatches "updateNotificationSettings" on a settings
+    // change. Each run computes fresh recommendation text and arms a precise
+    // CapacitorNotifications alarm (id 1001) for the next occurrence of the user's
+    // chosen wall-clock time — this task owns both the content and the exact firing
+    // time; no other scheduler is involved.
     BackgroundRunner: {
       label: "com.maximbk.weatherhelper.dailyforecast",
       src: "js/background-task.js",

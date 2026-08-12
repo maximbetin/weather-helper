@@ -1,0 +1,12 @@
+diff --git a/node_modules/@capacitor/background-runner/android/src/main/java/io/ionic/backgroundrunner/plugin/api/Notifications.kt b/node_modules/@capacitor/background-runner/android/src/main/java/io/ionic/backgroundrunner/plugin/api/Notifications.kt
+index 9eb28f3..436a2db 100644
+--- a/node_modules/@capacitor/background-runner/android/src/main/java/io/ionic/backgroundrunner/plugin/api/Notifications.kt
++++ b/node_modules/@capacitor/background-runner/android/src/main/java/io/ionic/backgroundrunner/plugin/api/Notifications.kt
+@@ -118,6 +118,7 @@ class Notifications(context: Context) : NotificationsAPI {
+                 val style = NotificationCompat.BigTextStyle()
+                 style.bigText(largeBody)
+                 style.setSummaryText(it.summaryText)
++                builder.setStyle(style)
+             }
+ 
+             scheduleNotification(builder.build(), it)

@@ -1,10 +1,11 @@
 import { getPlugin } from "../native-bridge.js";
 
-const DAILY_NOTIFICATION_ID = 1001;
 export const DEFAULT_NOTIFICATION_TIME = "08:00";
 
 const PREF_TIME_KEY = "notificationTime";
 const PREF_ENABLED_KEY = "notificationsEnabled";
+const RUNNER_LABEL = "com.maximbk.weatherhelper.dailyforecast";
+const UPDATE_SETTINGS_EVENT = "updateNotificationSettings";
 
 export function parseTime(value) {
   const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
@@ -36,54 +37,34 @@ export async function saveNotificationSettings({ enabled, time }) {
   }
 }
 
-export function buildDailyScheduleOptions(time) {
-  const parsed = parseTime(time);
-  if (!parsed) throw new Error(`Invalid time: ${time}`);
-  const at = new Date();
-  at.setHours(parsed.hour, parsed.minute, 0, 0);
-  return {
-    notifications: [
-      {
-        id: DAILY_NOTIFICATION_ID,
-        title: "Weather Helper",
-        body: "Checking today's best outdoor window…",
-        schedule: { at, repeats: true, every: "day", allowWhileIdle: true },
-      },
-    ],
-  };
-}
-
 export async function requestNotificationPermission() {
-  const LocalNotifications = getPlugin("LocalNotifications");
-  if (!LocalNotifications) return "granted";
-  const status = await LocalNotifications.checkPermissions();
-  if (status.display === "granted") return "granted";
-  const requested = await LocalNotifications.requestPermissions();
-  return requested.display;
+  const BackgroundRunner = getPlugin("BackgroundRunner");
+  if (!BackgroundRunner) return "granted";
+  const status = await BackgroundRunner.checkPermissions();
+  if (status.notifications === "granted") return "granted";
+  const requested = await BackgroundRunner.requestPermissions({ apis: ["notifications"] });
+  return requested.notifications;
 }
 
-export async function scheduleDailyNotification(time) {
-  const LocalNotifications = getPlugin("LocalNotifications");
-  if (!LocalNotifications) return;
-  await LocalNotifications.cancel({ notifications: [{ id: DAILY_NOTIFICATION_ID }] });
-  await LocalNotifications.schedule(buildDailyScheduleOptions(time));
-}
-
-export async function cancelDailyNotification() {
-  const LocalNotifications = getPlugin("LocalNotifications");
-  if (!LocalNotifications) return;
-  await LocalNotifications.cancel({ notifications: [{ id: DAILY_NOTIFICATION_ID }] });
+export async function pushNotificationSettingsToRunner(enabled, time) {
+  const BackgroundRunner = getPlugin("BackgroundRunner");
+  if (!BackgroundRunner) return;
+  await BackgroundRunner.dispatchEvent({
+    label: RUNNER_LABEL,
+    event: UPDATE_SETTINGS_EVENT,
+    details: { enabled, time },
+  });
 }
 
 export async function applyNotificationSettings({ enabled, time }) {
   await saveNotificationSettings({ enabled, time });
   if (!enabled) {
-    await cancelDailyNotification();
+    await pushNotificationSettingsToRunner(false, time);
     return "disabled";
   }
   const permission = await requestNotificationPermission();
   if (permission !== "granted") return "denied";
-  await scheduleDailyNotification(time);
+  await pushNotificationSettingsToRunner(true, time);
   return "granted";
 }
 
@@ -92,5 +73,5 @@ export async function initNotifications() {
   if (!enabled) return;
   const time = await getNotificationTime();
   const permission = await requestNotificationPermission();
-  if (permission === "granted") await scheduleDailyNotification(time);
+  if (permission === "granted") await pushNotificationSettingsToRunner(true, time);
 }

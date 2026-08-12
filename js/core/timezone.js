@@ -42,6 +42,15 @@ export function nowInstant() {
   return new Date();
 }
 
+export function nextLocalOccurrence(hour, minute, from = new Date()) {
+  const next = new Date(from);
+  next.setHours(hour, minute, 0, 0);
+  if (next.getTime() <= from.getTime()) {
+    next.setDate(next.getDate() + 1);
+  }
+  return next;
+}
+
 export function parseForecastTimestamp(timestamp) {
   return new Date(timestamp);
 }

@@ -147,15 +147,43 @@ export function groupDailySummaryRows(rows) {
   return [...groups.values()];
 }
 
-export function formatOutlookNotificationBody(rows) {
+const NO_WINDOW_MESSAGE = "No good outdoor window found for today.";
+
+export function tierEmoji(normalizedScore) {
+  if (normalizedScore === null || normalizedScore === undefined) return "⚪";
+  if (normalizedScore >= 80) return "🟢";
+  if (normalizedScore >= 50) return "🟡";
+  return "🔴";
+}
+
+function bestRow(rows) {
+  const scored = rows.filter((row) => row.normalized_score !== null && row.normalized_score !== undefined);
+  if (scored.length === 0) return null;
+  return scored.reduce((best, row) => (row.normalized_score > best.normalized_score ? row : best));
+}
+
+export function buildOutlookNotification(rows) {
   const groups = groupDailySummaryRows(rows);
-  if (groups.length === 0) return "No good outdoor window found for today.";
-  return groups
+  if (groups.length === 0) {
+    return { body: NO_WINDOW_MESSAGE, largeBody: null, summaryText: null };
+  }
+
+  const best = bestRow(rows);
+  const body = best
+    ? `${tierEmoji(best.normalized_score)} Best: ${best.activity_label} in ${best.location_name}, ${best.best_window} (${best.score_text})`
+    : NO_WINDOW_MESSAGE;
+
+  const largeBody = groups
     .map((group) => {
-      const parts = group.rows.map((row) => `${row.activity_label} ${row.best_window} (${row.score_text})`).join(" · ");
-      return group.is_priority ? `${group.location_name}: ${parts}` : `Alt (${group.location_name}): ${parts}`;
+      const label = group.is_priority ? group.location_name : `Alt: ${group.location_name}`;
+      const lines = group.rows.map((row) => `  ${tierEmoji(row.normalized_score)} ${row.activity_label} ${row.best_window} (${row.score_text})`);
+      return [label, ...lines].join("\n");
     })
-    .join("\n");
+    .join("\n\n");
+
+  const summaryText = `${groups.length} location${groups.length === 1 ? "" : "s"} checked`;
+
+  return { body, largeBody, summaryText };
 }
 
 function formatMadridHourMinute(instant) {
