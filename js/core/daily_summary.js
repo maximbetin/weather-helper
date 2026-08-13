@@ -157,9 +157,11 @@ export function tierEmoji(normalizedScore) {
 }
 
 function bestRow(rows) {
-  const scored = rows.filter((row) => row.normalized_score !== null && row.normalized_score !== undefined);
-  if (scored.length === 0) return null;
-  return scored.reduce((best, row) => (row.normalized_score > best.normalized_score ? row : best));
+  const isScored = (row) => row.normalized_score !== null && row.normalized_score !== undefined;
+  const scoredPriority = rows.filter((row) => row.is_priority && isScored(row));
+  const pool = scoredPriority.length > 0 ? scoredPriority : rows.filter(isScored);
+  if (pool.length === 0) return null;
+  return pool.reduce((best, row) => (row.normalized_score > best.normalized_score ? row : best));
 }
 
 export function buildOutlookNotification(rows) {
