@@ -204,8 +204,9 @@ async function saveSettings() {
     } else {
       notifyStatus.textContent = `Daily reminder set for ${notifyTime.value}.`;
     }
-  } catch {
-    notifyStatus.textContent = "Could not save settings. Please try again.";
+  } catch (error) {
+    const detail = error?.message ? ` (${error.message})` : "";
+    notifyStatus.textContent = `Could not save settings. Please try again.${detail}`;
   } finally {
     notifySaveButton.disabled = false;
   }

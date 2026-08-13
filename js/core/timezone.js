@@ -1,27 +1,32 @@
 export const TIMEZONE = "Europe/Madrid";
 
-const partsFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: TIMEZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
+// The background-runner's embedded JS engine has no `Intl` global at all (it's a
+// minimal engine without ICU data), so Madrid's wall-clock time is computed here via
+// the EU DST rule directly instead of Intl.DateTimeFormat - this file must work
+// identically in both the WebView (full Intl) and that headless engine (none).
+// EU DST: clocks go forward at 01:00 UTC on the last Sunday of March (UTC+1 -> UTC+2)
+// and back at 01:00 UTC on the last Sunday of October (UTC+2 -> UTC+1).
+function lastSundayUTC(year, monthIndex, hourUTC) {
+  const lastDayOfMonth = new Date(Date.UTC(year, monthIndex + 1, 0, hourUTC));
+  lastDayOfMonth.setUTCDate(lastDayOfMonth.getUTCDate() - lastDayOfMonth.getUTCDay());
+  return lastDayOfMonth;
+}
+
+function madridOffsetMinutes(instant) {
+  const year = instant.getUTCFullYear();
+  const dstStart = lastSundayUTC(year, 2, 1);
+  const dstEnd = lastSundayUTC(year, 9, 1);
+  return instant >= dstStart && instant < dstEnd ? 120 : 60;
+}
 
 function madridParts(instant) {
-  const parts = {};
-  for (const part of partsFormatter.formatToParts(instant)) {
-    if (part.type !== "literal") parts[part.type] = part.value;
-  }
-  const hour = parts.hour === "24" ? 0 : Number(parts.hour);
+  const local = new Date(instant.getTime() + madridOffsetMinutes(instant) * 60000);
   return {
-    year: Number(parts.year),
-    month: Number(parts.month),
-    day: Number(parts.day),
-    hour,
-    minute: Number(parts.minute),
+    year: local.getUTCFullYear(),
+    month: local.getUTCMonth() + 1,
+    day: local.getUTCDate(),
+    hour: local.getUTCHours(),
+    minute: local.getUTCMinutes(),
   };
 }
 
@@ -83,18 +88,13 @@ export function addDaysToDateKey(dateKey, days) {
   return `${String(shifted.getUTCFullYear()).padStart(4, "0")}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}-${String(shifted.getUTCDate()).padStart(2, "0")}`;
 }
 
+const WEEKDAY_NAMES_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 export function formatDateKeyShort(dateKey) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const utcNoon = new Date(Date.UTC(year, month - 1, day, 12));
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  });
-  const parts = {};
-  for (const part of formatter.formatToParts(utcNoon)) {
-    if (part.type !== "literal") parts[part.type] = part.value;
-  }
-  return `${parts.weekday}, ${parts.day} ${parts.month}`;
+  const weekday = WEEKDAY_NAMES_SHORT[utcNoon.getUTCDay()];
+  const monthName = MONTH_NAMES_SHORT[utcNoon.getUTCMonth()];
+  return `${weekday}, ${String(day).padStart(2, "0")} ${monthName}`;
 }
