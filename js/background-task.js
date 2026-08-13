@@ -2,7 +2,7 @@ import { fetchWeatherData } from "./core/weather_api.js";
 import { processForecast } from "./core/evaluation.js";
 import { buildDailySummary, buildOutlookNotification, PRIORITY_LOCATION_KEYS } from "./core/daily_summary.js";
 import { ASTURIAS_LOCATIONS } from "./core/locations.js";
-import { madridDateKeyOf, nowInstant, nextLocalOccurrence, DEFAULT_NOTIFICATION_TIME, parseTimeOfDay as parseTime } from "./core/timezone.js";
+import { madridDateKeyOf, nowInstant, nextLocalOccurrence, DEFAULT_NOTIFICATION_TIME, parseTimeOfDay } from "./core/timezone.js";
 
 export const DAILY_FORECAST_EVENT = "dailyForecastCheck";
 export const UPDATE_SETTINGS_EVENT = "updateNotificationSettings";
@@ -38,13 +38,13 @@ async function readSettings() {
   const enabledEntry = await CapacitorKV.get(KV_ENABLED_KEY);
   const timeEntry = await CapacitorKV.get(KV_TIME_KEY);
   const enabled = enabledEntry?.value === "true";
-  const parsed = parseTime(timeEntry?.value);
+  const parsed = parseTimeOfDay(timeEntry?.value);
   const time = parsed ? timeEntry.value : DEFAULT_NOTIFICATION_TIME;
   return { enabled, time };
 }
 
 async function scheduleTodaysNotification(time) {
-  const parsed = parseTime(time) ?? parseTime(DEFAULT_NOTIFICATION_TIME);
+  const parsed = parseTimeOfDay(time) ?? parseTimeOfDay(DEFAULT_NOTIFICATION_TIME);
   const { body, largeBody, summaryText } = await fetchTodaysNotificationContent();
   const scheduleAt = nextLocalOccurrence(parsed.hour, parsed.minute);
   await CapacitorNotifications.schedule([
@@ -76,7 +76,7 @@ function registerDailyForecastTask() {
     try {
       const details = args ?? {};
       const enabled = Boolean(details.enabled);
-      const time = parseTime(details.time) ? details.time : DEFAULT_NOTIFICATION_TIME;
+      const time = parseTimeOfDay(details.time) ? details.time : DEFAULT_NOTIFICATION_TIME;
       await CapacitorKV.set(KV_ENABLED_KEY, String(enabled));
       await CapacitorKV.set(KV_TIME_KEY, time);
       if (enabled) await scheduleTodaysNotification(time);
