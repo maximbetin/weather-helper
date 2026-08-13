@@ -2,26 +2,19 @@ import { fetchWeatherData } from "./core/weather_api.js";
 import { processForecast } from "./core/evaluation.js";
 import { buildDailySummary, buildOutlookNotification, PRIORITY_LOCATION_KEYS } from "./core/daily_summary.js";
 import { ASTURIAS_LOCATIONS } from "./core/locations.js";
-import { madridDateKeyOf, nowInstant, nextLocalOccurrence } from "./core/timezone.js";
+import { madridDateKeyOf, nowInstant, nextLocalOccurrence, DEFAULT_NOTIFICATION_TIME, parseTimeOfDay as parseTime } from "./core/timezone.js";
 
 export const DAILY_FORECAST_EVENT = "dailyForecastCheck";
 export const UPDATE_SETTINGS_EVENT = "updateNotificationSettings";
 const NOTIFICATION_ID = 1001;
 const NOTIFICATION_TITLE = "Weather Helper";
 const ALTERNATIVE_LIMIT = 1;
-const DEFAULT_NOTIFICATION_TIME = "08:00";
 const KV_TIME_KEY = "notificationTime";
 const KV_ENABLED_KEY = "notificationsEnabled";
 
 export const PRIORITY_LOCATIONS = Object.fromEntries(
   PRIORITY_LOCATION_KEYS.filter((key) => key in ASTURIAS_LOCATIONS).map((key) => [key, ASTURIAS_LOCATIONS[key]]),
 );
-
-function parseTime(value) {
-  const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
-  if (!match) return null;
-  return { hour: Number(match[1]), minute: Number(match[2]) };
-}
 
 export function buildNotificationContent(rows) {
   return buildOutlookNotification(rows);

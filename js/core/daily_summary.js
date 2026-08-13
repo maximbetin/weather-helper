@@ -1,6 +1,6 @@
 import { getTopLocationsForDate } from "./evaluation.js";
 import { ACTIVITY_BEACH_DAY, ACTIVITY_HIKING, getActivityProfileLabel, normalizeScore } from "./scoring.js";
-import { formatDateKeyShort, madridHourOf, madridMinuteOf } from "./timezone.js";
+import { formatDateKeyShort, formatMadridTime } from "./timezone.js";
 
 export const PRIORITY_LOCATION_KEYS = ["oviedo", "gijon"];
 export const SUMMARY_ACTIVITY_PROFILES = [ACTIVITY_HIKING, ACTIVITY_BEACH_DAY];
@@ -131,7 +131,7 @@ function rowFromResult(activityProfile, locationKey, locationName, result, { isP
     location_key: locationKey,
     location_name: locationName,
     normalized_score: normalizeScore(rawScore, activityProfile),
-    best_window: `${formatMadridHourMinute(block.start)} - ${formatMadridHourMinute(endTime)}`,
+    best_window: `${formatMadridTime(block.start)} - ${formatMadridTime(endTime)}`,
     is_priority: isPriority,
   });
 }
@@ -184,12 +184,6 @@ export function buildOutlookNotification(rows) {
   const summaryText = `${groups.length} location${groups.length === 1 ? "" : "s"} checked`;
 
   return { body, largeBody, summaryText };
-}
-
-function formatMadridHourMinute(instant) {
-  const hour = String(madridHourOf(instant)).padStart(2, "0");
-  const minute = String(madridMinuteOf(instant)).padStart(2, "0");
-  return `${hour}:${minute}`;
 }
 
 function formatRow(row, activityWidth, locationWidth, scoreWidth, windowWidth) {

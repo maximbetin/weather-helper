@@ -1,4 +1,4 @@
-import { madridHourOf, madridMinuteOf, formatDateKeyShort } from "./timezone.js";
+import { formatMadridTime, formatDateKeyShort } from "./timezone.js";
 
 export const BASE_COLORS = {
   primary: "#1e3a8a",
@@ -58,11 +58,7 @@ export function formatDuration(hours) {
   return hours === 1 ? "1 hour" : `${hours} hours`;
 }
 
-export function formatTime(instant) {
-  const hour = String(madridHourOf(instant)).padStart(2, "0");
-  const minute = String(madridMinuteOf(instant)).padStart(2, "0");
-  return `${hour}:${minute}`;
-}
+export const formatTime = formatMadridTime;
 
 export function formatDate(dateKey) {
   return formatDateKeyShort(dateKey);

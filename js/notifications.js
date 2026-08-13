@@ -1,17 +1,12 @@
 import { getPlugin } from "../native-bridge.js";
+import { DEFAULT_NOTIFICATION_TIME, parseTimeOfDay as parseTime } from "./core/timezone.js";
 
-export const DEFAULT_NOTIFICATION_TIME = "08:00";
+export { DEFAULT_NOTIFICATION_TIME, parseTime };
 
 const PREF_TIME_KEY = "notificationTime";
 const PREF_ENABLED_KEY = "notificationsEnabled";
 const RUNNER_LABEL = "com.maximbk.weatherhelper.dailyforecast";
 const UPDATE_SETTINGS_EVENT = "updateNotificationSettings";
-
-export function parseTime(value) {
-  const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
-  if (!match) return null;
-  return { hour: Number(match[1]), minute: Number(match[2]) };
-}
 
 export async function getNotificationTime() {
   const Preferences = getPlugin("Preferences");

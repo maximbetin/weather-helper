@@ -1,4 +1,11 @@
 export const TIMEZONE = "Europe/Madrid";
+export const DEFAULT_NOTIFICATION_TIME = "08:00";
+
+export function parseTimeOfDay(value) {
+  const match = /^([0-1]\d|2[0-3]):([0-5]\d)$/.exec(value ?? "");
+  if (!match) return null;
+  return { hour: Number(match[1]), minute: Number(match[2]) };
+}
 
 // The background-runner's embedded JS engine has no `Intl` global at all (it's a
 // minimal engine without ICU data), so Madrid's wall-clock time is computed here via
@@ -36,6 +43,12 @@ export function madridHourOf(instant) {
 
 export function madridMinuteOf(instant) {
   return madridParts(instant).minute;
+}
+
+export function formatMadridTime(instant) {
+  const hour = String(madridHourOf(instant)).padStart(2, "0");
+  const minute = String(madridMinuteOf(instant)).padStart(2, "0");
+  return `${hour}:${minute}`;
 }
 
 export function madridDateKeyOf(instant) {
