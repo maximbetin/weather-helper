@@ -73,10 +73,10 @@ function rankCard(item) {
       onclick: () => selectLocation(item.locationKey),
     },
     [
-      create("span", { className: "rank-badge", textContent: String(item.rank) }),
+      create("span", { className: "rank-badge", textContent: item.rank === null ? "–" : String(item.rank) }),
       create("div", { className: "rank-main" }, [
         create("div", { className: "rank-name", textContent: item.locationName }),
-        create("div", { className: "rank-window", textContent: item.bestWindow || "No consistent window today" }),
+        create("div", { className: "rank-window", textContent: item.bestWindow || "No recommended window" }),
       ]),
       create("div", { className: "rank-score" }, [
         create("span", { className: "score-value", textContent: item.normalizedScore ?? "N/A", style: `color:${getRatingColor(item.rating)}` }),
@@ -91,7 +91,9 @@ const RANKING_PREVIEW_COUNT = 5;
 
 function renderRanking() {
   const total = Object.keys(vm.forecasts).length || 1;
-  const items = vm.rankedLocations(showAllResults ? total : RANKING_PREVIEW_COUNT);
+  // "Show all" means every loaded location, including ones with no qualifying
+  // window — they are still selectable so their hourly forecast can be inspected.
+  const items = showAllResults ? vm.allLocations() : vm.rankedLocations(RANKING_PREVIEW_COUNT);
 
   if (items.length === 0) {
     rankingList.replaceChildren(create("p", { className: "empty-state", textContent: "No ranked locations for this date." }));
@@ -111,6 +113,9 @@ function hourlyRow(hour) {
       create("span", { textContent: `Wind ${hour.wind}` }),
       create("span", { textContent: `Clouds ${hour.clouds}` }),
       create("span", { textContent: `Rain ${hour.precipitation}` }),
+      // MET only publishes precipitation probability for part of its coverage; the
+      // metric is omitted rather than shown as a permanent "N/A" where it is absent.
+      hour.precipitationProbability === null ? null : create("span", { textContent: `Rain chance ${hour.precipitationProbability}` }),
       create("span", { textContent: `Humidity ${hour.humidity}` }),
     ]),
     create("span", { className: "hourly-score", textContent: hour.normalizedScore, style: `color:${getRatingColor(hour.rating)}` }),
@@ -165,7 +170,7 @@ async function refreshForecast() {
   loadProgress.hidden = false;
   setStatus("Loading forecast…");
   try {
-    const { forecasts, errors } = await vm.load();
+    const { forecasts, errors } = await vm.load((completed, total) => setStatus(`Loading ${completed}/${total} locations…`));
     const loadedCount = Object.keys(forecasts).length;
     const errorCount = Object.keys(errors).length;
     setStatus(errorCount > 0 ? `Loaded ${loadedCount} location(s), ${errorCount} failed.` : `Loaded ${loadedCount} location(s).`);

@@ -96,7 +96,42 @@ test("notification lists one line per profile plus coverage", () => {
   assert.match(content.body, /Hiking: Llanes 10:00 - 13:00 \(90\/100\)/);
   assert.match(content.body, /Salinas 13:00 - 16:00 \(90\/100\)/);
   assert.equal(content.summaryText, "2 locations checked");
-  assert.ok(content.largeBody.endsWith("2 locations checked"));
+  // Coverage appears once, in summaryText — largeBody must not repeat it.
+  assert.equal(content.largeBody, content.body);
+  assert.doesNotMatch(content.largeBody, /locations checked/);
+});
+
+test("a shorter window that clears the threshold beats a longer sub-threshold one", () => {
+  // The ranking rewards duration/consistency, so a 44/100 long window can outrank
+  // a 56/100 short one. Announcing "no good option" then would be a plain lie.
+  const fakeRank = () => [
+    rankedResult("longer", "Longer Location", 1, 10, 15),
+    rankedResult("shorter", "Shorter Location", 4, 12, 13),
+  ];
+  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+    rankFn: fakeRank,
+  });
+
+  const hiking = recommendations.find((r) => r.activity_profile === "hiking");
+  assert.equal(hiking.location_key, "shorter");
+  assert.equal(hiking.normalized_score, 56);
+  assert.equal(hiking.is_good, true);
+  assert.match(formatRecommendationLine(hiking), /Shorter Location/);
+});
+
+test("when no candidate clears the threshold the best ranked one is still reported", () => {
+  const fakeRank = () => [
+    rankedResult("longer", "Longer Location", 1, 10, 15),
+    rankedResult("shorter", "Shorter Location", 0.5, 12, 13),
+  ];
+  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+    rankFn: fakeRank,
+  });
+
+  const hiking = recommendations.find((r) => r.activity_profile === "hiking");
+  assert.equal(hiking.location_key, "longer");
+  assert.equal(hiking.is_good, false);
+  assert.match(formatRecommendationLine(hiking), /no good option/);
 });
 
 test("a total fetch failure is reported as an outage, not as bad weather", () => {

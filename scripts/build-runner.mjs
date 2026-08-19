@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Script } from "node:vm";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -27,11 +28,28 @@ function flatten(source) {
   return source.replace(IMPORT_LINE, "").replace(EXPORT_PREFIX, "");
 }
 
-export async function buildRunnerBundle(dist = join(root, "dist")) {
+// The bundle is produced by stripping module syntax rather than by a real bundler,
+// so nothing else proves the result is still a parseable classic script. Parse it
+// here (parse only, no execution) so a bad strip fails the build loudly instead of
+// only failing at 8am inside the headless runner.
+export function validateRunnerBundle(bundle) {
+  try {
+    new Script(bundle, { filename: "dist/js/background-task.js" });
+  } catch (error) {
+    throw new Error(`Generated background runner bundle is not a valid classic script: ${error.message}`);
+  }
+  return bundle;
+}
+
+export async function createRunnerBundle() {
   const sections = await Promise.all(
     MODULE_ORDER.map(async (relative) => flatten(await readFile(join(root, relative), "utf8")).trim()),
   );
-  const bundle = `${sections.join("\n\n")}\n`;
+  return validateRunnerBundle(`${sections.join("\n\n")}\n`);
+}
+
+export async function buildRunnerBundle(dist = join(root, "dist")) {
+  const bundle = await createRunnerBundle();
   await writeFile(join(dist, "js/background-task.js"), bundle);
   return bundle;
 }

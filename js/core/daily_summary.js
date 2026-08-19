@@ -57,13 +57,24 @@ function recommendationFromResult(activityProfile, result, locations) {
   });
 }
 
+// The ranking rewards duration and consistency as well as quality, so the top
+// ranked candidate can have a below-threshold window while a lower ranked one
+// clears it. Announcing "no good option" in that case is simply wrong, so any
+// candidate that clears the threshold wins — the existing ranking still decides
+// which of them is best. Only when every candidate is below the threshold is the
+// overall best sub-threshold option shown as "no good option".
+function selectBestCandidate(ranked, activityProfile) {
+  const good = ranked.find((result) => normalizeScore(Number(result.raw_score), activityProfile) >= GOOD_OPPORTUNITY_THRESHOLD);
+  return good ?? ranked[0] ?? null;
+}
+
 // One independent recommendation per activity profile: the single best location
 // across every supplied location, ranked on its own merits for that profile.
 export function buildDailyRecommendations(forecasts, forecastDate, locations, { rankFn = getTopLocationsForDate } = {}) {
   const locationCount = Math.max(Object.keys(forecasts).length, 1);
   return SUMMARY_ACTIVITY_PROFILES.map((activityProfile) => {
-    const ranked = rankFn({ ...forecasts }, forecastDate, locationCount, activityProfile);
-    return recommendationFromResult(activityProfile, ranked[0] ?? null, locations);
+    const ranked = rankFn({ ...forecasts }, forecastDate, locationCount, activityProfile) ?? [];
+    return recommendationFromResult(activityProfile, selectBestCandidate(ranked, activityProfile), locations);
   });
 }
 
@@ -101,9 +112,10 @@ export function buildOutlookNotification(recommendations, { loaded = null, faile
   }
 
   const lines = recommendations.map(formatRecommendationLine);
+  // Coverage lives in summaryText only: Android renders both summaryText and
+  // largeBody in the expanded notification, so repeating it there duplicates it.
   const coverage = loaded === null ? null : coverageText(loaded, failed);
   const body = lines.join("\n");
-  const largeBody = coverage ? [...lines, "", coverage].join("\n") : lines.join("\n");
 
-  return { body, largeBody, summaryText: coverage };
+  return { body, largeBody: body, summaryText: coverage };
 }

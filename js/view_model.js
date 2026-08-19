@@ -143,6 +143,18 @@ export class ForecastViewModel {
     return ranked.map((item, index) => this._rankedLocationView(index + 1, item));
   }
 
+  // Every loaded location for the selected date: ranked ones first, in ranking
+  // order, then the ones with no qualifying window so they stay inspectable.
+  allLocations() {
+    const ranked = this.rankedLocations(Object.keys(this.forecasts).length);
+    const rankedKeys = new Set(ranked.map((item) => item.locationKey));
+    const unranked = this.availableLocationKeys()
+      .filter((key) => !rankedKeys.has(key))
+      .map((key) => this._unrankedLocationView(key))
+      .sort((a, b) => a.locationName.toLowerCase().localeCompare(b.locationName.toLowerCase()));
+    return [...ranked, ...unranked];
+  }
+
   hourlyForecast(locationKey) {
     if (!this.selectedDate || !(locationKey in this.forecasts)) return [];
     return getTimeBlocksForDate(this.forecasts[locationKey], this.selectedDate).map((hour) => this._hourlyForecastView(hour));
@@ -205,6 +217,12 @@ export class ForecastViewModel {
       wind: formatWindSpeed(hour.wind),
       clouds: formatPercentage(hour.cloud_coverage),
       precipitation: formatPrecipitation(hour.precipitation_amount),
+      // Rain probability drives the score even when the amount is 0.0 mm, so it is
+      // shown to make a low score understandable.
+      precipitationProbability:
+        hour.precipitation_probability === null || hour.precipitation_probability === undefined
+          ? null
+          : formatPercentage(hour.precipitation_probability),
       humidity: formatPercentage(hour.relative_humidity),
       normalizedScore: normalizeScore(rawScore, this.activityProfile),
       rating: getRatingInfo(rawScore, this.activityProfile),

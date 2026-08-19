@@ -28,7 +28,7 @@ Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/wea
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
 - **Activity Profiles**: Rank the same forecast for either Hiking (any general outdoor time: strolling, sightseeing, exploring, walking) or Beach (warm, sunny outdoor leisure: beach, pool, swimming, sunbathing).
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
-- **Daily Nag Notification**: A background task reports today's best Hiking option and today's best Beach option independently, each naming the best location across all configured Asturias locations and its time window. If the best option scores below 50/100 it is presented as "no good option" rather than as a recommendation, and a total forecast outage is reported as an outage rather than as bad weather.
+- **Daily Nag Notification**: A background task reports today's best Hiking option and today's best Beach option independently, each naming the best location across all configured Asturias locations and its time window. When any candidate window scores at least 50/100 the best of those is recommended, even if the ranking's duration/consistency bonuses put a weaker but longer window on top. Only if every option scores below 50/100 is the best of them presented as "no good option" rather than as a recommendation, and a total forecast outage is reported as an outage rather than as bad weather.
 - **Honest Missing-Data Display**: Missing precipitation is shown as `N/A`, not as a dry `0.0 mm` forecast.
 
 ## Prerequisites
@@ -98,7 +98,10 @@ The `-r` flag replaces an existing installation while preserving its data when s
 
 ## GitHub Actions
 
-`.github/workflows/android.yml` runs on every push to `main` and on `v*` tags. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleRelease`, then publishes the signed APK as a GitHub Release: on `main`, tagged and named from the current `version.json` version (e.g. `Weather Helper v1.2.8`, with auto-generated notes), re-publishing that same release if pushed again without a version bump; on a `v*` tag, a release for that tag.
+`.github/workflows/android.yml` runs on every push to `main`, and on manual `workflow_dispatch`. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleRelease`, then publishes the signed APK twice:
+
+- a **permanent versioned GitHub Release**, tagged and named from the current `version.json` version (e.g. `Weather Helper v1.3.9`, with auto-generated notes) and marked as latest. Pushing to `main` again without bumping `version.json` overwrites that same release rather than creating a new one.
+- a **temporary per-run build artifact**, named `weather-helper-v<version>-build-<run number>` and kept for 7 days, so an individual run's APK can be downloaded without disturbing the release.
 
 Gradle reads the authoritative version from `version.json` (`versionName`, `versionCode`); increase both deliberately before a release, since Android's `versionCode` must always increase.
 
