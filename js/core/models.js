@@ -14,18 +14,13 @@ export function createHourlyWeather({
   precipitation_probability = null,
   symbol_code = null,
   relative_humidity = null,
-  water_temp = null,
-  wave_height = null,
   temp_score = 0,
   wind_score = 0,
   cloud_score = 0,
   precip_amount_score = 0,
   humidity_score = 0,
-  water_temp_score = 0,
-  wave_height_score = 0,
 }) {
-  const total_score =
-    temp_score + wind_score + cloud_score + precip_amount_score + humidity_score + water_temp_score + wave_height_score;
+  const total_score = temp_score + wind_score + cloud_score + precip_amount_score + humidity_score;
   return {
     time,
     temp,
@@ -35,15 +30,11 @@ export function createHourlyWeather({
     precipitation_probability,
     symbol_code,
     relative_humidity,
-    water_temp,
-    wave_height,
     temp_score,
     wind_score,
     cloud_score,
     precip_amount_score,
     humidity_score,
-    water_temp_score,
-    wave_height_score,
     hour: madridHourOf(time),
     total_score,
   };

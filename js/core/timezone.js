@@ -69,7 +69,7 @@ function madridWallClockAsUTCMillis(instant) {
 // dateKey@hour:minute, regardless of the executing environment's own
 // timezone (the background task's JS engine may not agree with the
 // device's Android timezone, so this can't rely on Date's local setters).
-function madridInstantForDateKey(dateKey, hour, minute) {
+export function madridInstantForDateKey(dateKey, hour, minute) {
   const [year, month, day] = dateKey.split("-").map(Number);
   const want = Date.UTC(year, month - 1, day, hour, minute);
   let guess = new Date(want);
@@ -79,15 +79,6 @@ function madridInstantForDateKey(dateKey, hour, minute) {
     guess = new Date(guess.getTime() + diff);
   }
   return guess;
-}
-
-export function nextLocalOccurrence(hour, minute, from = new Date()) {
-  const todayKey = madridDateKeyOf(from);
-  const candidate = madridInstantForDateKey(todayKey, hour, minute);
-  if (candidate.getTime() <= from.getTime()) {
-    return madridInstantForDateKey(addDaysToDateKey(todayKey, 1), hour, minute);
-  }
-  return candidate;
 }
 
 export function parseForecastTimestamp(timestamp) {

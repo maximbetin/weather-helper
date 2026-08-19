@@ -202,7 +202,9 @@ async function saveSettings() {
     } else if (result === "disabled") {
       notifyStatus.textContent = "Daily reminder turned off.";
     } else {
-      notifyStatus.textContent = `Daily reminder set for ${notifyTime.value}.`;
+      // Android only guarantees exact delivery when "Alarms & reminders" is granted,
+      // so promise an approximate time rather than the exact minute.
+      notifyStatus.textContent = `Daily reminder set for around ${notifyTime.value}. Android may delay it slightly.`;
     }
   } catch (error) {
     const detail = error?.message ? ` (${error.message})` : "";

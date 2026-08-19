@@ -21,6 +21,7 @@ const WEAK_HOUR_PENALTY_WEIGHT = 0.2;
 const DAY_SCORE_CHANGE_TOLERANCE = 4.0;
 const DAY_SCORE_VOLATILITY_WEIGHT = 0.35;
 const MAX_DAY_VOLATILITY_PENALTY = 10.0;
+const OPPORTUNITY_TIE_TOLERANCE = 0.5;
 
 function safeAverage(values) {
   if (values.length === 0) return null;
@@ -103,8 +104,6 @@ function extractHourlyWeatherValues(entry) {
     precipitation_probability: precipitationProbability,
     symbol_code: getSymbolCode(entry),
     relative_humidity: instantDetails.relative_humidity ?? null,
-    water_temp: null,
-    wave_height: null,
   };
 }
 
@@ -336,8 +335,18 @@ export function getTopLocationsForDate(allLocationProcessed, d, topN = 10, activ
     const locationResult = rankLocationForDate(locKey, processed, d, nowLocal, activityProfile);
     if (locationResult) results.push(locationResult);
   }
-  results.sort((a, b) => b.score - a.score);
+  results.sort(compareLocationResults);
   return results.slice(0, topN);
+}
+
+// Locations are ranked by the quality of their best usable continuous window
+// (the optimal block's combined quality/duration/consistency score). The broader
+// remaining-day score is only a tie-breaker for locations whose best opportunity
+// is effectively as good as each other.
+function compareLocationResults(a, b) {
+  const opportunityDiff = b.opportunity_score - a.opportunity_score;
+  if (Math.abs(opportunityDiff) > OPPORTUNITY_TIE_TOLERANCE) return opportunityDiff;
+  return b.day_context_score - a.day_context_score;
 }
 
 function rankLocationForDate(locKey, processed, forecastDate, nowLocal, activityProfile) {
@@ -346,7 +355,8 @@ function rankLocationForDate(locKey, processed, forecastDate, nowLocal, activity
   const filteredHours = locationRecommendationHours(processed, forecastDate, nowLocal);
   const optimalBlock = findOptimalConsistentBlock(filteredHours, activityProfile);
   if (!optimalBlock) return null;
-  const dayScore = calculateDayActivityScore(report.daylight_hours, activityProfile);
+  // Scored over the hours that are still ahead, so past hours never influence today.
+  const dayScore = calculateDayActivityScore(filteredHours, activityProfile);
   return buildLocationResult(locKey, report, optimalBlock, dayScore, activityProfile);
 }
 
@@ -359,11 +369,15 @@ function buildLocationResult(locKey, report, optimalBlock, dayScore, activityPro
   return {
     location_key: locKey,
     location_name: report.location_name,
-    score: dayScore.score,
-    raw_score: dayScore.score,
+    // `score` ranks locations; `raw_score` is what gets shown next to the window,
+    // so it is the window's own quality rather than any whole-day aggregate.
+    score: optimalBlock.combined_score,
+    opportunity_score: optimalBlock.combined_score,
+    raw_score: optimalBlock.avg_score,
+    window_score: optimalBlock.avg_score,
+    day_context_score: dayScore.score,
     day_avg_score: dayScore.average,
     volatility_penalty: dayScore.volatility_penalty,
-    window_score: optimalBlock.avg_score,
     optimal_block: optimalBlock,
     weather_desc: report.weather_description,
     activity_profile: activityProfile,
@@ -373,6 +387,7 @@ function buildLocationResult(locKey, report, optimalBlock, dayScore, activityPro
 export function calculateDayActivityScore(hours, activityProfile) {
   const sortedHours = [...hours].sort((a, b) => a.time - b.time);
   const scores = sortedHours.map((hour) => getActivityScore(hour, activityProfile));
+  if (scores.length === 0) return { score: 0, average: 0, volatility_penalty: 0 };
   const average = scores.reduce((sum, value) => sum + value, 0) / scores.length;
   const volatilityPenalty = dayScoreVolatilityPenalty(sortedHours, scores);
   return { score: average - volatilityPenalty, average, volatility_penalty: volatilityPenalty };

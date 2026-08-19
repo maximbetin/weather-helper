@@ -2,7 +2,6 @@ import { fetchWeatherData } from "./core/weather_api.js";
 import { processForecast, getAvailableDates, getTimeBlocksForDate, getTopLocationsForDate } from "./core/evaluation.js";
 import { getActivityScore, getRatingInfo, normalizeScore, DEFAULT_ACTIVITY_PROFILE, ACTIVITY_PROFILE_LABELS } from "./core/scoring.js";
 import { LOCATION_GROUPS } from "./core/locations.js";
-import { buildDailySummary, formatDailySummary } from "./core/daily_summary.js";
 import { formatTemperature, formatPercentage, formatPrecipitation, formatWindSpeed, formatTime } from "./core/presentation.js";
 
 export const DOWNLOAD_ERROR = "Could not download forecast data. Check your connection and try again.";
@@ -147,15 +146,6 @@ export class ForecastViewModel {
   hourlyForecast(locationKey) {
     if (!this.selectedDate || !(locationKey in this.forecasts)) return [];
     return getTimeBlocksForDate(this.forecasts[locationKey], this.selectedDate).map((hour) => this._hourlyForecastView(hour));
-  }
-
-  dailySummaryRows() {
-    if (!this.selectedDate) return [];
-    return buildDailySummary(this.forecasts, this.selectedDate, this.locations);
-  }
-
-  dailySummaryText() {
-    return formatDailySummary(this.dailySummaryRows(), { forecastDate: this.selectedDate });
   }
 
   _selectDefaultLocation() {

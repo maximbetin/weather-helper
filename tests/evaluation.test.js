@@ -276,7 +276,7 @@ test("location ranking favors sustained positive hours", () => {
   assert.equal(ranked[1].optimal_block.duration, 1);
 });
 
-test("location score uses whole day not only best window", () => {
+test("the score shown beside a window is the window's own quality", () => {
   const forecastDate = "2030-06-15";
   const baseTime = madridInstant(2030, 6, 15, 10);
   const briefExcellentHours = [
@@ -285,20 +285,94 @@ test("location score uses whole day not only best window", () => {
     createHourWithTotalScore(plusHours(baseTime, 2), -5),
     createHourWithTotalScore(plusHours(baseTime, 3), -5),
   ];
-  const steadyGoodHours = [0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 8));
+  const allLocations = { brief: processedLocation(forecastDate, briefExcellentHours, "Brief excellent window") };
+
+  const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
+
+  // raw_score is what the UI and the notification normalize, so it must describe
+  // the recommended window rather than the washed-out whole-day average.
+  assert.equal(ranked[0].raw_score, ranked[0].optimal_block.avg_score);
+  assert.equal(ranked[0].raw_score, 20);
+  assert.ok(ranked[0].day_avg_score < ranked[0].raw_score);
+});
+
+test("locations are ranked by their best usable window, not by the rest of the day", () => {
+  const forecastDate = "2030-06-15";
+  const baseTime = madridInstant(2030, 6, 15, 10);
+  // A long, genuinely good afternoon window followed by a bad evening.
+  const goodWindowHours = [
+    ...[0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 18)),
+    ...[4, 5, 6, 7].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), -8)),
+  ];
+  // Mediocre but unbroken all day: a better whole-day average, no better window.
+  const flatMediocreHours = [0, 1, 2, 3, 4, 5, 6, 7].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 6));
   const allLocations = {
-    brief: processedLocation(forecastDate, briefExcellentHours, "Brief excellent window"),
-    steady: processedLocation(forecastDate, steadyGoodHours, "Steady good day"),
+    goodWindow: processedLocation(forecastDate, goodWindowHours, "Good window, bad evening"),
+    flat: processedLocation(forecastDate, flatMediocreHours, "Mediocre all day"),
   };
 
   const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
 
-  assert.equal(ranked[0].location_key, "steady");
-  assert.equal(ranked[1].optimal_block.avg_score, 20);
-  assert.ok(ranked[1].raw_score < ranked[1].window_score);
+  assert.equal(ranked[0].location_key, "goodWindow");
+  assert.ok(ranked[0].opportunity_score > ranked[1].opportunity_score);
+  assert.equal(ranked[0].score, ranked[0].optimal_block.combined_score);
+  // The steadier location really does have the better whole day; that is now only
+  // a tie-breaker, so it does not override the better opportunity.
+  assert.ok(ranked[1].day_context_score > ranked[0].day_context_score);
 });
 
-test("drastic changes reduce day score more than consistent weather", () => {
+test("the remaining-day score breaks ties between equally good opportunities", () => {
+  const forecastDate = "2030-06-15";
+  const baseTime = madridInstant(2030, 6, 15, 10);
+  const sharedWindow = [0, 1, 2].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 12));
+  // A washed-out hour breaks the day in two, so the identical morning window stays
+  // each location's best opportunity and only the rest of the day differs.
+  const breakHour = createHourWithTotalScore(plusHours(baseTime, 3), -30);
+  const tail = (score) => [4, 5, 6].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), score));
+  const allLocations = {
+    dullRest: processedLocation(forecastDate, [...sharedWindow, breakHour, ...tail(-1)], "Same window, dull rest"),
+    betterRest: processedLocation(forecastDate, [...sharedWindow, breakHour, ...tail(4)], "Same window, better rest"),
+  };
+
+  const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
+
+  assert.equal(ranked[0].opportunity_score, ranked[1].opportunity_score);
+  assert.equal(ranked[0].location_key, "betterRest");
+  assert.ok(ranked[0].day_context_score > ranked[1].day_context_score);
+});
+
+test("past hours do not influence today's score or ranking", (t) => {
+  const forecastDate = "2030-06-15";
+  const now = madridInstant(2030, 6, 15, 14);
+  t.mock.timers.enable({ apis: ["Date"], now });
+
+  const morning = madridInstant(2030, 6, 15, 10);
+  const afternoon = madridInstant(2030, 6, 15, 14);
+  // Great morning that has already passed, poor remaining afternoon.
+  const spentHours = [
+    ...[0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(morning, offset), 20)),
+    ...[0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(afternoon, offset), 1)),
+  ];
+  // Unremarkable morning, decent afternoon still ahead.
+  const aheadHours = [
+    ...[0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(morning, offset), 1)),
+    ...[0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(afternoon, offset), 10)),
+  ];
+  const allLocations = {
+    spent: processedLocation(forecastDate, spentHours, "Great morning, already gone"),
+    ahead: processedLocation(forecastDate, aheadHours, "Decent afternoon ahead"),
+  };
+
+  const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
+  const spent = ranked.find((r) => r.location_key === "spent");
+
+  assert.equal(ranked[0].location_key, "ahead");
+  assert.equal(spent.raw_score, 1);
+  assert.equal(spent.day_avg_score, 1);
+  assert.equal(madridHourOf(spent.optimal_block.start), 14);
+});
+
+test("drastic changes reduce the remaining-day score more than consistent weather", () => {
   const forecastDate = "2030-06-15";
   const baseTime = madridInstant(2030, 6, 15, 10);
   const consistentHours = [0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 10));
@@ -316,5 +390,5 @@ test("drastic changes reduce day score more than consistent weather", () => {
   assert.equal(results.volatile.day_avg_score, 10);
   assert.equal(results.consistent.volatility_penalty, 0);
   assert.ok(results.volatile.volatility_penalty > 0);
-  assert.ok(results.consistent.score > results.volatile.score);
+  assert.ok(results.consistent.day_context_score > results.volatile.day_context_score);
 });

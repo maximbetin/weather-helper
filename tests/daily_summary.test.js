@@ -1,88 +1,115 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ASTURIAS_LOCATIONS } from "../js/core/locations.js";
-import { buildDailySummary, formatDailySummary } from "../js/core/daily_summary.js";
+import {
+  FORECAST_UNAVAILABLE_MESSAGE,
+  GOOD_OPPORTUNITY_THRESHOLD,
+  buildDailyRecommendations,
+  buildOutlookNotification,
+  formatRecommendationLine,
+} from "../js/core/daily_summary.js";
 import { ACTIVITY_HIKING } from "../js/core/scoring.js";
 import { madridInstant } from "./helpers.js";
 
-function rankedResult(locationKey, locationName, rawScore, startHour) {
-  const start = madridInstant(2026, 8, 6, startHour);
+function rankedResult(locationKey, locationName, rawScore, startHour, endHour = startHour + 2) {
   return {
     location_key: locationKey,
     location_name: locationName,
     raw_score: rawScore,
-    optimal_block: { start, end: start },
+    optimal_block: {
+      start: madridInstant(2026, 8, 6, startHour),
+      end: madridInstant(2026, 8, 6, endHour),
+    },
   };
 }
 
-test("daily summary keeps priority cities first", () => {
-  const fakeRank = (forecasts, forecastDate, topN, activityProfile) => {
-    if (activityProfile === ACTIVITY_HIKING) {
-      return [
-        rankedResult("llanes", "Llanes", 22, 11),
-        rankedResult("gijon", "Gijon", 18, 12),
-        rankedResult("oviedo", "Oviedo", 8, 13),
-      ];
-    }
-    return [
-      rankedResult("salinas", "Salinas", 20, 14),
-      rankedResult("gijon", "Gijon", 16, 15),
-      rankedResult("oviedo", "Oviedo", 6, 16),
-    ];
-  };
+test("each activity profile gets its own best location, with no priority city", () => {
+  const fakeRank = (forecasts, forecastDate, topN, activityProfile) =>
+    activityProfile === ACTIVITY_HIKING
+      ? [rankedResult("llanes", "Llanes", 15, 11), rankedResult("oviedo", "Oviedo", 8, 13)]
+      : [rankedResult("salinas", "Salinas", 20, 14), rankedResult("gijon", "Gijón", 12, 15)];
 
   const forecasts = Object.fromEntries(["oviedo", "gijon", "llanes", "salinas"].map((key) => [key, {}]));
-
-  const rows = buildDailySummary(forecasts, "2026-08-06", ASTURIAS_LOCATIONS, {
-    alternativeLimit: 1,
-    rankFn: fakeRank,
-  });
+  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
 
   assert.deepEqual(
-    rows.map((row) => [row.activity_profile, row.location_key]),
+    recommendations.map((r) => [r.activity_profile, r.location_key]),
     [
-      ["hiking", "oviedo"],
-      ["hiking", "gijon"],
-      ["beach_day", "oviedo"],
-      ["beach_day", "gijon"],
       ["hiking", "llanes"],
       ["beach_day", "salinas"],
     ],
   );
-  assert.ok(rows[0].score_text.endsWith("/100"));
-  assert.equal(rows[0].best_window, "13:00 - 14:00");
-  assert.ok(rows.slice(0, 4).every((row) => row.is_priority));
-  assert.ok(!rows.slice(4).some((row) => row.is_priority));
+  // The window shown covers the whole block, inclusive of the final hour.
+  assert.equal(recommendations[0].best_window, "11:00 - 14:00");
+  assert.ok(recommendations.every((r) => r.is_good));
 });
 
-test("daily summary keeps missing priority city visible", () => {
-  const rows = buildDailySummary({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
-    rankFn: () => [],
+test("every configured location competes, including ones ranked below the cities", () => {
+  const seen = [];
+  const fakeRank = (forecasts) => {
+    seen.push(Object.keys(forecasts).sort());
+    return [rankedResult("cangas", "Cangas de Onís", 19, 9)];
+  };
+  const forecasts = Object.fromEntries(["oviedo", "gijon", "cangas"].map((key) => [key, {}]));
+
+  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
+
+  assert.deepEqual(seen[0], ["cangas", "gijon", "oviedo"]);
+  assert.ok(recommendations.every((r) => r.location_key === "cangas"));
+});
+
+test("a below-threshold best option is presented as no good opportunity", () => {
+  const fakeRank = () => [rankedResult("oviedo", "Oviedo", 0, 12)];
+  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
+
+  const hiking = recommendations[0];
+  assert.ok(hiking.normalized_score < GOOD_OPPORTUNITY_THRESHOLD);
+  assert.equal(hiking.is_good, false);
+  const line = formatRecommendationLine(hiking);
+  assert.match(line, /no good option/);
+  // The best available location and its score stay visible so the call can be judged.
+  assert.match(line, /Oviedo/);
+  assert.match(line, /12:00 - 15:00/);
+  assert.match(line, /38\/100/);
+});
+
+test("a location with no usable window reports that rather than a fake score", () => {
+  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: () => [] });
+
+  assert.ok(recommendations.every((r) => r.normalized_score === null));
+  assert.equal(recommendations[0].score_text, "N/A");
+  assert.match(formatRecommendationLine(recommendations[0]), /no usable window today/);
+});
+
+test("notification lists one line per profile plus coverage", () => {
+  const fakeRank = (forecasts, forecastDate, topN, activityProfile) =>
+    activityProfile === ACTIVITY_HIKING
+      ? [rankedResult("llanes", "Llanes", 18, 10)]
+      : [rankedResult("salinas", "Salinas", 22, 13)];
+  const recommendations = buildDailyRecommendations({ llanes: {}, salinas: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+    rankFn: fakeRank,
   });
 
-  assert.deepEqual(
-    rows.map((row) => [row.activity_profile, row.location_key]),
-    [
-      ["hiking", "oviedo"],
-      ["beach_day", "oviedo"],
-    ],
-  );
-  assert.equal(rows[0].score_text, "N/A");
-  assert.equal(rows[0].best_window, "Not available");
+  const content = buildOutlookNotification(recommendations, { loaded: 2, failed: 0 });
+  assert.equal(content.body.split("\n").length, 2);
+  assert.match(content.body, /Hiking: Llanes 10:00 - 13:00 \(90\/100\)/);
+  assert.match(content.body, /Salinas 13:00 - 16:00 \(90\/100\)/);
+  assert.equal(content.summaryText, "2 locations checked");
+  assert.ok(content.largeBody.endsWith("2 locations checked"));
 });
 
-test("daily summary text uses aligned columns without em dash", () => {
-  const rows = buildDailySummary({ oviedo: {}, gijon: {} }, "2026-08-06", ASTURIAS_LOCATIONS);
-  const text = formatDailySummary(rows, { forecastDate: "2026-08-06" });
-  const tableLines = text
-    .split("\n")
-    .filter((line) => line && !line.startsWith("Daily ") && line !== "Alternatives");
+test("a total fetch failure is reported as an outage, not as bad weather", () => {
+  const content = buildOutlookNotification([], { loaded: 0, failed: 4 });
+  assert.equal(content.body, FORECAST_UNAVAILABLE_MESSAGE);
+  assert.equal(content.summaryText, "No forecast data");
+});
 
-  assert.ok(!text.includes("—"));
-  assert.equal(tableLines[0].indexOf("Location"), tableLines[1].indexOf("Oviedo"));
-  assert.equal(
-    tableLines[0].indexOf("Score") + "Score".length,
-    tableLines[1].indexOf(rows[0].score_text) + rows[0].score_text.length,
-  );
-  assert.ok(text.includes("Daily outdoor windows for Thu, 06 Aug"));
+test("partial failures still recommend, and say how many locations were available", () => {
+  const recommendations = buildDailyRecommendations({ llanes: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+    rankFn: () => [rankedResult("llanes", "Llanes", 18, 10)],
+  });
+  const content = buildOutlookNotification(recommendations, { loaded: 1, failed: 3 });
+
+  assert.match(content.body, /Llanes/);
+  assert.equal(content.summaryText, "1 of 4 locations available");
 });

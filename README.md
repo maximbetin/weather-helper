@@ -26,9 +26,9 @@ Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/wea
 
 - **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, rain risk, and relative humidity.
 - **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
-- **Activity Profiles**: Rank the same forecast for either hiking/general outdoors or beach plans focused on swimming and sunbathing.
+- **Activity Profiles**: Rank the same forecast for either Hiking (any general outdoor time: strolling, sightseeing, exploring, walking) or Beach (warm, sunny outdoor leisure: beach, pool, swimming, sunbathing).
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
-- **Daily Nag Notification**: A background task refreshes a daily notification with today's real recommendation (activity, location, time window), scheduled at a time you choose in Settings.
+- **Daily Nag Notification**: A background task reports today's best Hiking option and today's best Beach option independently, each naming the best location across all configured Asturias locations and its time window. If the best option scores below 50/100 it is presented as "no good option" rather than as a recommendation, and a total forecast outage is reported as an outage rather than as bad weather.
 - **Honest Missing-Data Display**: Missing precipitation is shown as `N/A`, not as a dry `0.0 mm` forecast.
 
 ## Prerequisites
@@ -106,6 +106,10 @@ Gradle reads the authoritative version from `version.json` (`versionName`, `vers
 
 The Android manifest declares `android.permission.INTERNET` (for forecast fetches) and `android.permission.POST_NOTIFICATIONS` (Android 13+, requested at runtime by the app). `@capacitor/background-runner`'s own manifest fragment pulls in location permissions for its optional geolocation API; the app's manifest explicitly strips them (`tools:node="remove"`) since Weather Helper never does geolocation.
 
+The manifest also declares `android.permission.SCHEDULE_EXACT_ALARM`. Weather Helper is not an alarm-clock app, so it is not eligible for `USE_EXACT_ALARM` and cannot assume exact delivery: when the user has not granted "Alarms & reminders", `@capacitor/background-runner` falls back to an inexact alarm and Android may deliver the reminder late. The app therefore promises the notification *around* the chosen time, never at exactly that minute.
+
+The background runner wakes roughly hourly rather than once a day, but almost every wake-up does nothing: forecasts are only fetched inside a window around the chosen reminder time, the notification is armed for today only, and the processed date is recorded so at most one notification is produced per day. A late OS wake-up still delivers today's recommendation (within a few hours of the reminder time) instead of shifting it to tomorrow.
+
 On some OEMs (Xiaomi, Samsung, Huawei), the daily background refresh needs the app excluded from battery optimization to survive Doze; the Settings screen explains this on first enabling notifications.
 
 ## Project Structure
@@ -141,7 +145,7 @@ weather-helper/
 
 ## Weather Scoring System
 
-The Weather Helper uses a comprehensive scoring system to evaluate weather conditions. Each hour receives a base hiking/general outdoors score from five key factors, and the app can also re-score the same hour for beach plans focused on open-water swimming and sunbathing. Forecast times are converted to the app timezone before grouping, filtering, and display.
+The Weather Helper uses a comprehensive scoring system to evaluate weather conditions. Each hour receives a base Hiking score (general outdoor comfort) from five key factors, and the app can also re-score the same hour for Beach conditions (warm, sunny outdoor leisure). Forecast times are converted to the app timezone before grouping, filtering, and display.
 
 ### Individual Component Scores
 
@@ -237,10 +241,10 @@ The app can rank locations and hourly blocks using different activity profiles:
 
 | Profile   | Intended use                         | Scoring emphasis |
 | --------- | ------------------------------------- | ----------------- |
-| Hiking    | General outdoors, walking, day trips | Balanced comfort across temperature, wind, cloud, rain, and humidity |
-| Beach     | Swimming and sunbathing              | Warm air, low wind, dry weather, and clear to partly cloudy skies |
+| Hiking    | Any general outdoor time: strolling, sightseeing, exploring, walking | Balanced comfort across temperature, wind, cloud, rain, and humidity |
+| Beach     | Warm, sunny outdoor leisure: beach, pool, swimming, sunbathing | Warm air, low wind, dry weather, and clear to partly cloudy skies |
 
-Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more for open-water swimming and beach comfort. Wind values are shown in meters per second (m/s), matching the source forecast data.
+Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more when you are sitting still in a swimsuit. It scores air conditions only — there is no sea-state or water-temperature input. Wind values are shown in meters per second (m/s), matching the source forecast data.
 
 Both profiles also consider precipitation probability and forecast symbols such as rain, showers, fog, snow, and thunder. These risk signals can lower the profile score even when the expected precipitation amount is low.
 
@@ -270,4 +274,4 @@ This ensures users find sustained periods of favorable weather rather than just 
 
 All successfully loaded locations that contain hourly data for the selected date remain selectable, even when conditions do not meet the minimum for a ranked recommendation. In that case the app shows an unranked summary and keeps the hourly details available for the user's own judgment.
 
-The recommended time remains the best continuous block, but location ranking uses the selected activity's average across the whole usable day. Small hour-to-hour changes are tolerated, while abrupt changes add an increasingly strong volatility penalty. This keeps the Top 10 score grounded in the broader day even when one short period has excellent conditions. For today, the score uses the remaining useful daylight; future dates use the full daylight period.
+Locations are ranked by the quality of their best usable continuous window — the same combined quality/duration/consistency score that picks the window itself — so the ranking answers "where is the best opportunity today?". The score shown beside a recommended window is that window's own quality, not a whole-day aggregate. The broader remaining-day score (average with a volatility penalty for abrupt hour-to-hour changes) is kept as context and only breaks ties between locations whose best opportunities are effectively equal. For today, both are computed from the remaining useful daylight only, so hours that have already passed cannot influence today's ranking; future dates use the full daylight period.

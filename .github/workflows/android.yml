@@ -1,13 +1,12 @@
-name: Android
+name: Android APK
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
   workflow_dispatch:
 
 concurrency:
-  group: android-${{ github.workflow }}-${{ github.ref }}
+  group: android-main
   cancel-in-progress: true
 
 permissions:
@@ -17,121 +16,82 @@ jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
+
     env:
       ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
           cache: gradle
+
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: "24"
           cache: npm
+
       - name: Install dependencies
         run: npm ci
-      - name: Test application and packaging checks
+
+      - name: Run tests
         run: npm test
-      - name: Build web assets
-        run: npm run build
-      - name: Synchronise Capacitor Android project
-        run: npx cap sync android
 
-      - name: Configure release signing
-        if: env.ANDROID_KEYSTORE_BASE64 != ''
+      - name: Configure signing
         shell: bash
         run: |
-          if [[ -z "$ANDROID_KEYSTORE_PASSWORD" || -z "$ANDROID_KEY_PASSWORD" || -z "$ANDROID_KEY_ALIAS" ]]; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 is set, but one or more Android signing secrets are missing."
+          if [[ -z "$ANDROID_KEYSTORE_BASE64" ||
+                -z "$ANDROID_KEYSTORE_PASSWORD" ||
+                -z "$ANDROID_KEY_PASSWORD" ||
+                -z "$ANDROID_KEY_ALIAS" ]]; then
+            echo "::error::Android signing secrets are missing."
             exit 1
           fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/weather-helper-release.jks"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/weather-helper-release.jks" >> "$GITHUB_ENV"
 
-      - name: Warn when release signing is not configured
-        if: env.ANDROID_KEYSTORE_BASE64 == ''
-        run: echo "::warning::Android signing secrets are absent. The APK will be built unsigned and installs may fail to update a previous release."
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode \
+            > "$RUNNER_TEMP/weather-helper-release.jks"
 
-      - name: Build release APK
-        working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/weather-helper-release.jks" \
+            >> "$GITHUB_ENV"
 
-      - name: Locate and inspect release APK
-        run: |
-          node scripts/locate-apk.mjs --variant release --output artifacts/weather-helper.apk
-          node scripts/verify-apk.mjs artifacts/weather-helper.apk
+      - name: Build APK
+        run: npm run android:release
 
-      - name: Read app version
-        id: app-version
-        shell: bash
-        run: echo "version=$(node -p "require('./version.json').versionName")" >> "$GITHUB_OUTPUT"
-
-      - name: Verify APK signature
-        if: env.ANDROID_KEYSTORE_BASE64 != ''
+      - name: Read version
+        id: version
         shell: bash
         run: |
-          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          if [[ -z "$apksigner" ]]; then
-            echo "::error::Could not locate apksigner under $ANDROID_HOME/build-tools."
-            exit 1
-          fi
-          "$apksigner" verify --verbose --print-certs artifacts/weather-helper.apk
+          VERSION=$(node -p "require('./version.json').versionName")
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # Every push to main (re)publishes the release for the current
-      # version.json version, named and tagged like the pre-Capacitor
-      # releases (e.g. "Weather Helper v1.2.8") instead of a generic
-      # "latest" label. Re-pushing to main without bumping version.json
-      # updates that same release rather than creating a new one.
+      - name: Verify APK
+        run: node scripts/verify-apk.mjs artifacts/weather-helper-release.apk
+
+      - name: Upload temporary build
+        uses: actions/upload-artifact@v4
+        with:
+          name: weather-helper-v${{ steps.version.outputs.value }}-build-${{ github.run_number }}
+          path: artifacts/weather-helper-release.apk
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+
       - name: Publish versioned release
-        if: github.ref_name == 'main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ steps.app-version.outputs.version }}
-          name: Weather Helper v${{ steps.app-version.outputs.version }}
-          generate_release_notes: true
+          tag_name: v${{ steps.version.outputs.value }}
+          name: Weather Helper v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
           make_latest: true
-          files: artifacts/weather-helper.apk
-
-      # Non-main branches (e.g. an in-progress port) get their own rolling
-      # release tag instead of touching "latest", so it doesn't get mixed
-      # up with the main build but is still easy to grab and reinstall.
-      - name: Publish rolling branch release
-        if: github.ref_type == 'branch' && github.ref_name != 'main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: latest-${{ github.ref_name }}
-          name: Latest (${{ github.ref_name }})
-          body: Auto-updated on every push to ${{ github.ref_name }}. Commit ${{ github.sha }}.
-          make_latest: false
-          files: artifacts/weather-helper.apk
-
-      # Also keep a permanent, non-overwritten release per push, so older
-      # builds stay downloadable instead of being replaced by "latest".
-      # Main is excluded: its versioned release above already serves this
-      # purpose (unique per version.json bump, never overwritten).
-      - name: Publish permanent build release
-        if: github.ref_type == 'branch' && github.ref_name != 'main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: build-${{ github.run_number }}
-          name: Build ${{ github.run_number }}
-          body: Automatic build from ${{ github.ref_name }}. Commit ${{ github.sha }}.
-          make_latest: false
-          files: artifacts/weather-helper.apk
-
-      # A `vX.Y.Z` tag also publishes a permanently versioned release.
-      - name: Publish tagged release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: artifacts/weather-helper.apk
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: artifacts/weather-helper-release.apk

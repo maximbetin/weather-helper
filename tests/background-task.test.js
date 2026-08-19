@@ -1,64 +1,72 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PRIORITY_LOCATIONS, buildNotificationContent, fetchTodaysNotificationContent } from "../js/background-task.js";
+import {
+  FETCH_LEAD_MINUTES,
+  LATE_WAKE_GRACE_MINUTES,
+  fetchTodaysNotificationContent,
+  planDailyRun,
+} from "../js/background-task.js";
+import { FORECAST_UNAVAILABLE_MESSAGE } from "../js/core/daily_summary.js";
+import { madridDateKeyOf, madridInstantForDateKey } from "../js/core/timezone.js";
+import { madridInstant } from "./helpers.js";
 
-function row({ location_key, location_name, normalized_score, best_window = "11:00 - 14:00", is_priority = true, activity_label = "Beach" }) {
-  return {
-    location_key,
-    location_name,
-    normalized_score,
-    best_window,
-    is_priority,
-    activity_label,
-    score_text: normalized_score === null || normalized_score === undefined ? "N/A" : `${normalized_score}/100`,
-  };
-}
+const REMINDER = "08:00";
 
-test("PRIORITY_LOCATIONS only includes oviedo and gijon", () => {
-  assert.deepEqual(Object.keys(PRIORITY_LOCATIONS).sort(), ["gijon", "oviedo"]);
+test("a wake-up far ahead of the reminder does not fetch", () => {
+  const now = madridInstant(2026, 8, 6, 3);
+  const plan = planDailyRun(now, REMINDER, null);
+  assert.equal(plan.action, "skip");
+  assert.equal(plan.reason, "too-early");
 });
 
-test("buildNotificationContent falls back when there are no rows", () => {
-  const content = buildNotificationContent([]);
-  assert.equal(content.body, "No good outdoor window found for today.");
-  assert.equal(content.largeBody, null);
-  assert.equal(content.summaryText, null);
+test("a wake-up inside the lead window schedules for the reminder time itself", () => {
+  const now = madridInstant(2026, 8, 6, 7);
+  const plan = planDailyRun(now, REMINDER, null);
+
+  assert.equal(plan.action, "schedule");
+  assert.ok((plan.scheduleAt - now) / 60000 <= FETCH_LEAD_MINUTES);
+  assert.deepEqual(plan.scheduleAt, madridInstant(2026, 8, 6, 8));
 });
 
-test("buildNotificationContent highlights the best-scoring priority row and lists everything in largeBody", () => {
-  const rows = [
-    row({ location_key: "oviedo", location_name: "Oviedo", normalized_score: 65, best_window: "09:00 - 12:00", activity_label: "Hiking" }),
-    row({ location_key: "oviedo", location_name: "Oviedo", normalized_score: 72, best_window: "14:00 - 17:00", activity_label: "Beach" }),
-    row({ location_key: "gijon", location_name: "Gijón", normalized_score: 70, best_window: "10:00 - 13:00", activity_label: "Hiking" }),
-    row({ location_key: "gijon", location_name: "Gijón", normalized_score: 80, best_window: "15:00 - 18:00", activity_label: "Beach" }),
-    row({ location_key: "cangas", location_name: "Cangas de Onís", normalized_score: 89, best_window: "19:00 - 21:00", activity_label: "Hiking", is_priority: false }),
-  ];
-  const content = buildNotificationContent(rows);
+test("today's recommendation is never armed for tomorrow", () => {
+  // A wake-up after the reminder time used to roll the alarm forward to the next
+  // day, delivering today's forecast tomorrow morning.
+  const now = madridInstant(2026, 8, 6, 9, 30);
+  const plan = planDailyRun(now, REMINDER, null);
 
-  assert.equal(content.body, "🟢 Best: Beach in Gijón, 15:00 - 18:00 (80/100)");
-  assert.equal(
-    content.largeBody,
-    [
-      "Oviedo\n  🟡 Hiking 09:00 - 12:00 (65/100)\n  🟡 Beach 14:00 - 17:00 (72/100)",
-      "Gijón\n  🟡 Hiking 10:00 - 13:00 (70/100)\n  🟢 Beach 15:00 - 18:00 (80/100)",
-      "Alt: Cangas de Onís\n  🟢 Hiking 19:00 - 21:00 (89/100)",
-    ].join("\n\n"),
-  );
-  assert.equal(content.summaryText, "3 locations checked");
+  assert.equal(plan.action, "schedule");
+  assert.equal(plan.reason, "late-wake-up");
+  assert.equal(madridDateKeyOf(plan.scheduleAt), "2026-08-06");
+  assert.ok(plan.scheduleAt > now);
+  assert.ok((plan.scheduleAt - now) / 60000 < 5);
 });
 
-test("buildNotificationContent falls back to the best alternative when no priority location has a score", () => {
-  const rows = [
-    row({ location_key: "oviedo", location_name: "Oviedo", normalized_score: null, activity_label: "Hiking" }),
-    row({ location_key: "gijon", location_name: "Gijón", normalized_score: null, activity_label: "Hiking" }),
-    row({ location_key: "cangas", location_name: "Cangas de Onís", normalized_score: 89, best_window: "19:00 - 21:00", activity_label: "Hiking", is_priority: false }),
-  ];
-  const content = buildNotificationContent(rows);
-
-  assert.equal(content.body, "🟢 Best: Hiking in Cangas de Onís, 19:00 - 21:00 (89/100)");
+test("a very late wake-up gives up rather than notifying at the wrong time of day", () => {
+  const now = new Date(madridInstant(2026, 8, 6, 8).getTime() + (LATE_WAKE_GRACE_MINUTES + 30) * 60000);
+  const plan = planDailyRun(now, REMINDER, null);
+  assert.equal(plan.action, "skip");
+  assert.equal(plan.reason, "too-late");
 });
 
-test("fetchTodaysNotificationContent falls back gracefully when the weather API is unreachable", async (t) => {
+test("a date already processed is not notified twice", () => {
+  const now = madridInstant(2026, 8, 6, 7, 30);
+  const plan = planDailyRun(now, REMINDER, "2026-08-06");
+  assert.equal(plan.action, "skip");
+  assert.equal(plan.reason, "already-processed");
+
+  const nextDay = planDailyRun(madridInstant(2026, 8, 7, 7, 30), REMINDER, "2026-08-06");
+  assert.equal(nextDay.action, "schedule");
+  assert.equal(nextDay.dateKey, "2026-08-07");
+});
+
+test("an unusable stored time falls back to the default reminder time", () => {
+  const now = madridInstant(2026, 8, 6, 7, 30);
+  const plan = planDailyRun(now, "not-a-time", null);
+  assert.equal(plan.action, "schedule");
+  assert.deepEqual(plan.scheduleAt, madridInstantForDateKey("2026-08-06", 8, 0));
+});
+
+test("fetchTodaysNotificationContent reports an outage when the weather API is unreachable", async (t) => {
   const original = globalThis.fetch;
   globalThis.fetch = async () => {
     throw new Error("network unavailable");
@@ -68,5 +76,5 @@ test("fetchTodaysNotificationContent falls back gracefully when the weather API 
   });
 
   const content = await fetchTodaysNotificationContent();
-  assert.equal(content.body, "No good outdoor window found for today.");
+  assert.equal(content.body, FORECAST_UNAVAILABLE_MESSAGE);
 });

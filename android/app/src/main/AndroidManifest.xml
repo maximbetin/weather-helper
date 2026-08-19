@@ -34,6 +34,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- The daily reminder is armed through AlarmManager by @capacitor/background-runner.
+         Declared explicitly (the plugin merges the same permission) so the "Alarms &amp;
+         reminders" toggle is discoverable for this app. This is not an alarm-clock app, so
+         it is not eligible for USE_EXACT_ALARM and must not assume exact delivery: when the
+         permission is not granted the plugin falls back to an inexact alarm and Android may
+         delay the notification. The UI says "around" the chosen time for that reason. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <!-- @capacitor/background-runner's own manifest pulls these in unconditionally for its
          optional geolocation API, which this app never uses; drop them so the merged APK
          doesn't request location access it has no use for. -->
