@@ -3,6 +3,7 @@ function loc(key, name, lat, lon) {
 }
 
 export const ASTURIAS_LOCATIONS = {
+  arriondas: loc("arriondas", "Arriondas", 43.3892, -5.1908),
   gijon: loc("gijon", "Gijón", 43.5322, -5.661),
   oviedo: loc("oviedo", "Oviedo", 43.3623, -5.8485),
   llanes: loc("llanes", "Llanes", 43.4211, -4.7562),

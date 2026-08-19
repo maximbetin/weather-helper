@@ -21,5 +21,5 @@ test("location containment across groups", () => {
   assert.deepEqual(spainKeysInWorldwide, ["madrid"]);
   assert.equal(Object.keys(SPAIN_LOCATIONS).length, 19);
   assert.equal(Object.keys(WORLDWIDE_LOCATIONS).length, 13);
-  assert.equal(Object.keys(ASTURIAS_LOCATIONS).length, 12);
+  assert.equal(Object.keys(ASTURIAS_LOCATIONS).length, 13);
 });

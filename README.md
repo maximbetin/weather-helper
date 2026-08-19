@@ -100,7 +100,7 @@ The `-r` flag replaces an existing installation while preserving its data when s
 
 `.github/workflows/android.yml` runs on every push to `main`, and on manual `workflow_dispatch`. It runs `npm ci`, `npm test`, the web build, `npx cap sync android`, and `gradlew assembleRelease`, then publishes the signed APK twice:
 
-- a **permanent versioned GitHub Release**, tagged and named from the current `version.json` version (e.g. `Weather Helper v1.3.9`, with auto-generated notes) and marked as latest. Pushing to `main` again without bumping `version.json` overwrites that same release rather than creating a new one.
+- a **permanent versioned GitHub Release**, tagged and named from the current `version.json` version (e.g. `Weather Helper v1.4.0`, with auto-generated notes) and marked as latest. Pushing to `main` again without bumping `version.json` overwrites that same release rather than creating a new one.
 - a **temporary per-run build artifact**, named `weather-helper-v<version>-build-<run number>` and kept for 7 days, so an individual run's APK can be downloaded without disturbing the release.
 
 Gradle reads the authoritative version from `version.json` (`versionName`, `versionCode`); increase both deliberately before a release, since Android's `versionCode` must always increase.
