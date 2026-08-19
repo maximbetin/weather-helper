@@ -63,6 +63,9 @@ jobs:
           echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/weather-helper-release.jks" \
             >> "$GITHUB_ENV"
 
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
       - name: Build APK
         run: npm run android:release
 
