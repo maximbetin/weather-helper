@@ -18,7 +18,7 @@ const KV_PROCESSED_DATE_KEY = "lastProcessedDate";
 export const FETCH_LEAD_MINUTES = 90;
 // If the OS wakes the runner late (Doze, battery optimisation), still deliver
 // today's recommendation rather than skipping the day entirely.
-export const LATE_WAKE_GRACE_MINUTES = 180;
+export const LATE_WAKE_GRACE_MINUTES = 120;
 const LATE_DELIVERY_DELAY_MS = 60 * 1000;
 
 // Decides, without any I/O, whether this wake-up should fetch and schedule.
@@ -63,9 +63,9 @@ export async function fetchTodaysNotificationContent(locations = ASTURIAS_LOCATI
   const loaded = Object.keys(forecasts).length;
   // No location loaded at all is an outage, not bad weather — say so rather than
   // reporting "no good window".
-  if (loaded === 0) return buildOutlookNotification([], { loaded: 0, failed });
+  if (loaded === 0) return { ...buildOutlookNotification([], { loaded: 0, failed }), loaded, failed };
   const recommendations = buildDailyRecommendations(forecasts, today, locations);
-  return buildOutlookNotification(recommendations, { loaded, failed });
+  return { ...buildOutlookNotification(recommendations, { loaded, failed }), loaded, failed };
 }
 
 async function readSettings() {
@@ -78,8 +78,10 @@ async function readSettings() {
   return { enabled, time, lastProcessedDate: processedEntry?.value ?? null };
 }
 
+// Returns false when not a single location could be fetched, so the caller can
+// leave the day unprocessed and retry on a later wake-up.
 async function scheduleTodaysNotification(scheduleAt) {
-  const { body, largeBody, summaryText } = await fetchTodaysNotificationContent();
+  const { body, largeBody, summaryText, loaded } = await fetchTodaysNotificationContent();
   await CapacitorNotifications.schedule([
     {
       id: NOTIFICATION_ID,
@@ -90,16 +92,36 @@ async function scheduleTodaysNotification(scheduleAt) {
       scheduleAt,
     },
   ]);
+  return loaded > 0;
 }
 
-async function runDailyCheck() {
+export async function runDailyCheck(now = nowInstant()) {
   const { enabled, time, lastProcessedDate } = await readSettings();
   if (!enabled) return;
-  const plan = planDailyRun(nowInstant(), time, lastProcessedDate);
+  const plan = planDailyRun(now, time, lastProcessedDate);
   if (plan.action !== "schedule") return;
-  await scheduleTodaysNotification(plan.scheduleAt);
-  // Marked only after a successful schedule, so a failed run retries next hour.
-  await CapacitorKV.set(KV_PROCESSED_DATE_KEY, plan.dateKey);
+  const hadForecast = await scheduleTodaysNotification(plan.scheduleAt);
+  // Marked only after a successful schedule with real forecast data, so a failed
+  // run (or a complete outage) retries on the next hourly wake-up.
+  if (hadForecast) await CapacitorKV.set(KV_PROCESSED_DATE_KEY, plan.dateKey);
+}
+
+// Opening the app re-pushes the stored settings unchanged; only a real change to
+// enabled/time may clear the processed date and allow a second same-day notification.
+export function settingsChanged(stored, incoming) {
+  return stored.enabled !== incoming.enabled || stored.time !== incoming.time;
+}
+
+export async function applySettingsUpdate(details = {}) {
+  const enabled = Boolean(details.enabled);
+  const time = parseTimeOfDay(details.time) ? details.time : DEFAULT_NOTIFICATION_TIME;
+  const stored = await readSettings();
+  const changed = settingsChanged({ enabled: stored.enabled, time: stored.time }, { enabled, time });
+  await CapacitorKV.set(KV_ENABLED_KEY, String(enabled));
+  await CapacitorKV.set(KV_TIME_KEY, time);
+  // A settings change invalidates whatever was already armed for today.
+  if (changed) await CapacitorKV.set(KV_PROCESSED_DATE_KEY, "");
+  if (enabled) await runDailyCheck();
 }
 
 function registerDailyForecastTask() {
@@ -116,14 +138,7 @@ function registerDailyForecastTask() {
 
   addEventListener(UPDATE_SETTINGS_EVENT, async (resolve, reject, args) => {
     try {
-      const details = args ?? {};
-      const enabled = Boolean(details.enabled);
-      const time = parseTimeOfDay(details.time) ? details.time : DEFAULT_NOTIFICATION_TIME;
-      await CapacitorKV.set(KV_ENABLED_KEY, String(enabled));
-      await CapacitorKV.set(KV_TIME_KEY, time);
-      // A settings change invalidates whatever was already armed for today.
-      await CapacitorKV.set(KV_PROCESSED_DATE_KEY, "");
-      if (enabled) await runDailyCheck();
+      await applySettingsUpdate(args ?? {});
       resolve();
     } catch (error) {
       reject(error);

@@ -35,12 +35,12 @@ test("each activity profile gets its own best location, with no priority city", 
   assert.deepEqual(
     recommendations.map((r) => [r.activity_profile, r.location_key]),
     [
-      ["hiking", "llanes"],
       ["beach_day", "salinas"],
+      ["hiking", "llanes"],
     ],
   );
   // The window shown covers the whole block, inclusive of the final hour.
-  assert.equal(recommendations[0].best_window, "11:00 - 14:00");
+  assert.equal(recommendations[1].best_window, "11:00 - 14:00");
   assert.ok(recommendations.every((r) => r.is_good));
 });
 
@@ -62,7 +62,7 @@ test("a below-threshold best option is presented as no good opportunity", () => 
   const fakeRank = () => [rankedResult("oviedo", "Oviedo", 0, 12)];
   const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
 
-  const hiking = recommendations[0];
+  const hiking = recommendations.find((r) => r.activity_profile === "hiking");
   assert.ok(hiking.normalized_score < GOOD_OPPORTUNITY_THRESHOLD);
   assert.equal(hiking.is_good, false);
   const line = formatRecommendationLine(hiking);
@@ -79,6 +79,7 @@ test("a location with no usable window reports that rather than a fake score", (
   assert.ok(recommendations.every((r) => r.normalized_score === null));
   assert.equal(recommendations[0].score_text, "N/A");
   assert.match(formatRecommendationLine(recommendations[0]), /no usable window today/);
+  assert.equal(recommendations[0].activity_profile, "beach_day");
 });
 
 test("notification lists one line per profile plus coverage", () => {

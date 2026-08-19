@@ -343,10 +343,19 @@ export function getTopLocationsForDate(allLocationProcessed, d, topN = 10, activ
 // (the optimal block's combined quality/duration/consistency score). The broader
 // remaining-day score is only a tie-breaker for locations whose best opportunity
 // is effectively as good as each other.
+// Opportunity scores are quantised onto a tolerance-sized grid before comparing:
+// a fuzzy "within 0.5" equality is not transitive, so using it directly as a sort
+// comparator makes the resulting order depend on the input order.
+function opportunityBucket(result) {
+  return Math.round(result.opportunity_score / OPPORTUNITY_TIE_TOLERANCE);
+}
+
 function compareLocationResults(a, b) {
-  const opportunityDiff = b.opportunity_score - a.opportunity_score;
-  if (Math.abs(opportunityDiff) > OPPORTUNITY_TIE_TOLERANCE) return opportunityDiff;
-  return b.day_context_score - a.day_context_score;
+  const bucketDiff = opportunityBucket(b) - opportunityBucket(a);
+  if (bucketDiff !== 0) return bucketDiff;
+  const contextDiff = b.day_context_score - a.day_context_score;
+  if (contextDiff !== 0) return contextDiff;
+  return String(a.location_key).localeCompare(String(b.location_key));
 }
 
 function rankLocationForDate(locKey, processed, forecastDate, nowLocal, activityProfile) {

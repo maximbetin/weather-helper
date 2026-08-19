@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import {
   FETCH_LEAD_MINUTES,
   LATE_WAKE_GRACE_MINUTES,
+  applySettingsUpdate,
   fetchTodaysNotificationContent,
   planDailyRun,
+  runDailyCheck,
+  settingsChanged,
 } from "../js/background-task.js";
 import { FORECAST_UNAVAILABLE_MESSAGE } from "../js/core/daily_summary.js";
 import { madridDateKeyOf, madridInstantForDateKey } from "../js/core/timezone.js";
@@ -77,4 +80,72 @@ test("fetchTodaysNotificationContent reports an outage when the weather API is u
 
   const content = await fetchTodaysNotificationContent();
   assert.equal(content.body, FORECAST_UNAVAILABLE_MESSAGE);
+});
+
+function installRunnerStubs(t, initial = {}) {
+  const store = { ...initial };
+  const scheduled = [];
+  const previous = { kv: globalThis.CapacitorKV, notifications: globalThis.CapacitorNotifications };
+  globalThis.CapacitorKV = {
+    get: async (key) => ({ value: store[key] ?? "" }),
+    set: async (key, value) => {
+      store[key] = value;
+    },
+  };
+  globalThis.CapacitorNotifications = { schedule: async (items) => scheduled.push(...items) };
+  t.after(() => {
+    globalThis.CapacitorKV = previous.kv;
+    globalThis.CapacitorNotifications = previous.notifications;
+  });
+  return { store, scheduled };
+}
+
+test("re-pushing unchanged settings does not re-open an already-notified day", async (t) => {
+  // initNotifications() pushes the stored settings on every app start; that must
+  // not clear lastProcessedDate and allow a second notification for the same day.
+  const { store } = installRunnerStubs(t, {
+    notificationsEnabled: "true",
+    notificationTime: "08:00",
+    lastProcessedDate: "2026-08-06",
+  });
+
+  await applySettingsUpdate({ enabled: true, time: "08:00" });
+  assert.equal(store.lastProcessedDate, "2026-08-06");
+
+  assert.equal(settingsChanged({ enabled: true, time: "08:00" }, { enabled: true, time: "09:00" }), true);
+  assert.equal(settingsChanged({ enabled: true, time: "08:00" }, { enabled: false, time: "08:00" }), true);
+});
+
+test("an actual settings change does clear the processed date", async (t) => {
+  const { store } = installRunnerStubs(t, {
+    notificationsEnabled: "true",
+    notificationTime: "08:00",
+    lastProcessedDate: "2026-08-06",
+  });
+
+  await applySettingsUpdate({ enabled: true, time: "10:00" });
+  assert.equal(store.lastProcessedDate, "");
+});
+
+test("a complete forecast outage leaves the day unprocessed so a later wake-up retries", async (t) => {
+  const { store, scheduled } = installRunnerStubs(t, {
+    notificationsEnabled: "true",
+    notificationTime: "08:00",
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error("network unavailable");
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  await runDailyCheck(madridInstant(2026, 8, 6, 7, 30));
+  assert.equal(scheduled.length, 1);
+  assert.equal(scheduled[0].body, FORECAST_UNAVAILABLE_MESSAGE);
+  // Not marked processed: the next hourly wake-up gets another chance.
+  assert.ok(!store.lastProcessedDate);
+
+  await runDailyCheck(madridInstant(2026, 8, 6, 8, 30));
+  assert.equal(scheduled.length, 2);
 });

@@ -2,7 +2,7 @@ import { getTopLocationsForDate } from "./evaluation.js";
 import { ACTIVITY_BEACH_DAY, ACTIVITY_HIKING, getActivityProfileLabel, normalizeScore } from "./scoring.js";
 import { formatMadridTime } from "./timezone.js";
 
-export const SUMMARY_ACTIVITY_PROFILES = [ACTIVITY_HIKING, ACTIVITY_BEACH_DAY];
+export const SUMMARY_ACTIVITY_PROFILES = [ACTIVITY_BEACH_DAY, ACTIVITY_HIKING];
 
 // Below this normalized score the day is presented as "no good opportunity"
 // rather than as a recommendation, even though the best available option is
