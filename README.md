@@ -239,10 +239,10 @@ Total Score = Temperature Score + Wind Score + Cloud Score + Precipitation Score
 
 The app can rank locations and hourly blocks using different activity profiles:
 
-| Profile   | Intended use                         | Scoring emphasis |
+| Profile | Intended use | Scoring emphasis |
 | --------- | ------------------------------------- | ----------------- |
-| Hiking    | Any general outdoor time: strolling, sightseeing, exploring, walking | Balanced comfort across temperature, wind, cloud, rain, and humidity |
-| Beach     | Warm, sunny outdoor leisure: beach, pool, swimming, sunbathing | Warm air, low wind, dry weather, and clear to partly cloudy skies |
+| Hiking | Any general outdoor time: strolling, sightseeing, exploring, walking | Balanced comfort across temperature, wind, cloud, rain, and humidity |
+| Beach | Warm, sunny outdoor leisure: beach, pool, swimming, sunbathing | Warm air, low wind, dry weather, and clear to partly cloudy skies |
 
 Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more when you are sitting still in a swimsuit. It scores air conditions only — there is no sea-state or water-temperature input. Wind values are shown in meters per second (m/s), matching the source forecast data.
 
