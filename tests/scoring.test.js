@@ -8,6 +8,8 @@ import {
   getActivityProfileKey,
   getActivityProfileLabel,
   getActivityScore,
+  getComponentRating,
+  getWeatherMetricRatings,
   getRatingInfo,
   cloudScore,
   normalizeScore,
@@ -118,4 +120,24 @@ test("getValueFromRanges matches, respects exclusivity, and falls back", () => {
   assert.equal(getValueFromRanges(999, ranges), "default");
   assert.equal(getValueFromRanges(null, ranges), null);
   assert.equal(getValueFromRanges("nope", ranges), null);
+});
+
+test("weather metric ratings reuse profile component scores and one color scale", () => {
+  const hour = createHour(madridInstant(2024, 3, 15, 12), 12, {
+    temp: 24,
+    wind: 10,
+    cloud_coverage: 75,
+    precipitation_amount: 0,
+    relative_humidity: 65,
+  });
+  assert.deepEqual(getWeatherMetricRatings(hour, ACTIVITY_BEACH_DAY), {
+    temperature: "Excellent",
+    wind: "Poor",
+    clouds: "Fair",
+    precipitation: "Excellent",
+    humidity: "Very Good",
+    precipitationProbability: "Good",
+  });
+  assert.equal(getComponentRating(-3), "Fair");
+  assert.equal(getComponentRating(-4), "Poor");
 });

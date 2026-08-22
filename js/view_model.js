@@ -1,6 +1,13 @@
 import { fetchWeatherData } from "./core/weather_api.js";
 import { processForecast, getAvailableDates, getTimeBlocksForDate, getTopLocationsForDate } from "./core/evaluation.js";
-import { getActivityScore, getRatingInfo, normalizeScore, DEFAULT_ACTIVITY_PROFILE, ACTIVITY_PROFILE_LABELS } from "./core/scoring.js";
+import {
+  getActivityScore,
+  getRatingInfo,
+  getWeatherMetricRatings,
+  normalizeScore,
+  DEFAULT_ACTIVITY_PROFILE,
+  ACTIVITY_PROFILE_LABELS,
+} from "./core/scoring.js";
 import { LOCATION_GROUPS } from "./core/locations.js";
 import { formatTemperature, formatPercentage, formatPrecipitation, formatWindSpeed, formatTime } from "./core/presentation.js";
 
@@ -38,6 +45,28 @@ async function loadLocations(locations, onProgress = null) {
     }),
   );
   return { forecasts, errors };
+}
+
+function formatWeatherMetrics(weather, profileKey) {
+  const normalized = {
+    temp: weather.temp,
+    wind: weather.wind,
+    cloud_coverage: weather.cloud_coverage ?? weather.cloud,
+    precipitation_amount: weather.precipitation_amount ?? weather.precip,
+    precipitation_probability: weather.precipitation_probability ?? null,
+    relative_humidity: weather.relative_humidity ?? weather.humidity,
+  };
+  const ratings = getWeatherMetricRatings(normalized, profileKey);
+  return [
+    { label: "Temp", value: formatTemperature(normalized.temp), rating: ratings.temperature },
+    { label: "Wind", value: formatWindSpeed(normalized.wind), rating: ratings.wind },
+    { label: "Clouds", value: formatPercentage(normalized.cloud_coverage), rating: ratings.clouds },
+    { label: "Rain", value: formatPrecipitation(normalized.precipitation_amount), rating: ratings.precipitation },
+    normalized.precipitation_probability === null
+      ? null
+      : { label: "Rain chance", value: formatPercentage(normalized.precipitation_probability), rating: ratings.precipitationProbability },
+    { label: "Humidity", value: formatPercentage(normalized.relative_humidity), rating: ratings.humidity },
+  ].filter((metric) => metric !== null);
 }
 
 function formatBestWindowDetails(block) {
@@ -188,6 +217,7 @@ export class ForecastViewModel {
       weatherDescription: item.weather_desc,
       bestWindow: `${formatTime(block.start)} - ${formatTime(endTime)}`,
       bestWindowDetails: formatBestWindowDetails(block),
+      bestWindowMetrics: formatWeatherMetrics(block, this.activityProfile),
       isRanked: true,
     };
   }
@@ -205,6 +235,7 @@ export class ForecastViewModel {
       weatherDescription: report ? report.weather_description : "Hourly forecast available",
       bestWindow: "",
       bestWindowDetails: "No single consistent window met the scoring thresholds today, but hourly details are available below.",
+      bestWindowMetrics: [],
       isRanked: false,
     };
   }
@@ -224,6 +255,7 @@ export class ForecastViewModel {
           ? null
           : formatPercentage(hour.precipitation_probability),
       humidity: formatPercentage(hour.relative_humidity),
+      metrics: formatWeatherMetrics(hour, this.activityProfile),
       normalizedScore: normalizeScore(rawScore, this.activityProfile),
       rating: getRatingInfo(rawScore, this.activityProfile),
     };

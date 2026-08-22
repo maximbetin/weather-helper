@@ -281,6 +281,37 @@ export function getActivityProfileKey(label) {
   return DEFAULT_ACTIVITY_PROFILE;
 }
 
+const COMPONENT_RATING_RANGES = [
+  [[4, null], "Excellent"],
+  [[2, 4], "Very Good"],
+  [[0, 2], "Good"],
+  [[-3, 0], "Fair"],
+  [null, "Poor"],
+];
+
+export function getComponentRating(score) {
+  return getValueFromRanges(score, COMPONENT_RATING_RANGES, false) ?? "N/A";
+}
+
+export function getWeatherMetricRatings(hour, profileKey = DEFAULT_ACTIVITY_PROFILE) {
+  const beach = profileKey === ACTIVITY_BEACH_DAY;
+  const scores = {
+    temperature: beach ? beachTempScore(hour.temp) : (hour.temp_score ?? tempScore(hour.temp)),
+    wind: beach ? beachWindScore(hour.wind) : (hour.wind_score ?? windScore(hour.wind)),
+    clouds: beach ? beachCloudScore(hour.cloud_coverage) : (hour.cloud_score ?? cloudScore(hour.cloud_coverage)),
+    precipitation: beach
+      ? beachPrecipAmountScore(hour.precipitation_amount)
+      : (hour.precip_amount_score ?? precipAmountScore(hour.precipitation_amount)),
+    humidity: beach
+      ? beachHumidityScore(hour.relative_humidity)
+      : (hour.humidity_score ?? humidityScore(hour.relative_humidity)),
+    precipitationProbability: beach
+      ? beachPrecipProbabilityScore(hour.precipitation_probability)
+      : precipProbabilityScore(hour.precipitation_probability),
+  };
+  return Object.fromEntries(Object.entries(scores).map(([key, score]) => [key, getComponentRating(score)]));
+}
+
 export function getActivityScore(hour, profileKey = DEFAULT_ACTIVITY_PROFILE) {
   if (profileKey === ACTIVITY_BEACH_DAY) {
     return beachDayScore(

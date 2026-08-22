@@ -105,19 +105,19 @@ function renderRanking() {
   showAllButton.textContent = showAllResults ? `Show top ${RANKING_PREVIEW_COUNT} only` : `Show all ${total} locations`;
 }
 
+function weatherMetric(metric) {
+  return create("span", {
+    className: "weather-metric",
+    textContent: `${metric.label} ${metric.value}`,
+    ariaLabel: `${metric.label}: ${metric.value}, ${metric.rating}`,
+    style: `color:${getRatingColor(metric.rating)};background-color:${getRatingBackground(metric.rating)}`,
+  });
+}
+
 function hourlyRow(hour) {
   return create("div", { className: "hourly-row", style: `border-left-color:${getRatingColor(hour.rating)}` }, [
     create("span", { className: "hourly-time", textContent: hour.time }),
-    create("div", { className: "hourly-metrics" }, [
-      create("span", { textContent: `Temp ${hour.temperature}` }),
-      create("span", { textContent: `Wind ${hour.wind}` }),
-      create("span", { textContent: `Clouds ${hour.clouds}` }),
-      create("span", { textContent: `Rain ${hour.precipitation}` }),
-      // MET only publishes precipitation probability for part of its coverage; the
-      // metric is omitted rather than shown as a permanent "N/A" where it is absent.
-      hour.precipitationProbability === null ? null : create("span", { textContent: `Rain chance ${hour.precipitationProbability}` }),
-      create("span", { textContent: `Humidity ${hour.humidity}` }),
-    ]),
+    create("div", { className: "hourly-metrics" }, hour.metrics.map(weatherMetric)),
     create("span", { className: "hourly-score", textContent: hour.normalizedScore, style: `color:${getRatingColor(hour.rating)}` }),
   ]);
 }
@@ -140,7 +140,13 @@ function renderDetails() {
       create("div", { className: "score-big", textContent: location.normalizedScore ?? "N/A", style: `color:${getRatingColor(location.rating)}` }),
       create("div", { className: "rating-label", textContent: `${location.rating} · ${location.locationName}` }),
       location.bestWindow ? create("div", { className: "best-window", textContent: `Best window: ${location.bestWindow}` }) : null,
-      create("div", { className: "best-window-details", textContent: location.bestWindowDetails }),
+      create(
+        "div",
+        { className: "best-window-details" },
+        location.bestWindowMetrics.length > 0
+          ? location.bestWindowMetrics.map(weatherMetric)
+          : [location.bestWindowDetails],
+      ),
     ].filter((node) => node !== null),
   );
 
