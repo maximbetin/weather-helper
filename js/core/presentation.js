@@ -50,8 +50,8 @@ export function formatPrecipitation(value, unit = " mm") {
   return value === null || value === undefined ? "N/A" : `${value.toFixed(1)}${unit}`;
 }
 
-export function formatWindSpeed(value, unit = " m/s") {
-  return value === null || value === undefined ? "N/A" : `${value.toFixed(1)}${unit}`;
+export function formatWindSpeed(value) {
+  return value === null || value === undefined ? "N/A" : `${(value * 3.6).toFixed(1)} km/h`;
 }
 
 export function formatDuration(hours) {

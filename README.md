@@ -173,16 +173,16 @@ Evaluates temperature comfort for outdoor activities:
 
 Assesses wind comfort for outdoor activities:
 
-| Wind Speed (m/s) | Score | Description             |
-| ----------------- | ----- | ------------------------ |
-| 1-3 m/s          | +2    | Light breeze (ideal)    |
-| 0-1 m/s          | +1    | Calm (good)             |
-| 3-5 m/s          | 0     | Gentle breeze (neutral) |
-| 5-8 m/s          | -2    | Moderate breeze         |
-| 8-12 m/s         | -4    | Fresh breeze            |
-| 12-16 m/s        | -6    | Strong breeze           |
-| 16-20 m/s        | -7    | Near gale               |
-| >20 m/s          | -8    | Gale and above          |
+| Wind Speed (km/h) | Score | Description             |
+| ------------------- | ----- | ------------------------ |
+| 3.6-10.8 km/h       | +2    | Light breeze (ideal)    |
+| 0-3.6 km/h          | +1    | Calm (good)             |
+| 10.8-18 km/h        | 0     | Gentle breeze (neutral) |
+| 18-28.8 km/h        | -2    | Moderate breeze         |
+| 28.8-43.2 km/h      | -4    | Fresh breeze            |
+| 43.2-57.6 km/h      | -6    | Strong breeze           |
+| 57.6-72 km/h        | -7    | Near gale               |
+| >72 km/h            | -8    | Gale and above          |
 
 #### 3. Cloud Coverage Score (-3 to +4 points)
 
@@ -247,7 +247,7 @@ The app can rank locations and hourly blocks using different activity profiles:
 | Hiking | Any general outdoor time: strolling, sightseeing, exploring, walking | Balanced comfort across temperature, wind, cloud, rain, and humidity |
 | Beach | Warm, sunny outdoor leisure: beach, pool, swimming, sunbathing | Warm air, low wind, dry weather, and clear to partly cloudy skies |
 
-Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more when you are sitting still in a swimsuit. It scores air conditions only — there is no sea-state or water-temperature input. Wind values are shown in meters per second (m/s), matching the source forecast data.
+Beach scoring uses the same forecast data, but it treats wind and rain more strictly because they matter more when you are sitting still in a swimsuit. It scores air conditions only — there is no sea-state or water-temperature input. Wind values are converted from the source forecast data and always shown in kilometres per hour (km/h).
 
 Both profiles also consider precipitation probability and forecast symbols such as rain, showers, fog, snow, and thunder. These risk signals can lower the profile score even when the expected precipitation amount is low.
 
