@@ -9,15 +9,17 @@ const FORECAST_DAYS = 7;
 const ADJACENT_FORECAST_MINUTES_MIN = 50;
 const ADJACENT_FORECAST_MINUTES_MAX = 70;
 const CURRENT_HOUR_RELEVANCE_MINUTE = 30;
-const DEFAULT_MAX_SCORE_VARIANCE = 7.0;
 const OPTIMAL_MAX_SCORE_VARIANCE = 8.0;
-const SINGLE_HOUR_MIN_AVG_SCORE = -1;
-const MULTI_HOUR_MIN_AVG_SCORE = 0;
+const MIN_AVG_SCORE = 0;
 const VARIANCE_THRESHOLD_PER_EXTRA_HOUR = 0.8;
-const MAX_DURATION_BONUS = 5.0;
-const DURATION_BONUS_SATURATION_RATE = 0.35;
+// Duration is expressed as a mark-down on the raw activity-score scale rather
+// than a bonus on top of it, so the same number can drive both the ranking and
+// the rating shown in the UI. A window shorter than SUSTAINED_WINDOW_HOURS is
+// docked up to SHORT_WINDOW_PENALTY_MAX points: a single excellent hour no
+// longer reads (or ranks) like an excellent day.
+const SHORT_WINDOW_PENALTY_MAX = 5.0;
+const SUSTAINED_WINDOW_HOURS = 4;
 const CONSISTENCY_BONUS_WEIGHT = 2.0;
-const WEAK_HOUR_PENALTY_WEIGHT = 0.2;
 const DAY_SCORE_CHANGE_TOLERANCE = 4.0;
 const DAY_SCORE_VOLATILITY_WEIGHT = 0.35;
 const MAX_DAY_VOLATILITY_PENALTY = 10.0;
@@ -198,7 +200,7 @@ export function getTimeBlocksForDate(processedForecast, d) {
   return [...hours].sort((a, b) => a.time - b.time);
 }
 
-function findConsistentBlocks(sortedHours, maxScoreVariance = DEFAULT_MAX_SCORE_VARIANCE, activityProfile = DEFAULT_ACTIVITY_PROFILE) {
+function findConsistentBlocks(sortedHours, maxScoreVariance, activityProfile = DEFAULT_ACTIVITY_PROFILE) {
   const blocks = [];
   for (const block of iterContiguousHourBlocks(sortedHours)) {
     const blockInfo = createConsistentBlockInfo(block, maxScoreVariance, activityProfile);
@@ -232,7 +234,7 @@ function createConsistentBlockInfo(block, maxScoreVariance, activityProfile) {
   const scores = block.map((hour) => getActivityScore(hour, activityProfile));
   const avgScore = scores.reduce((sum, value) => sum + value, 0) / scores.length;
   const stdDev = scoreStandardDeviation(scores, avgScore);
-  if (!isAcceptableBlock(block, scores, avgScore, stdDev, maxScoreVariance)) return null;
+  if (!isAcceptableBlock(block, avgScore, stdDev, maxScoreVariance)) return null;
   return buildBlockInfo(block, avgScore, stdDev, activityProfile);
 }
 
@@ -242,13 +244,9 @@ function scoreStandardDeviation(scores, avgScore) {
   return Math.sqrt(variance);
 }
 
-function isAcceptableBlock(block, scores, avgScore, stdDev, maxScoreVariance) {
-  if (avgScore < minimumAverageScore(block.length)) return false;
+function isAcceptableBlock(block, avgScore, stdDev, maxScoreVariance) {
+  if (avgScore < MIN_AVG_SCORE) return false;
   return stdDev <= adjustedVarianceThreshold(block.length, maxScoreVariance);
-}
-
-function minimumAverageScore(blockLength) {
-  return blockLength === 1 ? SINGLE_HOUR_MIN_AVG_SCORE : MULTI_HOUR_MIN_AVG_SCORE;
 }
 
 function adjustedVarianceThreshold(blockLength, maxScoreVariance) {
@@ -285,47 +283,53 @@ function weatherBlockInfo(block) {
 function findOptimalConsistentBlock(sortedHours, activityProfile = DEFAULT_ACTIVITY_PROFILE, minDuration = 1) {
   const consistentBlocks = findConsistentBlocks(sortedHours, OPTIMAL_MAX_SCORE_VARIANCE, activityProfile);
   const candidates = blocksWithMinimumDuration(consistentBlocks, minDuration);
-  const rankedBlocks = candidates.map((block) => rankBlock(block, activityProfile));
+  const rankedBlocks = candidates.map(rankBlock);
   if (rankedBlocks.length === 0) return null;
-  return rankedBlocks.reduce((best, block) => (block.combined_score > best.combined_score ? block : best));
+  return rankedBlocks.reduce((best, block) => (isBetterBlock(block, best) ? block : best));
+}
+
+// Once the penalty has saturated, a longer window can tie its own prefix on
+// score; prefer the longer one so the recommendation is not silently truncated.
+function isBetterBlock(block, best) {
+  if (block.combined_score !== best.combined_score) return block.combined_score > best.combined_score;
+  return block.duration > best.duration;
 }
 
 function blocksWithMinimumDuration(blocks, minDuration) {
   return blocks.filter((block) => block.duration >= minDuration);
 }
 
-function rankBlock(blockInfo, activityProfile) {
-  const positiveHourCount = countPositiveHours(blockInfo, activityProfile);
-  const durationBonus = durationBonusFor(positiveHourCount);
-  const consistencyBonus = blockInfo.consistency * CONSISTENCY_BONUS_WEIGHT;
-  const weakHourPenalty = weakHourPenaltyFor(blockInfo, activityProfile);
-  const combinedScore = blockInfo.avg_score + durationBonus + consistencyBonus - weakHourPenalty;
-  return blockWithRank(blockInfo, combinedScore, durationBonus, consistencyBonus, positiveHourCount);
+function rankBlock(blockInfo) {
+  const shortWindowPenalty = shortWindowPenaltyFor(blockInfo.duration);
+  // Still on the raw activity-score scale, so it can be rated and normalized.
+  const sustainedScore = blockInfo.avg_score - shortWindowPenalty;
+  const consistencyBonus = consistencyBonusFor(blockInfo);
+  return blockWithRank(blockInfo, sustainedScore, shortWindowPenalty, consistencyBonus);
 }
 
-function blockWithRank(blockInfo, combinedScore, durationBonus, consistencyBonus, positiveHourCount) {
+function blockWithRank(blockInfo, sustainedScore, shortWindowPenalty, consistencyBonus) {
   return {
     ...blockInfo,
-    combined_score: combinedScore,
-    duration_bonus: durationBonus,
+    sustained_score: sustainedScore,
+    combined_score: sustainedScore + consistencyBonus,
+    short_window_penalty: shortWindowPenalty,
     consistency_bonus: consistencyBonus,
-    positive_hour_count: positiveHourCount,
   };
 }
 
-function durationBonusFor(positiveHourCount) {
-  const extraHours = Math.max(0, positiveHourCount - 1);
-  return MAX_DURATION_BONUS * (1 - Math.exp(-DURATION_BONUS_SATURATION_RATE * extraHours));
+// Linear from the full penalty at one hour down to nothing once the window is
+// long enough to be worth travelling for.
+function shortWindowPenaltyFor(duration) {
+  const shortfall = Math.max(0, SUSTAINED_WINDOW_HOURS - duration);
+  return SHORT_WINDOW_PENALTY_MAX * (shortfall / (SUSTAINED_WINDOW_HOURS - 1));
 }
 
-function countPositiveHours(blockInfo, activityProfile) {
-  return blockInfo.block.filter((hour) => getActivityScore(hour, activityProfile) > 0).length;
-}
-
-function weakHourPenaltyFor(blockInfo, activityProfile) {
-  const scores = blockInfo.block.map((hour) => getActivityScore(hour, activityProfile));
-  const penalty = (blockInfo.avg_score - Math.min(...scores)) * WEAK_HOUR_PENALTY_WEIGHT;
-  return Math.max(0, penalty);
+// A single hour has no spread to measure, so its standard deviation is 0 by
+// construction; awarding it the full consistency bonus would just reintroduce
+// the bias towards one-hour windows.
+function consistencyBonusFor(blockInfo) {
+  if (blockInfo.duration === 1) return 0;
+  return blockInfo.consistency * CONSISTENCY_BONUS_WEIGHT;
 }
 
 export function getTopLocationsForDate(allLocationProcessed, d, topN = 10, activityProfile = DEFAULT_ACTIVITY_PROFILE) {
@@ -378,12 +382,11 @@ function buildLocationResult(locKey, report, optimalBlock, dayScore, activityPro
   return {
     location_key: locKey,
     location_name: report.location_name,
-    // `score` ranks locations; `raw_score` is what gets shown next to the window,
-    // so it is the window's own quality rather than any whole-day aggregate.
-    score: optimalBlock.combined_score,
+    // `opportunity_score` ranks locations; `raw_score` is what gets shown next to
+    // the window. Both derive from the window's own quality after the
+    // short-window mark-down, so the rating and the ranking agree on duration.
     opportunity_score: optimalBlock.combined_score,
-    raw_score: optimalBlock.avg_score,
-    window_score: optimalBlock.avg_score,
+    raw_score: optimalBlock.sustained_score,
     day_context_score: dayScore.score,
     day_avg_score: dayScore.average,
     volatility_penalty: dayScore.volatility_penalty,

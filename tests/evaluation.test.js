@@ -272,28 +272,51 @@ test("location ranking favors sustained positive hours", () => {
 
   assert.deepEqual(ranked.map((result) => result.location_key), ["sustained", "isolated"]);
   assert.equal(ranked[0].optimal_block.duration, 5);
-  assert.equal(ranked[0].optimal_block.positive_hour_count, 5);
   assert.equal(ranked[1].optimal_block.duration, 1);
 });
 
-test("the score shown beside a window is the window's own quality", () => {
-  const forecastDate = "2030-06-15";
-  const baseTime = madridInstant(2030, 6, 15, 10);
-  const briefExcellentHours = [
+function briefExcellentDay(baseTime) {
+  return [
     createHourWithTotalScore(baseTime, 20),
     createHourWithTotalScore(plusHours(baseTime, 1), -5),
     createHourWithTotalScore(plusHours(baseTime, 2), -5),
     createHourWithTotalScore(plusHours(baseTime, 3), -5),
   ];
-  const allLocations = { brief: processedLocation(forecastDate, briefExcellentHours, "Brief excellent window") };
+}
+
+test("the score shown beside a window is the window's own quality, marked down when it is brief", () => {
+  const forecastDate = "2030-06-15";
+  const baseTime = madridInstant(2030, 6, 15, 10);
+  const allLocations = { brief: processedLocation(forecastDate, briefExcellentDay(baseTime), "Brief excellent window") };
 
   const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
 
-  // raw_score is what the UI and the notification normalize, so it must describe
-  // the recommended window rather than the washed-out whole-day average.
-  assert.equal(ranked[0].raw_score, ranked[0].optimal_block.avg_score);
-  assert.equal(ranked[0].raw_score, 20);
+  // raw_score is what the UI and the notification normalize, so it describes the
+  // recommended window rather than the washed-out whole-day average - but a
+  // one-hour window is docked so it cannot advertise itself as a whole good day.
+  assert.equal(ranked[0].optimal_block.duration, 1);
+  assert.equal(ranked[0].optimal_block.avg_score, 20);
+  assert.equal(ranked[0].raw_score, ranked[0].optimal_block.sustained_score);
+  assert.ok(ranked[0].raw_score < ranked[0].optimal_block.avg_score);
   assert.ok(ranked[0].day_avg_score < ranked[0].raw_score);
+});
+
+test("a sustained good window beats a brief excellent one", () => {
+  const forecastDate = "2030-06-15";
+  const baseTime = madridInstant(2030, 6, 15, 10);
+  const sustainedHours = [0, 1, 2, 3].map((offset) => createHourWithTotalScore(plusHours(baseTime, offset), 16));
+  const allLocations = {
+    brief: processedLocation(forecastDate, briefExcellentDay(baseTime), "One excellent hour"),
+    sustained: processedLocation(forecastDate, sustainedHours, "Four good hours"),
+  };
+
+  const ranked = getTopLocationsForDate(allLocations, forecastDate, 10, ACTIVITY_HIKING);
+
+  assert.deepEqual(ranked.map((result) => result.location_key), ["sustained", "brief"]);
+  // The brief window peaks higher, yet the sustained one is both ranked and
+  // displayed above it.
+  assert.ok(ranked[1].optimal_block.avg_score > ranked[0].optimal_block.avg_score);
+  assert.ok(ranked[0].raw_score > ranked[1].raw_score);
 });
 
 test("locations are ranked by their best usable window, not by the rest of the day", () => {
@@ -315,7 +338,7 @@ test("locations are ranked by their best usable window, not by the rest of the d
 
   assert.equal(ranked[0].location_key, "goodWindow");
   assert.ok(ranked[0].opportunity_score > ranked[1].opportunity_score);
-  assert.equal(ranked[0].score, ranked[0].optimal_block.combined_score);
+  assert.equal(ranked[0].opportunity_score, ranked[0].optimal_block.combined_score);
   // The steadier location really does have the better whole day; that is now only
   // a tie-breaker, so it does not override the better opportunity.
   assert.ok(ranked[1].day_context_score > ranked[0].day_context_score);
