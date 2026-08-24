@@ -53,7 +53,9 @@ function formatWeatherMetrics(weather, profileKey) {
     wind: weather.wind,
     cloud_coverage: weather.cloud_coverage ?? weather.cloud,
     precipitation_amount: weather.precipitation_amount ?? weather.precip,
-    precipitation_probability: weather.precipitation_probability ?? null,
+    // Hourly forecasts carry `precipitation_probability`; an optimal block carries
+    // the block average under `precip_probability`. Both feed this same renderer.
+    precipitation_probability: weather.precipitation_probability ?? weather.precip_probability ?? null,
     relative_humidity: weather.relative_humidity ?? weather.humidity,
   };
   const ratings = getWeatherMetricRatings(normalized, profileKey);

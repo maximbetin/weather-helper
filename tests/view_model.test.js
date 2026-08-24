@@ -52,6 +52,16 @@ test("hourly rows omit precipitation probability only when the forecast has none
   assert.equal(vm._hourlyForecastView(createHour(madridInstant(2099, 6, 10, 11), 12)).precipitationProbability, null);
 });
 
+test("the best-window metrics show rain chance from the block average", () => {
+  const hours = [10, 11, 12].map((hour) => createHour(madridInstant(2099, 6, 10, hour), 12, { precipitation_probability: 40 }));
+  const vm = viewModelWith({
+    gijon: { daily_forecasts: { [DATE]: hours }, day_scores: { [DATE]: createDailyReport(DATE, hours, "Gijón") } },
+  });
+
+  const labels = vm.allLocations()[0].bestWindowMetrics.map((metric) => metric.label);
+  assert.ok(labels.includes("Rain chance"));
+});
+
 test("hourly rows expose profile-aware color ratings for displayed measurements", () => {
   const hour = createHour(madridInstant(2099, 6, 10, 10), 12, {
     temp: 24,

@@ -85,13 +85,7 @@ export function filterHoursForRecommendations(hours, forecastDate, nowLocal) {
 export function findOptimalWeatherBlock(hours, minDuration = 1, activityProfile = DEFAULT_ACTIVITY_PROFILE) {
   if (!hours || hours.length === 0) return null;
   const sortedHours = [...hours].sort((a, b) => a.time - b.time);
-  const optimalBlock = findOptimalConsistentBlock(sortedHours, activityProfile, minDuration);
-  return validMinimumDurationBlock(optimalBlock, minDuration);
-}
-
-function validMinimumDurationBlock(block, minDuration) {
-  if (!block || block.duration < minDuration) return null;
-  return block;
+  return findOptimalConsistentBlock(sortedHours, activityProfile, minDuration);
 }
 
 function extractHourlyWeatherValues(entry) {
@@ -234,7 +228,7 @@ function createConsistentBlockInfo(block, maxScoreVariance, activityProfile) {
   const scores = block.map((hour) => getActivityScore(hour, activityProfile));
   const avgScore = scores.reduce((sum, value) => sum + value, 0) / scores.length;
   const stdDev = scoreStandardDeviation(scores, avgScore);
-  if (!isAcceptableBlock(block, avgScore, stdDev, maxScoreVariance)) return null;
+  if (!isAcceptableBlock(block.length, avgScore, stdDev, maxScoreVariance)) return null;
   return buildBlockInfo(block, avgScore, stdDev, activityProfile);
 }
 
@@ -244,9 +238,9 @@ function scoreStandardDeviation(scores, avgScore) {
   return Math.sqrt(variance);
 }
 
-function isAcceptableBlock(block, avgScore, stdDev, maxScoreVariance) {
+function isAcceptableBlock(blockLength, avgScore, stdDev, maxScoreVariance) {
   if (avgScore < MIN_AVG_SCORE) return false;
-  return stdDev <= adjustedVarianceThreshold(block.length, maxScoreVariance);
+  return stdDev <= adjustedVarianceThreshold(blockLength, maxScoreVariance);
 }
 
 function adjustedVarianceThreshold(blockLength, maxScoreVariance) {
@@ -271,7 +265,7 @@ function baseBlockInfo(block, avgScore, stdDev) {
     avg_score: avgScore,
     duration: block.length,
     consistency: 1 / (1 + stdDev),
-    variance: stdDev,
+    score_std_dev: stdDev,
   };
 }
 

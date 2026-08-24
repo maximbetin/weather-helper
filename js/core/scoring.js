@@ -116,7 +116,6 @@ export const BEACH_WIND_RANGES = [
   [[4, 6], 1],
   [[6, 8], -3],
   [[8, 11], -8],
-  [[11, null], -14],
   [null, -14],
 ];
 
@@ -133,7 +132,6 @@ export const BEACH_PRECIP_AMOUNT_RANGES = [
   [[0, 0.1], 3],
   [[0.1, 0.5], -2],
   [[0.5, 1.0], -5],
-  [[1.0, null], -10],
   [null, -10],
 ];
 

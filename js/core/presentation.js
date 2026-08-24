@@ -54,10 +54,6 @@ export function formatWindSpeed(value) {
   return value === null || value === undefined ? "N/A" : `${(value * 3.6).toFixed(1)} km/h`;
 }
 
-export function formatDuration(hours) {
-  return hours === 1 ? "1 hour" : `${hours} hours`;
-}
-
 export const formatTime = formatMadridTime;
 
 export function formatDate(dateKey) {
