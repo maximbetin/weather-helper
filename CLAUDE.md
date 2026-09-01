@@ -35,7 +35,7 @@ Always run `npm test` after touching `js/core/*` — that's where the scoring/ev
 | `js/core/weather_api.js` | MET Norway fetch, complete→compact fallback |
 | `js/core/scoring.js` | Per-factor scoring tables (temp/wind/cloud/precip/humidity) |
 | `js/core/evaluation.js` | Combines scores into hourly/day evaluations, activity profiles |
-| `js/core/locations.js` | Static location/region definitions |
+| `js/core/locations.js` | Static Asturias location definitions (single flat set, no regions) |
 | `js/core/timezone.js` | Europe/Madrid local-time conversion helpers |
 | `js/core/daily_summary.js` | Builds the daily notification recommendation text |
 | `js/core/models.js` | Shared data shapes |
@@ -61,6 +61,9 @@ matching test in `tests/`.
   reads for versioning. `versionCode` must strictly increase for any release
   build — bump both together, deliberately, not as a drive-by edit.
 - Missing precipitation renders as `N/A`, never `0.0 mm` — don't default it to zero.
+- The 08:00–20:00 outing window in `js/core/evaluation.js` gates everything —
+  scoring, ranking, the date list, and the hourly detail list. Don't reintroduce
+  night hours on one surface only.
 
 ## Testing conventions
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ASTURIAS_LOCATIONS } from "../js/core/locations.js";
+import { LOCATIONS } from "../js/core/locations.js";
 import {
   FORECAST_UNAVAILABLE_MESSAGE,
   GOOD_OPPORTUNITY_THRESHOLD,
@@ -30,7 +30,7 @@ test("each activity profile gets its own best location, with no priority city", 
       : [rankedResult("salinas", "Salinas", 20, 14), rankedResult("gijon", "Gijón", 12, 15)];
 
   const forecasts = Object.fromEntries(["oviedo", "gijon", "llanes", "salinas"].map((key) => [key, {}]));
-  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
+  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", LOCATIONS, { rankFn: fakeRank });
 
   assert.deepEqual(
     recommendations.map((r) => [r.activity_profile, r.location_key]),
@@ -52,7 +52,7 @@ test("every configured location competes, including ones ranked below the cities
   };
   const forecasts = Object.fromEntries(["oviedo", "gijon", "cangas"].map((key) => [key, {}]));
 
-  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
+  const recommendations = buildDailyRecommendations(forecasts, "2026-08-06", LOCATIONS, { rankFn: fakeRank });
 
   assert.deepEqual(seen[0], ["cangas", "gijon", "oviedo"]);
   assert.ok(recommendations.every((r) => r.location_key === "cangas"));
@@ -60,7 +60,7 @@ test("every configured location competes, including ones ranked below the cities
 
 test("a below-threshold best option is presented as no good opportunity", () => {
   const fakeRank = () => [rankedResult("oviedo", "Oviedo", 0, 12)];
-  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: fakeRank });
+  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", LOCATIONS, { rankFn: fakeRank });
 
   const hiking = recommendations.find((r) => r.activity_profile === "hiking");
   assert.ok(hiking.normalized_score < GOOD_OPPORTUNITY_THRESHOLD);
@@ -74,7 +74,7 @@ test("a below-threshold best option is presented as no good opportunity", () => 
 });
 
 test("a location with no usable window reports that rather than a fake score", () => {
-  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", ASTURIAS_LOCATIONS, { rankFn: () => [] });
+  const recommendations = buildDailyRecommendations({ oviedo: {} }, "2026-08-06", LOCATIONS, { rankFn: () => [] });
 
   assert.ok(recommendations.every((r) => r.normalized_score === null));
   assert.equal(recommendations[0].score_text, "N/A");
@@ -87,7 +87,7 @@ test("notification lists one line per profile plus coverage", () => {
     activityProfile === ACTIVITY_HIKING
       ? [rankedResult("llanes", "Llanes", 18, 10)]
       : [rankedResult("salinas", "Salinas", 22, 13)];
-  const recommendations = buildDailyRecommendations({ llanes: {}, salinas: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+  const recommendations = buildDailyRecommendations({ llanes: {}, salinas: {} }, "2026-08-06", LOCATIONS, {
     rankFn: fakeRank,
   });
 
@@ -108,7 +108,7 @@ test("a shorter window that clears the threshold beats a longer sub-threshold on
     rankedResult("longer", "Longer Location", 1, 10, 15),
     rankedResult("shorter", "Shorter Location", 4, 12, 13),
   ];
-  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", LOCATIONS, {
     rankFn: fakeRank,
   });
 
@@ -124,7 +124,7 @@ test("when no candidate clears the threshold the best ranked one is still report
     rankedResult("longer", "Longer Location", 1, 10, 15),
     rankedResult("shorter", "Shorter Location", 0.5, 12, 13),
   ];
-  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+  const recommendations = buildDailyRecommendations({ longer: {}, shorter: {} }, "2026-08-06", LOCATIONS, {
     rankFn: fakeRank,
   });
 
@@ -141,7 +141,7 @@ test("a total fetch failure is reported as an outage, not as bad weather", () =>
 });
 
 test("partial failures still recommend, and say how many locations were available", () => {
-  const recommendations = buildDailyRecommendations({ llanes: {} }, "2026-08-06", ASTURIAS_LOCATIONS, {
+  const recommendations = buildDailyRecommendations({ llanes: {} }, "2026-08-06", LOCATIONS, {
     rankFn: () => [rankedResult("llanes", "Llanes", 18, 10)],
   });
   const content = buildOutlookNotification(recommendations, { loaded: 1, failed: 3 });

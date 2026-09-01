@@ -11,10 +11,10 @@ function rankableForecast(locationName) {
   return { daily_forecasts: { [DATE]: hours }, day_scores: { [DATE]: createDailyReport(DATE, hours, locationName) } };
 }
 
-// Hours outside the daylight window produce no daily report, so the location is
-// loaded and inspectable but never ranked.
+// No daily report for the date, so the location is loaded and inspectable but
+// never ranked.
 function unrankableForecast() {
-  const hours = [22, 23].map((hour) => createHour(madridInstant(2099, 6, 10, hour), 12));
+  const hours = [10, 11].map((hour) => createHour(madridInstant(2099, 6, 10, hour), 12));
   return { daily_forecasts: { [DATE]: hours }, day_scores: {} };
 }
 

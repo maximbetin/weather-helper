@@ -71,15 +71,18 @@ test("get available dates", () => {
   assert.deepEqual(getAvailableDates({}), []);
   assert.deepEqual(getAvailableDates({ other_key: {} }), []);
 
+  const daylightHour = (day) => [createHourlyWeather({ time: madridInstant(2024, 3, day, 10) })];
   const testData = {
     daily_forecasts: {
-      "2024-03-15": [],
-      "2024-03-16": [],
-      "2024-03-14": [],
+      "2024-03-15": daylightHour(15),
+      "2024-03-16": daylightHour(16),
+      "2024-03-14": daylightHour(14),
+      // Nothing inside the outing window, so nothing to offer for that date.
+      "2024-03-17": [createHourlyWeather({ time: madridInstant(2024, 3, 17, 23) })],
+      "2024-03-18": [],
     },
   };
   const dates = getAvailableDates(testData);
-  assert.equal(dates.length, 3);
   assert.deepEqual(dates, ["2024-03-14", "2024-03-15", "2024-03-16"]);
 });
 
@@ -103,8 +106,11 @@ test("get time blocks for date", () => {
     precip_amount_score: 2,
   });
 
-  const testData = { daily_forecasts: { [testDate]: [hour1, hour2] } };
+  const nightHour = createHourlyWeather({ time: madridInstant(2024, 3, 15, 2) });
+  const testData = { daily_forecasts: { [testDate]: [hour1, hour2, nightHour] } };
 
+  // Night hours are dropped: the hourly list shows the same outing window the
+  // ranking is computed over.
   const blocks = getTimeBlocksForDate(testData, testDate);
   assert.equal(blocks.length, 2);
   assert.equal(blocks[0].hour, 8);

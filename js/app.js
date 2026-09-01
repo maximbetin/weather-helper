@@ -1,6 +1,5 @@
 import { ForecastViewModel } from "./view_model.js";
 import { ACTIVITY_PROFILE_LABELS } from "./core/scoring.js";
-import { LOCATION_GROUPS } from "./core/locations.js";
 import { formatDate, getRatingColor, getRatingBackground } from "./core/presentation.js";
 import { installBackButtonHandler } from "../native-bridge.js";
 import { getNotificationTime, getNotificationsEnabled, applyNotificationSettings, initNotifications } from "./notifications.js";
@@ -26,7 +25,6 @@ function create(tag, props = {}, children = []) {
 
 const vm = new ForecastViewModel();
 
-const groupSelect = $("group-select");
 const profileSelect = $("profile-select");
 const dateSelect = $("date-select");
 const refreshButton = $("refresh-button");
@@ -46,9 +44,6 @@ const notifyStatus = $("notify-status");
 const notifySaveButton = $("notify-save-button");
 
 function populateStaticOptions() {
-  groupSelect.replaceChildren(...Object.keys(LOCATION_GROUPS).map((name) => create("option", { value: name, textContent: name })));
-  groupSelect.value = vm.groupName;
-
   profileSelect.replaceChildren(
     ...Object.entries(ACTIVITY_PROFILE_LABELS).map(([key, label]) => create("option", { value: key, textContent: label })),
   );
@@ -172,7 +167,6 @@ function setStatus(text) {
 
 async function refreshForecast() {
   refreshButton.disabled = true;
-  groupSelect.disabled = true;
   loadProgress.hidden = false;
   setStatus("Loading forecast…");
   try {
@@ -184,8 +178,7 @@ async function refreshForecast() {
     setStatus("Could not load this forecast. Please try again.");
   } finally {
     refreshButton.disabled = false;
-    groupSelect.disabled = false;
-    loadProgress.hidden = true;
+      loadProgress.hidden = true;
     showAllResults = false;
     updateDateOptions();
     renderDashboard();
@@ -227,11 +220,6 @@ async function saveSettings() {
 
 function initialiseUi() {
   populateStaticOptions();
-
-  groupSelect.addEventListener("change", () => {
-    vm.selectGroup(groupSelect.value);
-    refreshForecast();
-  });
 
   profileSelect.addEventListener("change", () => {
     vm.selectActivityProfile(profileSelect.value);

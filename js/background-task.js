@@ -1,7 +1,7 @@
 import { fetchWeatherData } from "./core/weather_api.js";
 import { processForecast } from "./core/evaluation.js";
 import { buildDailyRecommendations, buildOutlookNotification } from "./core/daily_summary.js";
-import { ASTURIAS_LOCATIONS } from "./core/locations.js";
+import { LOCATIONS } from "./core/locations.js";
 import { madridDateKeyOf, madridInstantForDateKey, nowInstant, DEFAULT_NOTIFICATION_TIME, parseTimeOfDay } from "./core/timezone.js";
 
 export const DAILY_FORECAST_EVENT = "dailyForecastCheck";
@@ -57,7 +57,7 @@ async function loadForecasts(locations) {
   return { forecasts, failed };
 }
 
-export async function fetchTodaysNotificationContent(locations = ASTURIAS_LOCATIONS) {
+export async function fetchTodaysNotificationContent(locations = LOCATIONS) {
   const today = madridDateKeyOf(nowInstant());
   const { forecasts, failed } = await loadForecasts(locations);
   const loaded = Object.keys(forecasts).length;

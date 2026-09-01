@@ -24,8 +24,8 @@ Forecasts come from the [MET Norway Locationforecast API](https://api.met.no/wea
 
 ## Features
 
-- **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, rain risk, and relative humidity.
-- **Multi-Region Support**: Compare locations across different regions (e.g., Asturias, Spain, Worldwide) to plan trips effectively.
+- **Detailed Hourly Forecasts**: Comprehensive weather data including temperature, wind speed, cloud coverage, precipitation, rain risk, and relative humidity, for the 08:00–20:00 outing window only — night hours are neither scored nor displayed.
+- **Asturias Locations**: Compares a fixed set of 13 Asturias locations — near enough for a day trip, so there is no region to pick.
 - **Activity Profiles**: Rank the same forecast for either Hiking (any general outdoor time: strolling, sightseeing, exploring, walking) or Beach (warm, sunny outdoor leisure: beach, pool, swimming, sunbathing).
 - **Optimal Weather Finder**: Automatically identifies the best time blocks for the selected activity based on a weighted scoring system.
 - **Daily Nag Notification**: A background task reports today's best Hiking option and today's best Beach option independently, each naming the best location across all configured Asturias locations and its time window. When any candidate window scores at least 50/100 the best of those is recommended, even if the ranking's consistency bonus puts a weaker but longer window on top. Only if every option scores below 50/100 is the best of them presented as "no good option" rather than as a recommendation, and a total forecast outage is reported as an outage rather than as bad weather.
@@ -275,6 +275,6 @@ The application identifies the best continuous time periods for the selected act
 
 This ensures users find sustained periods of favorable weather rather than just isolated good hours.
 
-All successfully loaded locations that contain hourly data for the selected date remain selectable, even when conditions do not meet the minimum for a ranked recommendation. In that case the app shows an unranked summary and keeps the hourly details available for the user's own judgment.
+All successfully loaded locations that contain outing-window hourly data for the selected date remain selectable, even when conditions do not meet the minimum for a ranked recommendation. In that case the app shows an unranked summary and keeps the hourly details available for the user's own judgment.
 
 Locations are ranked by the quality of their best usable continuous window — the same combined quality/duration/consistency score that picks the window itself — so the ranking answers "where is the best opportunity today?". Duration is applied as a mark-down on the raw score scale rather than as a bonus on top of it, so the rating shown beside a window and the ranking that chose it agree: a one-hour window is presented (and ranked) a full rating band below its own peak hour, and the mark-down fades to nothing at four hours. The score shown beside a recommended window is that window's own marked-down quality, not a whole-day aggregate. The broader remaining-day score (average with a volatility penalty for abrupt hour-to-hour changes) is kept as context and only breaks ties between locations whose best opportunities are effectively equal. For today, both are computed from the remaining useful daylight only, so hours that have already passed cannot influence today's ranking; future dates use the full daylight period.

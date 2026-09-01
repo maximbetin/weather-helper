@@ -8,14 +8,12 @@ import {
   DEFAULT_ACTIVITY_PROFILE,
   ACTIVITY_PROFILE_LABELS,
 } from "./core/scoring.js";
-import { LOCATION_GROUPS } from "./core/locations.js";
+import { LOCATIONS } from "./core/locations.js";
 import { formatTemperature, formatPercentage, formatPrecipitation, formatWindSpeed, formatTime } from "./core/presentation.js";
 
 export const DOWNLOAD_ERROR = "Could not download forecast data. Check your connection and try again.";
 export const PROCESSING_ERROR = "The forecast response did not contain usable weather data.";
 export const UNEXPECTED_ERROR = "Could not load this forecast. Please try again.";
-
-const DEFAULT_LOCATION_GROUP = "Asturias";
 
 async function loadLocation(location) {
   try {
@@ -77,7 +75,6 @@ function formatBestWindowDetails(block) {
 
 export class ForecastViewModel {
   constructor() {
-    this.groupName = DEFAULT_LOCATION_GROUP;
     this.activityProfile = DEFAULT_ACTIVITY_PROFILE;
     this.selectedDate = null;
     this.selectedLocationKey = "";
@@ -86,13 +83,7 @@ export class ForecastViewModel {
   }
 
   get locations() {
-    return LOCATION_GROUPS[this.groupName];
-  }
-
-  selectGroup(groupName) {
-    if (!(groupName in LOCATION_GROUPS) || groupName === this.groupName) return;
-    this.groupName = groupName;
-    this._clearForecasts();
+    return LOCATIONS;
   }
 
   selectActivityProfile(profileKey) {
@@ -196,13 +187,6 @@ export class ForecastViewModel {
     if (ranked.length > 0) return ranked[0].locationKey;
     const keys = this.availableLocationKeys();
     return keys.length > 0 ? keys[0] : "";
-  }
-
-  _clearForecasts() {
-    this.forecasts = {};
-    this.errors = {};
-    this.selectedDate = null;
-    this.selectedLocationKey = "";
   }
 
   _rankedLocationView(rank, item) {

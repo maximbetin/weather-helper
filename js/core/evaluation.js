@@ -2,6 +2,9 @@ import { createDailyReport, createHourlyWeather } from "./models.js";
 import { cloudScore, DEFAULT_ACTIVITY_PROFILE, getActivityScore, humidityScore, precipAmountScore, tempScore, windScore } from "./scoring.js";
 import { addDaysToDateKey, madridDateKeyOf, madridHourOf, madridMinuteOf, nowInstant, parseForecastTimestamp } from "./timezone.js";
 
+// The outing window. Nothing outside it is scored, ranked, or displayed:
+// hours nobody is going out in are noise on every surface, not just in the
+// ranking.
 const DAYLIGHT_START_HOUR = 8;
 const DAYLIGHT_END_HOUR = 20;
 const FORECAST_DAYS = 7;
@@ -183,15 +186,22 @@ function buildDailyReports(dailyForecasts, locationName) {
   return dayScoresReports;
 }
 
+// A date whose forecast entries are all outside the outing window has nothing
+// to show or rank, so it is not offered as a choice.
 export function getAvailableDates(processedForecast) {
   if (!processedForecast || !("daily_forecasts" in processedForecast)) return [];
-  return Object.keys(processedForecast.daily_forecasts).sort();
+  return Object.entries(processedForecast.daily_forecasts)
+    .filter(([, hours]) => hours.some(isDaylightHour))
+    .map(([date]) => date)
+    .sort();
 }
 
+// Daylight only, matching what the scoring uses, so the hourly detail list
+// cannot show a night hour that no ranking or recommendation ever considered.
 export function getTimeBlocksForDate(processedForecast, d) {
   if (!processedForecast || !("daily_forecasts" in processedForecast)) return [];
   const hours = processedForecast.daily_forecasts[d] || [];
-  return [...hours].sort((a, b) => a.time - b.time);
+  return hours.filter(isDaylightHour).sort((a, b) => a.time - b.time);
 }
 
 function findConsistentBlocks(sortedHours, maxScoreVariance, activityProfile = DEFAULT_ACTIVITY_PROFILE) {
